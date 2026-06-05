@@ -1,290 +1,148 @@
 use clap::Parser;
-use anyhow::{Context, Result};
-use std::path::PathBuf;
-use std::io::{self, Read};
-use directories::ProjectDirs;
-use glob::glob;
-use tracing::{Level, info, warn, error};
+use anyhow::Result;
+use tracing::info;
 use tracing_subscriber::{fmt, EnvFilter, prelude::*};
-use ansi_term::{Colour, Style};
-use once_cell::sync::Lazy;
 
-// Module name for logging
-const MODULE_NAME: &str = "smartfo";
+mod cli;
+use cli::{MvArgs, RmArgs, SmartfoArgs, SmartfoCommand};
 
-// Color configuration
-static COLORS_ENABLED: Lazy<bool> = Lazy::new(|| {
-    atty::is(atty::Stream::Stderr) && std::env::var("NO_COLOR").is_none()
-});
-
-// Module-specific colors (unique color per module)
-static MODULE_COLORS: Lazy<Vec<Colour>> = Lazy::new(|| {
-    vec![
-        Colour::Cyan,
-        Colour::Green,
-        Colour::Yellow,
-        Colour::Blue,
-        Colour::Magenta,
-        Colour::Purple,
-        Colour::White,
-    ]
-});
-
-// Get color for a specific module
-fn get_module_color(module: &str) -> Colour {
-    let hash = module.chars().map(|c| c as usize).sum::<usize>();
-    MODULE_COLORS[hash % MODULE_COLORS.len()]
+/// Determine the invocation mode from argv[0].
+fn detect_mode() -> String {
+    std::env::args()
+        .next()
+        .and_then(|s| {
+            std::path::Path::new(&s)
+                .file_name()
+                .map(|name| name.to_string_lossy().to_string())
+        })
+        .unwrap_or_else(|| "smartfo".to_string())
 }
 
-// Format log level with color
-fn format_level(level: Level) -> String {
-    if *COLORS_ENABLED {
-        match level {
-            Level::INFO => Colour::Green.paint("INFO").to_string(),
-            Level::WARN => Colour::Yellow.paint("WARN").to_string(),
-            Level::ERROR => Colour::Red.paint("ERROR").to_string(),
-            Level::TRACE => Colour::Purple.paint("TRACE").to_string(),
-            Level::DEBUG => Colour::Blue.paint("DEBUG").to_string(),
-        }
-    } else {
-        level.to_string()
-    }
-}
-
-// Custom formatter for logs
-struct CustomFormatter;
-
-impl tracing_subscriber::fmt::FormatEvent<'_, tracing_subscriber::fmt::FormatFields<'_>> for CustomFormatter {
-    fn format_event(
-        &self,
-        ctx: &fmt::FmtContext<'_>,
-        mut writer: fmt::FormatWriter<'_>,
-        event: &tracing::Event<'_>,
-    ) -> std::fmt::Result {
-        // Get metadata
-        let metadata = event.metadata();
-
-        // Get level
-        let level = metadata.level();
-
-        // Get module if available
-        let module = metadata.module_path().unwrap_or(MODULE_NAME);
-
-        // Get timestamp
-        let timestamp = chrono::Local::now().format("%Y-%m-%d %H:%M:%S%.3f");
-
-        // Format with colors if enabled
-        if *COLORS_ENABLED {
-            let level_colored = format_level(*level);
-            let module_color = get_module_color(module);
-            let module_colored = module_color.paint(module).to_string();
-
-            write!(
-                writer,
-                "{} [{}] {} - {}",
-                timestamp,
-                level_colored,
-                module_colored,
-                event
-            )?;
-        } else {
-            write!(
-                writer,
-                "{} [{}] {} - {}",
-                timestamp,
-                level,
-                module,
-                event
-            )?;
-        }
-
-        Ok(())
-    }
-}
-
-#[derive(Parser)]
-#[command(name = "smartfo", version, about = "VCS-aware safe mv/rm replacement with trash and audit")]
-struct Cli {
-    /// Input files or glob patterns. Use "-" for stdin.
-    #[arg(value_name = "INPUTS")]
-    inputs: Vec<String>,
-
-    /// Override config file
-    #[arg(long, env = "SMARTFO_CONFIG")]
-    config: Option<PathBuf>,
-
-    /// Output as JSON
-    #[arg(long)]
-    json: bool,
-
-    /// Quiet mode - suppress all output except errors
-    #[arg(long, short = 'q')]
-    quiet: bool,
-
-    /// Verbose mode - increase logging verbosity (can be used multiple times)
-    #[arg(long, short = 'v', action = clap::ArgAction::Count)]
-    verbose: u8,
-
-    /// Show usage information
-    #[arg(long)]
-    usage: bool,
-
-    /// Disable colored output
-    #[arg(long)]
-    nocolor: bool,
-
-    /// Log file path (for file-based logging)
-    #[arg(long)]
-    log_file: Option<PathBuf>,
-}
-
-fn process_content(source: &str, content: &str) -> Result<()> {
-    info!("Processing content from {} ({} bytes)", source, content.len());
-    Ok(())
-}
-
-fn init_logging(cli: &Cli) -> Result<()> {
-    // Determine log level based on verbose flag
-    let log_level = match cli.verbose {
-        0 => Level::INFO,
-        1 => Level::DEBUG,
-        _ => Level::TRACE,
+fn init_logging(json: bool, verbose: u8, quiet: bool) -> Result<()> {
+    let log_level = match verbose {
+        0 => "info",
+        1 => "debug",
+        _ => "trace",
     };
 
-    // Handle quiet mode - only show errors
-    let effective_level = if cli.quiet {
-        Level::ERROR
+    let filter_str = if quiet {
+        "error"
     } else {
         log_level
     };
 
-    // Handle nocolor flag
-    if cli.nocolor {
-        std::env::set_var("NO_COLOR", "1");
-    }
-
-    // Build the subscriber
     let env_filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new(effective_level.to_string()));
+        .unwrap_or_else(|_| EnvFilter::new(filter_str));
 
-    let subscriber = tracing_subscriber::registry()
-        .with(env_filter);
+    let subscriber = tracing_subscriber::registry().with(env_filter);
 
-    // Add file logging if log_file is specified
-    let subscriber = if let Some(log_path) = &cli.log_file {
-        let file_appender = tracing_appender::rolling::never(
-            log_path.parent().unwrap_or_else(|| std::path::Path::new(".")),
-            log_path.file_name().unwrap_or_else(|| std::ffi::OsStr::new("app.log")),
-        );
-        let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
-        subscriber.with(
-            fmt::layer()
-                .with_writer(non_blocking)
-                .with_ansi(false)
-                .with_target(true)
-                .with_level(true)
-        )
+    if json {
+        let json_layer = fmt::layer()
+            .with_writer(std::io::stderr)
+            .json()
+            .with_target(true)
+            .with_level(true);
+        subscriber.with(json_layer).init();
     } else {
-        subscriber
-    };
-
-    // Add console logging
-    let console_layer = fmt::layer()
-        .with_writer(std::io::stderr)
-        .with_ansi(*COLORS_ENABLED)
-        .with_target(true)
-        .with_level(true);
-
-    subscriber.with(console_layer).init();
+        let console_layer = fmt::layer()
+            .with_writer(std::io::stderr)
+            .with_ansi(std::env::var("NO_COLOR").is_err())
+            .with_target(true)
+            .with_level(true);
+        subscriber.with(console_layer).init();
+    }
 
     Ok(())
 }
 
-fn main() -> Result<()> {
-    // Parse CLI args first
-    let cli = Cli::parse();
-
-    // Handle usage flag
-    if cli.usage {
-        use clap::CommandFactory;
-        Cli::command().print_help()?;
-        std::process::exit(0);
+fn run_mv(args: MvArgs) -> Result<()> {
+    if args.dry_run {
+        let (sources, dest) = args.resolve_paths();
+        info!("dry-run: mv {:?} -> {:?}", sources, dest);
+        return Ok(());
     }
 
-    // Initialize logging
-    init_logging(&cli)?;
-
-    // Handle Ctrl+C gracefully
-    ctrlc::set_handler(move || {
-        error!("Received Ctrl+C, exiting...");
-        std::process::exit(130);
-    })?;
-
-    info!("Starting {}", MODULE_NAME);
-
-    // XDG Config Resolution
-    let config_path = cli.config.or_else(|| {
-        ProjectDirs::from("com", "myorg", "smartfo")
-            .map(|proj| proj.config_dir().join("config.toml"))
-    });
-
-    if let Some(path) = config_path {
-        info!("Using config: {path:?}");
+    // TODO: Implement VCS-aware move logic (story 03-001)
+    let (sources, dest) = args.resolve_paths();
+    if sources.is_empty() {
+        anyhow::bail!("missing file operand");
+    }
+    if dest.is_none() && args.target_directory.is_none() {
+        let last = sources.last().unwrap().display();
+        anyhow::bail!("missing destination file operand after {}", last);
     }
 
-    let inputs = cli.inputs.clone();
-
-    // Check for implicit stdin
-    if inputs.is_empty() {
-        if !atty::is(atty::Stream::Stdin) {
-            let mut buffer = String::new();
-            io::stdin().read_to_string(&mut buffer)?;
-
-            if buffer.trim_end().is_empty() {
-                use clap::CommandFactory;
-                Cli::command().print_help()?;
-                std::process::exit(1);
-            }
-
-            process_content("stdin", &buffer)?;
-
-            if cli.json {
-                println!("{{ \"status\": \"ok\" }}");
-            }
-
-            return Ok(());
-        }
-
-        use clap::CommandFactory;
-        Cli::command().print_help()?;
-        std::process::exit(1);
-    }
-
-    for input in inputs {
-        if input == "-" {
-            let mut buffer = String::new();
-            io::stdin().read_to_string(&mut buffer)?;
-            process_content("stdin", &buffer)?;
-        } else {
-            // Globbing
-            let paths = glob(&input).context("Failed to read glob pattern")?;
-            for entry in paths {
-                match entry {
-                    Ok(path) => {
-                        let content = std::fs::read_to_string(&path)
-                            .with_context(|| format!("Failed to read file {path:?}"))?;
-                        process_content(path.to_string_lossy().as_ref(), &content)?;
-                    },
-                    Err(e) => error!("Error matching glob: {e:?}"),
-                }
-            }
-        }
-    }
-
-    if cli.json {
-        println!("{{ \"status\": \"ok\" }}");
-    }
-
-    info!("Completed successfully");
+    info!("mv mode: sources={:?} dest={:?}", sources, dest);
     Ok(())
+}
+
+fn run_rm(args: RmArgs) -> Result<()> {
+    if args.dry_run {
+        info!("dry-run: rm {:?}", args.paths);
+        return Ok(());
+    }
+
+    // TODO: Implement trash enqueueing (story 03-002)
+    if args.paths.is_empty() {
+        anyhow::bail!("missing operand");
+    }
+
+    info!("rm mode: paths={:?}", args.paths);
+    Ok(())
+}
+
+fn run_install(args: &SmartfoArgs) -> Result<()> {
+    info!("install mode: hooks={:?} no_hooks={} force={}", args.hooks, args.no_hooks, args.force);
+
+    // TODO: Implement symlink creation and hook installation (story 02-002)
+    println!("smartfo: install mode not yet fully implemented");
+    Ok(())
+}
+
+fn run_git_hook_client() -> Result<()> {
+    // TODO: Implement pre-commit hook (story 05-001)
+    info!("git-hook-client: verifying staged changes against audit log");
+    Ok(())
+}
+
+fn run_git_hook_server() -> Result<()> {
+    // TODO: Implement pre-receive hook (story 05-001)
+    info!("git-hook-server: verifying incoming push against audit log");
+    Ok(())
+}
+
+fn main() -> Result<()> {
+    let mode = detect_mode();
+
+    match mode.as_str() {
+        "mv" | "smv" => {
+            let args = MvArgs::parse();
+            init_logging(args.json, if args.verbose { 1 } else { 0 }, false)?;
+            run_mv(args)
+        }
+        "rm" | "srm" => {
+            let args = RmArgs::parse();
+            init_logging(args.json, 0, false)?;
+            run_rm(args)
+        }
+        "smartfo" | _ => {
+            let args = SmartfoArgs::parse();
+            init_logging(false, 0, false)?;
+
+            if let Some(cmd) = &args.command {
+                match cmd {
+                    SmartfoCommand::GitHookClient => run_git_hook_client(),
+                    SmartfoCommand::GitHookServer => run_git_hook_server(),
+                }
+            } else if args.install {
+                run_install(&args)
+            } else {
+                // No subcommand or install flag: print help
+                use clap::CommandFactory;
+                SmartfoArgs::command().print_help()?;
+                println!();
+                Ok(())
+            }
+        }
+    }
 }
