@@ -1,521 +1,382 @@
-Here’s the clean, technical, Rust‑centric answer you actually want — **no Python, no fluff, no alias hacks** — just the **requirements for a proper Rust tool** that:
+F# Smart File Operations (`smartfo`) — Requirements
 
-- Transparently replaces `mv` with “`git mv` if tracked, else real mv”
-- Transparently replaces `rm` with “move to a trash tree that mirrors the source path”
-- Runs heavy operations asynchronously so the user never blocks
-- Is configurable via `$HOME/<toolname>/config.toml`
-- Is robust enough that you can force AI assistants to use it without re‑explaining anything
-
-I’ll call the tool **`gitwise`** in this spec, but you can rename it.
+A Rust CLI tool that transparently replaces `mv` and `rm` with VCS-aware, safe, non-blocking operations. One binary (`smartfo`) is installed via symlinks; it dispatches on `argv[0]`.
 
 ---
 
-# **Concise takeaway**
-A solid Rust implementation needs:  
-**(1)** a Git‑aware file‑operation engine,  
-**(2)** a drop‑in `mv`/`rm` wrapper with POSIX‑compatible semantics,  
-**(3)** async background workers for trash moves,  
-**(4)** a TOML config defining behavior,  
-**(5)** a daemon or job queue for non‑blocking deletes,  
-**(6)** safety guarantees (atomic ops, fsync, journaling),  
-**(7)** a CLI that exactly mirrors coreutils flags.
+# **1. Entrypoints & Dispatch**
 
-Below is the full engineering spec.
+Install symlinks:
+```
+~/.local/bin/mv  -> ~/.local/libexec/smartfo
+~/.local/bin/rm  -> ~/.local/libexec/smartfo
+~/.local/bin/smv -> ~/.local/libexec/smartfo  (optional debug entry)
+~/.local/bin/srm -> ~/.local/libexec/smartfo  (optional debug entry)
+```
+
+Dispatch logic inside `smartfo`:
+- `argv[0]` ends with `mv` or `smv` → run **mv mode**
+- `argv[0]` ends with `rm` or `srm` → run **rm mode**
+- `argv[0]` is `smartfo` with `--install` → run **install mode**
+- Each mode uses its own POSIX-compatible flag parser (no unified parser).
+
+## **1.1 Install Mode (`smartfo --install`)**
+One-shot setup command that configures the environment:
+
+### **Symlink creation**
+Creates `mv`, `rm`, `smv`, `srm` symlinks pointing to the `smartfo` binary.
+- If `$XDG_BIN_HOME` is defined and is on PATH: symlinks go there (user install).
+- If `$XDG_BIN_HOME` is not defined but `~/.local/bin` exists and is on PATH: symlinks go there (user install).
+- If neither exists: create `~/.local/bin`, ensure it is on PATH (warn if not), and place symlinks there.
+- If running as **root** and `/usr/local/bin` is on PATH: symlinks go there (system install).
+- If target files already exist and are not symlinks to `smartfo`: refuse with error unless `--force` is passed.
+
+### **Git hook installation** (only if invoked inside a Git repo)
+The `smartfo` binary provides two hook subcommands:
+- `smartfo-git-hook-client` — client-side hook (used as `pre-commit`)
+- `smartfo-git-hook-server` — server-side hook (used as `pre-receive`)
+
+- **Client-side hook (`pre-commit`)**: Verifies that staged deletions and renames have matching `smartfo` metadata in the audit log.
+  - Blocks raw `rm` deletions (no metadata).
+  - Blocks raw `mv` renames that bypass `smartfo` (detected when a file is removed and another added with similar content, but no `smartfo` move metadata exists).
+- **Server-side hook (`pre-receive`)**: Scans incoming push for deleted files and renames, cross-referencing the repo-local audit log (`{REPO_ROOT}/.smartfo/audit/operations.jsonl`). Blocks pushes containing raw deletions or raw renames.
+
+**Install flags:**
+- `--hooks client` — install only client-side hook
+- `--hooks server` — install only server-side hook
+- `--hooks client,server` — install both (default)
+- `--no-hooks` — skip hook installation entirely
+
+If a hook file already exists and is not a symlink to `smartfo`: refuse with error unless `--force` is passed.
 
 ---
 
-# **📦 1. Core functional requirements**
+# **2. mv Mode — VCS-Aware Move**
 
-## **Git‑aware move engine**
-- Detect whether the source path is inside a Git repo (`git rev-parse --show-toplevel` or libgit2).
-- Detect whether the file is tracked (`git ls-files --error-unmatch` or libgit2 index lookup).
-- If tracked **and** source/destination are in the same repo:
-  - Execute `git mv` (via libgit2 or shell).
-- Otherwise:
-  - Execute a real filesystem rename (`std::fs::rename`).
+## **2.1 VCS Detection**
+Detect whether source and/or destination are inside a VCS working tree. Supported VCS: **Git, Mercurial (hg), SVN, Jujutsu (jj), and any future VCS exposing a comparable `mv` command or library API.**
 
-## **POSIX‑compatible mv wrapper**
-- Must accept all common flags: `-f`, `-n`, `-v`, `-T`, `-t`, `--backup`, etc.
-- Must behave identically to GNU `mv` when Git is not involved.
-- Must preserve exit codes and stderr formatting so scripts don’t break.
+- Discover repo root via VCS-specific commands or libraries (e.g., `git rev-parse --show-toplevel`, `hg root`, `svn info`, `jj root`).
+- Detect whether the source path is tracked by that VCS.
+
+## **2.2 Move Scenarios**
+The tool must correctly handle all combinations of source and destination:
+
+| Scenario | Behavior |
+|----------|----------|
+| **src tracked, dest in same repo** | Execute VCS-native move (e.g., `git mv`, `hg mv`). |
+| **src tracked, dest outside repo** | Refuse by default; require `--force-outside-vcs`. If forced: VCS `rm` the source, then filesystem move to dest. With `--no-vcs-rm`: perform only the filesystem move (or copy), leaving the source tracked in VCS. Useful for temporary backups or working copies. |
+| **src outside repo, dest inside repo** | Filesystem move to dest. |
+| **src and dest both outside any repo** | Pure filesystem `rename`. |
+| **src and dest both in repo, neither tracked** | Pure filesystem `rename`. |
+| **src == dest** | No-op with exit code 0 (match POSIX `mv`). |
+| **dest already exists** | Default: refuse (`-n` semantics). With `-f`: overwrite. With `-i`: prompt. With `--backup`: back up existing dest before overwrite. |
+
+## **2.3 POSIX Compatibility**
+- Accept standard flags: `-f`, `-n`, `-i`, `-v`, `-T`, `-t`, `--backup`, `--strip-trailing-slashes`, etc.
+- `--plain` — disable all smart features for this invocation; behave exactly like standard POSIX `mv` (no VCS detection, no async, no safety guards).
+- Preserve exit codes and stderr formatting so scripts do not break.
+- Behave identically to GNU `mv` when no VCS is involved.
 
 ---
 
-# **🗑️ 2. rm replacement with trash‑tree semantics**
+# **3. rm Mode — Trash Instead of Delete**
 
-## **Trash directory mirroring**
+## **3.1 Trash Directory Mirroring**
 Config example:
-
 ```toml
 [trash]
-root = "/home/leo/.local/share/gitwise/trash"
+root = "$XDG_DATA_HOME/smartfo/trash"
 preserve_tree = true
-async = true
+backup_vcs_committed = false
+backup_ignored_files = false
 ```
 
-Behavior:
-- When user runs `rm foo/bar/baz.txt`, the tool computes:
+- When user runs `rm foo/bar/baz.txt`, compute a versioned destination:
+  ```
+  $TRASH_ROOT/<absolute-path-from-root>/foo/bar/baz.txt/<iso-timestamp>-<counter>
+  ```
+  Example: `~/.local/share/smartfo/trash/home/user/src/foo/bar/baz.txt/2026-06-04T09:15:30Z-001`
+- Create parent directories as needed.
+- Move the file (never unlink).
+- **Same-file history**: Deleting the same source path multiple times preserves every version in timestamped subdirectories. A `.smartfo-index` JSONL file in the trash entry records the full history: original path, deletion timestamp, operation UUID, and reason (if provided via `--reason "refactor: replaced with new parser"`).
+- **Default trash root**: `$XDG_DATA_HOME/smartfo/trash` (typically `~/.local/share/smartfo/trash`). This is user data, not cache — it must survive cache clears.
+- **VCS-committed files**: If `backup_vcs_committed = false` (default), the behavior depends on whether the file has uncommitted changes:
+  - **Clean** (no modifications since last commit): Do not move to trash. Perform a VCS-aware remove (e.g., `git rm`) since the committed version is recoverable from VCS history.
+  - **Dirty** (modified since last commit): Move to trash **and** perform VCS-aware remove (`git rm`). The uncommitted changes are not in VCS history, so they must be preserved in trash.
+- **Ignored files**: If `backup_ignored_files = false` (default), files matched by `.gitignore`/`.hgignore`/etc. are deleted directly without moving to trash. These are typically build artifacts, dependencies, or temp files that are reproducible and do not need backup.
+- **Uncommitted, non-ignored files**: Behavior depends on `trash_mode`:
+  - `trash_mode = "always"` (default): Always move to trash.
+  - `trash_mode = "auto"`: Move to trash if space allows; if trash is full or disabled, fall back to direct delete with a warning.
+  - `trash_mode = "never"`: Never use trash; perform VCS-aware delete (`git rm`) if tracked, or direct delete if untracked.
 
-```
-$TRASH_ROOT/<absolute-path-from-root>/foo/bar/baz.txt
-```
+## **3.1.1 Disk Space Guard**
+Before every trash move, check available disk space on the trash filesystem:
+- If free space drops below `min_free_space_percent` (default: **20%**), auto-cull trash history starting with oldest entries until free space is above the threshold.
+- If culling cannot free enough space, the default behavior is to **refuse the operation** with a clear error:
+  ```
+  smartfo: trash disk space critically low (8% free). Use --force-delete to bypass trash, or free space.
+  ```
+- **Override behavior** via `on_trash_full` config:
+  - `on_trash_full = "refuse"` (default): Refuse the operation; user must free space or pass `--force-delete`.
+  - `on_trash_full = "delete"`: Bypass trash and perform direct delete (VCS-aware if tracked) with a warning.
+- Culling policy: remove oldest versions first; never remove the only remaining version of a file unless `allow_last_version_cull = true` in config.
+- **CLI override**: `--force-delete` bypasses trash for this single invocation, regardless of `trash_mode` or disk space.
 
-- Creates parent directories as needed.
-- Moves the file instead of deleting it.
+## **3.2 Asynchronous by Default**
+**All rm operations are asynchronous by default.** The user must return to the CLI prompt immediately, even for large files or cross-device moves.
 
-## **Asynchronous background mover**
-Large files must not block the user.
+- Immediately enqueue the move job and print:
+  ```
+  smartfo: moving to trash in the background (use --blocking to wait)
+  ```
+- A background worker performs the actual filesystem move.
+- The `--blocking` flag forces the operation to block until completion when the user needs confirmation before proceeding.
+- The `--sync` flag forces an `fsync` on the destination file and containing directory before the job is marked done (configurable default via `sync_on_complete` in config).
 
-Requirements:
-- Use a job queue (SQLite, sled, or simple append‑only log).
-- Spawn a background worker (tokio task or separate daemon).
-- `rm` returns immediately after enqueueing.
-- Worker performs:
+## **3.3 Background Worker (Daemon Model)**
+To return the shell prompt immediately, the operation cannot run inside the CLI process. The CLI process enqueues the job and exits; a separate daemon performs the work.
+
+- **Daemon lifecycle**: The daemon is **self-spawning** — no systemd, init.d, LaunchAgent, or other OS service manager is required. On the first async operation, the CLI binary double-forks to detach a background daemon process, then exits. The daemon writes its PID to a lockfile and listens on a Unix domain socket. Subsequent CLI invocations connect to the existing daemon via the socket; if the daemon has died, a new one is spawned automatically.
+- **Job queue**: Durable store (SQLite WAL or append-only log). Each job: UUID, source path, dest path, status (queued/running/done/failed), retry count.
+- **Worker performs**:
   - Atomic rename if same filesystem.
-  - Chunked copy + fsync + unlink if cross‑device.
-- Worker logs failures and retries.
+  - Chunked copy + fsync + unlink if cross-device.
+- **Worker logs failures** and retries with exponential backoff.
+- **Queue survives process restarts** and is idempotent.
+- **Shutdown handling**: Graceful shutdown on `SIGTERM`; in-flight jobs are allowed to complete before exit.
+
+## **3.4 Daemon Concurrency**
+When multiple files are removed or moved in one invocation (e.g., `rm file1 file2 file3`):
+- Each file becomes an independent job in the queue.
+- The daemon adapts parallelism based on system conditions:
+  - **Same filesystem, same directory**: Serialized to avoid lock contention.
+  - **Same filesystem, different directories**: Parallel up to `cpu_cores` workers.
+  - **Cross-device (different physical drives)**: Parallel up to `destination_drive_count` workers.
+  - **Network-mounted destinations**: Limited to `network_concurrency` (default 2) to avoid saturating the link.
+- All limits are capped by a global `max_concurrent_jobs` ceiling.
+- If `--blocking` is used, the CLI waits until all enqueued jobs for that invocation reach `done` status.
+
+## **3.5 POSIX Compatibility**
+- Accept standard flags: `-f`, `-i`, `-I`, `-r`, `-R`, `-d`, `--preserve-root`, `--one-file-system`, etc.
+- `--plain` — disable all smart features for this invocation; behave exactly like standard POSIX `rm` (no trash, no VCS awareness, direct deletion).
+- Preserve exit codes and stderr formatting.
 
 ---
 
-# **⚙️ 3. Configuration system**
+# **3.6 Operation Metadata & Audit Trail**
+Every `mv` and `rm` operation records structured metadata:
 
-## **Config file loader**
-- Path: `$HOME/gitwise/config.toml`
-- Use `dirs` crate to resolve `$HOME`.
-- Use `toml` or `toml_edit` crate.
-- Config sections:
+```json
+{
+  "op": "delete",
+  "source_path": "/home/user/src/utils/old_parser.rs",
+  "trash_path": "/home/user/.local/share/smartfo/trash/.../old_parser.rs/2026-06-04T09:15:30Z-001",
+  "reason": "refactor: replaced with new parser",
+  "timestamp": "2026-06-04T09:15:30Z",
+  "uuid": "a1b2c3d4-e5f6-...",
+  "tool": "smartfo",
+  "vcs": "git",
+  "repo_root": "/home/user/src",
+  "committed": true
+}
+```
 
-### `[git]`
-- `prefer_git_mv = true`
-- `fallback_to_mv = true`
-- `use_libgit2 = true`
+- **Storage**: Appended to `$XDG_DATA_HOME/smartfo/audit/operations.jsonl` (one JSON object per line). **All paths overridable** via `[paths]` config, environment variables (`SMARTFO_PATHS_AUDIT_LOG`), or CLI flags (`--audit-log-path`).
+- **Server-side access**: For server-side hooks, the audit log must be accessible to the Git server. The server-side hook reads from `{REPO_ROOT}/.smartfo/audit/operations.jsonl` (a repo-local copy of the audit log, updated on push or via a post-receive sync).
+- **Retention**: Audit log is pruned by age (configurable, default 90 days) independently of trash contents.
+- **Git hook verification**: The `pre-commit` hook reads the audit log for the current repo and verifies every deletion and rename has a matching `smartfo` metadata entry.
+  - Raw `rm` deletions (no metadata) cause the hook to fail with:
+    ```
+    smartfo hook: detected raw deletion of src/utils/old_parser.rs. Use 'srm' or 'rm' (smartfo) instead.
+    ```
+  - Raw `mv` renames (no metadata) cause the hook to fail with:
+    ```
+    smartfo hook: detected raw rename of src/utils/old_parser.rs -> src/utils/new_parser.rs. Use 'smv' or 'mv' (smartfo) instead.
+    ```
+- **Server-side hook (`pre-receive`)**: Rejects pushes containing raw deletions or raw renames by scanning the commit tree for removed files and renames, cross-referencing the repo-local audit log (`{REPO_ROOT}/.smartfo/audit/operations.jsonl`).
+- **Reason flag**: `--reason "..."` allows the user to annotate the intent of an operation (e.g., `--reason "cleanup: remove dead code"`).
+
+---
+
+# **4. Async Behavior for mv Mode**
+
+## **4.1 When Async Kicks In**
+`mv` is **synchronous by default** because same-filesystem `rename()` is atomic and near-instant; making every move async would add daemon overhead with no benefit and could break scripts expecting the destination path to exist immediately. Async is triggered only when the operation is predictably expensive:
+
+- Cross-device move detected via `statfs`.
+- Source file size exceeds configurable threshold (default: 100MB).
+- Explicit `--async` flag passed.
+
+## **4.2 User Experience**
+When an async mv job is enqueued:
+- Print to stderr:
+  ```
+  smartfo: large file move queued in the background (use --blocking to wait)
+  ```
+- Return exit code 0 immediately.
+- The background worker completes the move and logs the result.
+
+## **4.3 Synchronous Override**
+- `--blocking` flag forces the operation to wait until completion for both `mv` and `rm`.
+- Config override: `[behavior].default_blocking = true` (for users who prefer blocking by default).
+
+---
+
+# **5. Configuration**
+
+Path: `$HOME/smartfo/config.toml`
+
+## **5.1 Environment Variable Expansion**
+All string values in the config file support POSIX-style environment variable expansion (`$VAR` and `${VAR}`). The following variables are resolved when present:
+- `$XDG_DATA_HOME` — defaults to `~/.local/share` if unset
+- `$XDG_CACHE_HOME` — defaults to `~/.cache` if unset
+- `$XDG_CONFIG_HOME` — defaults to `~/.config` if unset
+- `$HOME` — user's home directory
+
+## **5.2 Precedence Hierarchy**
+All configuration values follow this override order (highest wins):
+
+1. **CLI flags** (e.g., `--blocking`, `--sync`, `--backup-vcs-committed`)
+2. **Environment variables** (e.g., `SMARTFO_DEFAULT_BLOCKING=true`, `SMARTFO_SYNC_ON_COMPLETE=true`)
+4. **User config file** (`$HOME/smartfo/config.toml`)
+5. **Built-in defaults**
+
+Naming convention for environment variables: `SMARTFO_<SECTION>_<KEY>` in UPPER_SNAKE_CASE.
+Examples:
+- `SMARTFO_BEHAVIOR_DEFAULT_BLOCKING=true`
+- `SMARTFO_TRASH_ROOT=/mnt/bigdisk/trash`
+- `SMARTFO_CONCURRENCY_MAX_CONCURRENT_JOBS=16`
+
+### `[vcs]`
+- `prefer_vcs_mv = true` — use VCS-native move when possible. . default true
+- `fallback_to_fs = true` — fallback to filesystem rename if VCS move fails. default true
+- `vcs_list = ["git", "hg", "svn", "jj"]` — VCS systems to detect and support. default all
 
 ### `[trash]`
-- `root = "/path"`
-- `async = true`
+- `root = "~/.local/share/smartfo/trash"` — trash root; default follows `$XDG_DATA_HOME`
 - `preserve_tree = true`
-- `max_concurrent_jobs = 4`
+- `trash_mode = "always"` — `"always"` = always move to trash; `"auto"` = trash if space allows, else warn and delete; `"never"` = never use trash
+- `backup_vcs_committed = false` — if true, committed files are still moved to trash; if false, VCS-aware delete is used instead
+- `backup_ignored_files = false` — if true, files matched by `.gitignore`/`.hgignore`/etc. are backed up to trash; if false, they are deleted directly without trash
+- `min_free_space_percent = 20` — auto-cull oldest trash entries when free space drops below this percentage
+- `allow_last_version_cull = false` — if true, allow culling the last remaining version of a file when space is critical
+- `on_trash_full = "refuse"` — `"refuse"` = block operation when trash is full; `"delete"` = bypass trash and delete directly
+- `audit_retention_days = 90` — how long to keep operation metadata in the audit log
+
+### `[concurrency]`
+- `max_concurrent_jobs = 8` — global ceiling on parallel workers
+- `network_concurrency = 2` — limit for network-mounted destinations
+- `auto_detect_drives = true` — if true, detect destination physical drives and limit parallelism accordingly
+
+### `[behavior]`
+- `smart_mv = true` — if false, `mv` mode behaves exactly like standard POSIX `mv` (no VCS detection, no async, no safety features). The `--plain` CLI flag overrides this to `false` for a single invocation.
+- `smart_rm = true` — if false, `rm` mode behaves exactly like standard POSIX `rm` (no trash, no VCS awareness, direct deletion). The `--plain` CLI flag overrides this to `false` for a single invocation.
+- `mv_async_threshold_mb = 100` — size threshold for async mv
+- `default_blocking = false` — if true, both mv and rm block by default; async requires `--async`
+- `sync_on_complete = false` — if true, fsync destination file and directory after every operation (equivalent to always passing `--sync`)
 
 ### `[logging]`
 - `level = "info"`
-- `log_file = "~/.local/share/gitwise/logs/current.log"`
+- `log_file = "~/.local/share/smartfo/logs/current.log"`
+
+### `[paths]`
+- `trash_root = "~/.local/share/smartfo/trash"` — defaults to `$XDG_DATA_HOME/smartfo/trash`
+- `audit_log = "~/.local/share/smartfo/audit/operations.jsonl"` — defaults to `$XDG_DATA_HOME/smartfo/audit/operations.jsonl`
+- `cache_dir = "~/.cache/smartfo"` — defaults to `$XDG_CACHE_HOME/smartfo`
+- `config_dir = "~/.config/smartfo"` — defaults to `$XDG_CONFIG_HOME/smartfo`
 
 ---
 
-# **🧵 4. Architecture**
+# **6. Architecture**
 
-## **CLI frontend**
-- Subcommands:
-  - `mv` (default)
-  - `rm`
-  - `daemon` (background worker)
-  - `doctor` (diagnostics)
-- Or: symlink `gitwise` → `mv`, `rm` so the tool auto‑detects mode by argv[0].
-
-## **Core library crate**
-- `git.rs` — Git detection + tracked‑file logic
-- `mv.rs` — POSIX‑compatible move logic
-- `trash.rs` — async trash mover
+## **Internal crates/modules**
+- `vcs.rs` — VCS detection (git, hg, svn, jj, extensible) + tracked-file logic
+- `mv.rs` — POSIX-compatible move logic + scenario routing
+- `rm.rs` — trash enqueueing + flag handling
+- `trash.rs` — async trash mover / background worker
 - `config.rs` — TOML loader + schema
-- `daemon.rs` — job queue + worker
+- `queue.rs` — durable job queue (SQLite WAL)
 - `logging.rs` — structured logs
 
 ## **Daemon / job queue**
-- Must survive restarts.
-- Must be idempotent.
-- Must handle partial moves safely.
+- Embedded in the binary; starts on first async operation if not already running.
+- Survives restarts via persistent queue store.
+- Handles partial moves safely (resume or cleanup on restart).
 
 ---
 
-# **🛡️ 5. Safety & correctness requirements**
+# **7. Safety & Correctness**
 
 ## **Atomic operations**
 - Use `renameat2` with `RENAME_EXCHANGE` when available.
-- Fallback to temp‑file + fsync + rename.
+- Fallback: temp-file + fsync + rename.
 
-## **Crash‑safe queue**
-- Append‑only log or SQLite WAL mode.
-- Each job has:
-  - UUID
-  - Source path
-  - Destination path
-  - Status: queued, running, done, failed
-  - Retry count
+## **Crash-safe queue**
+- SQLite WAL or append-only log.
+- Each job: UUID, source, destination, status, retry count.
 
-## **Cross‑device moves**
+## **Cross-device moves**
 - Detect via `statfs`.
-- Use streaming copy + fsync + unlink.
+- Streaming copy + fsync + unlink.
+
+## **Dest already exists**
+- Default refuse (`-n`).
+- `-f` overwrite.
+- `-i` interactive prompt.
+- `--backup` back up existing file with suffix.
 
 ---
 
-# **🧰 6. Developer ergonomics**
+# **8. Developer Ergonomics**
 
-## **Drop‑in replacement mode**
-- Install via symlinks:
-  ```
-  ln -s /usr/local/bin/gitwise ~/.local/bin/mv
-  ln -s /usr/local/bin/gitwise ~/.local/bin/rm
-  ```
-- Tool inspects `argv[0]` to decide behavior.
+## **Drop-in replacement**
+- Symlink `mv` and `rm` to `smartfo` so AI assistants, scripts, and build tools use it automatically.
+- Optional explicit `smv`/`srm` entrypoints for debugging.
 
-## **Machine‑friendly output**
-- `--json` flag for structured logs.
+## **Machine-friendly output**
+- `--json` for structured logs.
 - `--dry-run` for debugging.
 
 ---
 
-# **🧪 7. Testing requirements**
+# **9. Testing Requirements**
 
 ## **Integration tests**
-- Git repo with tracked/untracked files.
-- Cross‑device mount tests.
-- Large file async tests.
-- Crash‑recovery tests.
+- Git / hg / svn / jj repos with tracked and untracked files.
+- All six move scenarios (in→in, in→out, out→in, out→out, same, untracked-in-repo).
+- Cross-device mount tests.
+- Large file async mv tests (verify prompt return, queue completion).
+- rm async tests (verify prompt return, trash arrival).
+- Crash-recovery tests (restart mid-move, verify resume or cleanup).
+- Dest-already-exists tests for all overwrite modes.
 
 ## **Property tests**
-- Ensure no data loss.
-- Ensure directory trees preserved.
+- No data loss.
+- Directory trees preserved in trash.
+- VCS state consistent after move.
+- Same-file deletion history preserved across multiple deletes.
+- Disk space guard correctly culls oldest entries first.
+- Audit log contains valid metadata for every operation.
+- Git hooks correctly detect and block raw deletions and raw renames.
+- `--install` correctly creates symlinks and hooks without overwriting existing files.
+- `--install --hooks client` installs only client-side hook; `--install --hooks server` installs only server-side.
+- `--force-delete` bypasses trash regardless of `trash_mode` or disk space.
+- `trash_mode = "never"` performs direct delete without trash.
+- `trash_mode = "auto"` falls back to direct delete when trash is full.
+- Server-side hook correctly reads from `{REPO_ROOT}/.smartfo/audit/operations.jsonl`.
 
 ---
 
-# **🧭 8. Optional advanced features**
+# **10. Advanced Features**
 
 ## **Versioned trash**
-- Keep multiple versions of deleted files.
-- Use timestamped directories.
+- Timestamped subdirectories to keep multiple versions of deleted files.
 
-## **Auto‑prune**
-- Configurable retention policy.
+## **Auto-prune**
+- Configurable retention policy (age or size-based).
 
-## **FUSE mount for trash browsing**
+## **Future: FUSE mount for trash browsing**
 - Expose trash as a virtual filesystem.
-
----
-
----
-
-# **Bottom line**
-- **`smv`** and **`srm`** are excellent names. Short, memorable, POSIX‑ish, and intuitive.  
-- You *can* implement them as **one binary with two personalities** (argv[0] dispatch).  
-- But: **mv and rm have different flag sets**, and normalizing them into one parser *will* create edge‑case ambiguity unless you’re careful.
-
-So the best architecture is:
-
-> **One binary → two symlinks → two distinct CLI modes → shared internal library.**
-
-This gives you the simplicity of one codebase without the UX hazards of a merged CLI.
-
----
-
-# **1. Are the names `smv` and `srm` good?**
-Yes — they’re ideal.
-
-### Strengths
-- **Short** (3 letters, like coreutils)
-- **Semantic** (“smart mv”, “smart rm”)
-- **Tab‑completion friendly**
-- **No namespace collisions** with common tools
-- **Easy to force AI assistants to use** (clear, unambiguous names)
-
-### No meaningful downsides
-- They don’t collide with existing Linux tools.
-- They don’t violate POSIX naming conventions.
-- They’re easy to explain in documentation.
-
----
-
-# **2. Should they be separate tools or the same tool?**
-
-## **Best practice: One binary, two entrypoints**
-This is how `busybox`, `ripgrep` (`rg`), `fd`, and many others do it.
-
-### Structure:
-```
-/usr/local/bin/smv -> /usr/local/libexec/smartfs
-/usr/local/bin/srm -> /usr/local/libexec/smartfs
-```
-
-The binary inspects `argv[0]`:
-
-- If invoked as `smv` → run the mv logic  
-- If invoked as `srm` → run the rm logic  
-
-### Why this is the best approach
-- **Shared config** (`$HOME/smartfs/config.toml`)
-- **Shared async job queue**
-- **Shared logging**
-- **Shared Git detection**
-- **Shared trash engine**
-
-But:
-- **Separate flag parsers**  
-- **Separate help text**  
-- **Separate semantics**  
-
-This avoids the CLI ambiguity problem.
-
----
-
-# **3. Why not merge them into one CLI with subcommands?**
-
-You *could* do:
-
-```
-smartfs mv …
-smartfs rm …
-```
-
-But this has drawbacks:
-
-- AI assistants will default to `mv` and `rm`, not `smartfs mv`.
-- You lose the drop‑in replacement semantics.
-- You break scripts that expect `mv`/`rm`‑like behavior.
-- Users will forget the subcommand.
-
-So: **don’t do this** unless you want a non‑POSIX workflow.
-
----
-
-# **4. Do you need to worry about CLI argument conflicts?**
-Yes — and this is the main reason to keep the modes separate.
-
-### `mv` flags:
-- `-f`, `-n`, `-v`, `-T`, `-t`, `--backup`, `--strip-trailing-slashes`
-
-### `rm` flags:
-- `-f`, `-i`, `-I`, `-r`, `-R`, `-d`, `--preserve-root`, `--one-file-system`
-
-### Conflicts:
-- `-r` means nothing for `mv` but is critical for `rm`
-- `-T` exists for `mv` but not for `rm`
-- `--preserve-root` is rm‑only
-- `--backup` is mv‑only
-
-If you merge them into one parser, you get:
-
-- Ambiguous flags  
-- Confusing error messages  
-- Hard‑to‑document behavior  
-- AI assistants generating invalid combinations  
-
-**Separate modes eliminate all of this.**
-
----
-
-# **5. Recommended architecture**
-
-## **Binary name:** `smartfs` (or `smv-core`, or whatever you prefer)
-
-## **Entry points:**
-- `/usr/local/bin/smv` → symlink → `smartfs`
-- `/usr/local/bin/srm` → symlink → `smartfs`
-
-## **Dispatch logic:**
-```rust
-let invoked_as = std::env::args().next().unwrap();
-match invoked_as.as_str() {
-    "smv" => run_smv(),
-    "srm" => run_srm(),
-    _ => show_help(),
-}
-```
-
-## **Internal crates:**
-- `libsmartfs`  
-  - `git.rs`  
-  - `mv.rs`  
-  - `rm.rs`  
-  - `trash.rs`  
-  - `config.rs`  
-  - `daemon.rs`  
-  - `queue.rs`  
-
-## **Config path:**
-```
-$HOME/smartfs/config.toml
-```
-
----
-
-# **6. Final recommendation**
-- **Use `smv` and `srm` as separate entrypoints.**
-- **Implement them as one binary with argv dispatch.**
-- **Keep their flag parsers separate.**
-- **Share all internal logic.**
-
-This gives you:
-
-- Clean UX  
-- Zero ambiguity  
-- Maximum compatibility  
-- Minimum maintenance burden  
-- AI‑friendly command names  
-
----
-**Short version:**  
-`smartfo` is a clean, unique, collision‑free name for the *binary*, and yes — the correct installation pattern is:
-
-> **`mv` → smartfo**  
-> **`rm` → smartfo**
-
-NOT:
-
-> `mv` → `smv` → `smartfo`
-
-That extra hop creates more problems than it solves.
-
-Below is the deeper reasoning, structured around the real engineering constraints you’re navigating.
-
----
-
-# **Is `smartfo` a good name?**
-Yes — and here’s why it works well:
-
-### **Strengths**
-- **Unique** — no collisions with existing Linux tools, crates, or packages  
-- **Semantic** — “smart file ops” is obvious to anyone reading it  
-- **Short enough** — 7 characters is fine for a binary that users rarely type directly  
-- **Expandable** — you can later add `smartfo daemon`, `smartfo doctor`, etc.  
-- **Neutral** — doesn’t imply Git‑only or trash‑only behavior  
-
-### **No meaningful concerns**
-- Not similar to `smartctl` (disk utility)  
-- Not similar to `smartmontools`  
-- Not similar to `srm` (secure delete)  
-- Not similar to `smf` (Solaris service mgmt)  
-
-**Conclusion:**  
-`smartfo` is a safe, future‑proof name for the underlying binary.
-
----
-
-# **Should the entrypoints be `mv` and `rm` instead of `smv` and `srm`?**
-Yes — if your goal is:
-
-- AI assistants doing the right thing automatically  
-- Shell scripts behaving correctly  
-- Makefiles, Justfiles, Devbox hooks, and random tooling “just working”  
-- Zero cognitive overhead for humans  
-
-Then the entrypoints **must** be:
-
-```
-mv -> smartfo
-rm -> smartfo
-```
-
-This is the only way to achieve *true drop‑in replacement semantics*.
-
----
-
-# **Why NOT use smv → smartfo and srm → smartfo?**
-
-### **1. Extra alias layers break predictability**
-AI assistants often generate:
-
-```
-mv foo bar
-rm foo
-```
-
-They do **not** generate:
-
-```
-smv foo bar
-srm foo
-```
-
-If you rely on `smv`/`srm`, you’re back to explaining your environment to the AI — which is exactly what you’re trying to eliminate.
-
-### **2. Aliases don’t propagate into non-interactive shells**
-- Cron  
-- Systemd units  
-- Justfile recipes  
-- Makefile recipes  
-- Devbox shell hooks  
-- Git hooks  
-- Python subprocess calls  
-- Node child_process  
-- Rust `Command::new("mv")`  
-
-All of these bypass aliases unless you explicitly force them.
-
-### **3. Double indirection complicates debugging**
-`mv → smv → smartfo` means:
-
-- Two layers of PATH resolution  
-- Two layers of argv rewriting  
-- Two layers of error handling  
-- Two layers of potential misconfiguration  
-
-### **4. Users expect mv/rm semantics**
-If you want to override behavior, override the names people and tools already use.
-
----
-
-# **Correct architecture**
-This is the cleanest, most robust design:
-
-```
-~/.local/bin/mv  -> ~/.local/libexec/smartfo
-~/.local/bin/rm  -> ~/.local/libexec/smartfo
-~/.local/bin/smv -> ~/.local/libexec/smartfo   (optional)
-~/.local/bin/srm -> ~/.local/libexec/smartfo   (optional)
-```
-
-### **Dispatch logic inside smartfo**
-```
-if argv[0] ends with "mv": run mv mode
-if argv[0] ends with "rm": run rm mode
-if argv[0] ends with "smv": run mv mode (debug)
-if argv[0] ends with "srm": run rm mode (debug)
-```
-
-### **Why this is ideal**
-- One binary to maintain  
-- Two (or four) entrypoints  
-- Zero CLI flag conflicts  
-- Perfect drop‑in behavior  
-- Optional explicit commands for debugging  
-
----
-
-# **Do you need to worry about CLI argument conflicts?**
-Only if you try to unify the parsers.
-
-Since you’re using `argv[0]` dispatch:
-
-- `mv` mode uses the **mv flag parser**  
-- `rm` mode uses the **rm flag parser**  
-
-This avoids all ambiguity.
-
-If you tried to unify them, you’d get:
-
-- `-r` means “recursive delete” for rm  
-- `-r` means nothing for mv  
-- `-T` exists for mv but not rm  
-- `--preserve-root` exists for rm but not mv  
-- `--backup` exists for mv but not rm  
-
-So yes — **keep the parsers separate**.
-
----
-
-# **Final recommendation**
-- **Binary name:** `smartfo`  
-- **Primary entrypoints:** `mv`, `rm`  
-- **Optional entrypoints:** `smv`, `srm`  
-- **Architecture:** one binary, argv‑based dispatch  
-- **Parsers:** separate mv and rm parsers  
-- **Config:** `$HOME/smartfo/config.toml`  
-
-This gives you:
-
-- Maximum compatibility  
-- Minimum cognitive load  
-- AI‑friendly behavior  
-- Clean internal design  
-- Zero ambiguity  
 
 ---
