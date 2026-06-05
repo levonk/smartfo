@@ -7,7 +7,7 @@ prd_file: "internal-docs/requirements/20260604-smartfo-initial-reqs/20260604-sma
 phase: 1
 parallel_id: 3
 branch: "feature/current/smartfo-initial-reqs/story-01-003-logging-audit"
-status: "todo"
+status: "done"
 assignee: ""
 reviewer: ""
 dependencies: []
@@ -42,12 +42,12 @@ Set up structured logging with `tracing` and implement the audit trail system th
 
 ## Acceptance Criteria
 
-- [ ] Log output respects `--json` flag for machine-readable format
-- [ ] Audit log file is created automatically on first operation
-- [ ] Each audit entry contains all required fields as valid JSON
-- [ ] Audit entries are appended as JSONL (one JSON object per line)
-- [ ] `--reason "..."` is captured in the audit entry
-- [ ] Invalid log paths produce clear errors
+- [x] Log output respects `--json` flag for machine-readable format
+- [x] Audit log file is created automatically on first operation
+- [x] Each audit entry contains all required fields as valid JSON
+- [x] Audit entries are appended as JSONL (one JSON object per line)
+- [x] `--reason "..."` is captured in the audit entry
+- [x] Invalid log paths produce clear errors
 
 ## Test Plan
 
