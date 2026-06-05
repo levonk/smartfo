@@ -27,18 +27,18 @@ Set up structured logging with `tracing` and implement the audit trail system th
 
 ## Sub-Tasks
 
-- [ ] Initialize `tracing` subscriber with configurable format (pretty/JSON) and log level
-- [ ] Create `src/logging.rs` with log level resolution order: env → CLI → config → default
-- [ ] Define `AuditEntry` struct with all required fields (op, source_path, trash_path, reason, timestamp, uuid, tool, vcs, repo_root, committed)
-- [ ] Implement `append_audit_log()` that appends JSON to `$XDG_DATA_HOME/smartfo/audit/operations.jsonl`
-- [ ] Ensure parent directories are created on first write
-- [ ] Write unit tests for audit entry serialization and appending
+- [x] Initialize `tracing` subscriber with configurable format (pretty/JSON) and log level
+- [x] Create `src/logging.rs` with log level resolution order: env → CLI → config → default
+- [x] Define `AuditEntry` struct with all required fields (op, source_path, trash_path, reason, timestamp, uuid, tool, vcs, repo_root, committed)
+- [x] Implement `append_audit_log()` that appends JSON to `$XDG_DATA_HOME/smartfo/audit/operations.jsonl`
+- [x] Ensure parent directories are created on first write
+- [x] Write unit tests for audit entry serialization and appending
 
 ## Relevant Files
 
-- `src/logging.rs` — Structured logging setup
-- `src/audit.rs` — Audit entry types and append logic
-- `src/audit.test.rs` — Unit tests for audit trail
+- `src/logging.rs` — Structured logging setup with tracing subscriber
+- `src/audit.rs` — Audit entry types and append logic with unit tests
+- `Cargo.toml` — Added uuid dependency
 
 ## Acceptance Criteria
 
