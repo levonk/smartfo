@@ -4,6 +4,8 @@ use tracing::info;
 use tracing_subscriber::{fmt, EnvFilter, prelude::*};
 
 mod cli;
+mod config;
+mod vcs;
 use cli::{MvArgs, RmArgs, SmartfoArgs, SmartfoCommand};
 
 /// Determine the invocation mode from argv[0].

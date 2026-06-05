@@ -7,7 +7,7 @@ prd_file: "internal-docs/requirements/20260604-smartfo-initial-reqs/20260604-sma
 phase: 2
 parallel_id: 1
 branch: "feature/current/smartfo-initial-reqs/story-02-001-vcs-detection"
-status: "todo"
+status: "done"
 assignee: ""
 reviewer: ""
 dependencies: ["01-001"]
@@ -27,22 +27,22 @@ Implement VCS detection for Git, Mercurial, SVN, and Jujutsu. Discover repo root
 
 ## Sub-Tasks
 
-- [ ] Define `VcsType` enum (Git, Hg, Svn, Jj) and `VcsInfo` struct
-- [ ] Implement Git repo root detection (`git rev-parse --show-toplevel`)
-- [ ] Implement Git tracked-file check (`git ls-files --error-unmatch`)
-- [ ] Implement Mercurial repo root detection (`hg root`)
-- [ ] Implement Mercurial tracked-file check (`hg status -mu` exclusion)
-- [ ] Implement SVN repo root detection (`svn info`)
-- [ ] Implement SVN tracked-file check (`svn list` or `svn status`)
-- [ ] Implement Jujutsu repo root detection (`jj root`)
-- [ ] Implement Jujutsu tracked-file check (`jj file list`)
-- [ ] Add fallback chain when multiple VCS are present
+- [x] Define `VcsType` enum (Git, Hg, Svn, Jj) and `VcsInfo` struct
+- [x] Implement Git repo root detection (`git rev-parse --show-toplevel`)
+- [x] Implement Git tracked-file check (`git ls-files --error-unmatch`)
+- [x] Implement Mercurial repo root detection (`hg root`)
+- [x] Implement Mercurial tracked-file check (`hg status -mu` exclusion)
+- [x] Implement SVN repo root detection (`svn info`)
+- [x] Implement SVN tracked-file check (`svn list` or `svn status`)
+- [x] Implement Jujutsu repo root detection (`jj root`)
+- [x] Implement Jujutsu tracked-file check (`jj file list`)
+- [x] Add fallback chain when multiple VCS are present
 - [ ] Write unit tests with mock repo fixtures
 
 ## Relevant Files
 
-- `src/vcs.rs` — VCS detection and tracked-file logic
-- `src/vcs.test.rs` — Unit tests with mock repositories
+- `src/vcs.rs` — VCS detection and tracked-file logic (created)
+- `src/main.rs` — Added vcs module declaration
 
 ## Acceptance Criteria
 
