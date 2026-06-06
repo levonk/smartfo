@@ -7,7 +7,7 @@ prd_file: "internal-docs/requirements/20260604-smartfo-initial-reqs/20260604-sma
 phase: 3
 parallel_id: 1
 branch: "feature/current/smartfo-initial-reqs/story-03-001-mv-mode"
-status: "todo"
+status: "in_progress"
 assignee: ""
 reviewer: ""
 dependencies: ["01-001", "01-002", "02-001"]
@@ -27,32 +27,32 @@ Implement the move mode that handles all six VCS scenarios: tracked→same-repo 
 
 ## Sub-Tasks
 
-- [ ] Implement scenario router that classifies source/dest combinations
-- [ ] Implement VCS-native move (`git mv`, `hg mv`, etc.) for tracked→same-repo
-- [ ] Implement tracked→outside refusal with `--force-outside-vcs` override
-- [ ] Implement outside→inside and both-outside pure filesystem rename
-- [ ] Implement neither-tracked-in-repo filesystem rename
-- [ ] Implement src==dest no-op with exit 0
-- [ ] Implement dest-already-exists handling: `-n` refuse, `-f` overwrite, `-i` prompt, `--backup` suffix
-- [ ] Implement `--plain` bypass (no VCS detection, exact POSIX behavior)
-- [ ] Integrate audit logging for every move
-- [ ] Write unit tests for all six scenarios
+- [x] Implement scenario router that classifies source/dest combinations
+- [x] Implement VCS-native move (`git mv`, `hg mv`, etc.) for tracked→same-repo
+- [x] Implement tracked→outside refusal with `--force-outside-vcs` override
+- [x] Implement outside→inside and both-outside pure filesystem rename
+- [x] Implement neither-tracked-in-repo filesystem rename
+- [x] Implement src==dest no-op with exit 0
+- [x] Implement dest-already-exists handling: `-n` refuse, `-f` overwrite, `-i` prompt, `--backup` suffix
+- [x] Implement `--plain` bypass (no VCS detection, exact POSIX behavior)
+- [x] Integrate audit logging for every move
+- [x] Write unit tests for all six scenarios
 
 ## Relevant Files
 
-- `src/mv.rs` — Move logic and scenario routing
-- `src/mv.test.rs` — Unit tests for move scenarios
+- `src/mv.rs` — Move logic and scenario routing (created)
+- `src/main.rs` — Added mv module
 - `src/audit.rs` — Audit logging integration
 
 ## Acceptance Criteria
 
-- [ ] `git mv` is used when source is tracked and dest is in the same repo
-- [ ] Moving tracked file outside repo refuses without `--force-outside-vcs`
-- [ ] `--plain` behaves identically to GNU `mv` with no VCS awareness
-- [ ] `-n` refuses when dest exists; `-f` overwrites; `-i` prompts
-- [ ] `--backup` creates suffixed backup before overwriting
-- [ ] Cross-device moves are detected via statfs (preparation for async)
-- [ ] All scenarios return correct POSIX exit codes
+- [x] `git mv` is used when source is tracked and dest is in the same repo
+- [x] Moving tracked file outside repo refuses without `--force-outside-vcs`
+- [x] `--plain` behaves identically to GNU `mv` with no VCS awareness
+- [x] `-n` refuses when dest exists; `-f` overwrites; `-i` prompts
+- [x] `--backup` creates suffixed backup before overwriting
+- [x] Cross-device moves are detected via statfs (preparation for async)
+- [x] All scenarios return correct POSIX exit codes
 
 ## Test Plan
 

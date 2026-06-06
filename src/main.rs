@@ -7,6 +7,8 @@ use std::path::PathBuf;
 mod cli;
 mod config;
 mod vcs;
+mod mv;
+mod audit;
 use cli::{MvArgs, RmArgs, SmartfoArgs, SmartfoCommand};
 
 /// Resolve the symlink target directory based on XDG conventions and permissions.
