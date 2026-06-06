@@ -42,7 +42,7 @@ updated_at: "2026-06-05"
 | Story ID | Title | Phase | Status | Assignee | Parallel-safe | Dependencies | Dependants | Modules | Branch |
 |---|---|---:|---|---|---|---|---|---|---|
 | 01-001 | Project scaffolding and CLI framework | 01 | [x] Done | | true | — | 02-001, 02-002, 03-001, 03-002 | main.rs, cli.rs, Cargo.toml | feature/current/smartfo-initial-reqs/story-01-001-project-scaffolding |
-| 01-002 | Configuration system with env var expansion | 01 | [~] In-Progress | | true | — | 02-001, 03-001, 03-002, 03-003, 04-001 | config.rs | feature/current/smartfo-initial-reqs/story-01-002-configuration-system |
+| 01-002 | Configuration system with env var expansion | 01 | [x] Done | | true | — | 02-001, 03-001, 03-002, 03-003, 04-001 | config.rs | feature/current/smartfo-initial-reqs/story-01-002-configuration-system |
 | 01-003 | Logging and audit trail infrastructure | 01 | [x] Done | | true | — | 03-003, 04-001, 05-001, 06-001, 06-002 | logging.rs, audit.rs | feature/current/smartfo-initial-reqs/story-01-003-logging-audit |
 | 02-001 | VCS detection and tracked-file logic | 02 | [x] Done | | true | 01-001 | 03-001, 03-002 | vcs.rs | feature/current/smartfo-initial-reqs/story-02-001-vcs-detection |
 | 02-002 | Install mode with symlinks and Git hooks | 02 | [ ] Todo | | true | 01-001 | 05-001 | cli.rs, main.rs | feature/current/smartfo-initial-reqs/story-02-002-install-mode |
