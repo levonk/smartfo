@@ -45,7 +45,7 @@ updated_at: "2026-06-05"
 | 01-002 | Configuration system with env var expansion | 01 | [x] Done | | true | — | 02-001, 03-001, 03-002, 03-003, 04-001 | config.rs | feature/current/smartfo-initial-reqs/story-01-002-configuration-system |
 | 01-003 | Logging and audit trail infrastructure | 01 | [x] Done | | true | — | 03-003, 04-001, 05-001, 06-001, 06-002 | logging.rs, audit.rs | feature/current/smartfo-initial-reqs/story-01-003-logging-audit |
 | 02-001 | VCS detection and tracked-file logic | 02 | [x] Done | | true | 01-001 | 03-001, 03-002 | vcs.rs | feature/current/smartfo-initial-reqs/story-02-001-vcs-detection |
-| 02-002 | Install mode with symlinks and Git hooks | 02 | [~] In-Progress | | true | 01-001 | 05-001 | cli.rs, main.rs | feature/current/smartfo-initial-reqs/story-02-002-install-mode |
+| 02-002 | Install mode with symlinks and Git hooks | 02 | [x] Done | | true | 01-001 | 05-001 | cli.rs, main.rs | feature/current/smartfo-initial-reqs/story-02-002-install-mode |
 | 03-001 | mv mode — POSIX-compatible VCS-aware move | 03 | [ ] Todo | | true | 01-001, 01-002, 02-001 | 04-003, 05-001, 05-003, 06-001, 06-002 | mv.rs | feature/current/smartfo-initial-reqs/story-03-001-mv-mode |
 | 03-002 | rm mode — trash enqueueing and VCS-aware delete | 03 | [ ] Todo | | true | 01-001, 01-002, 02-001 | 04-003, 05-001, 06-001, 06-002 | rm.rs | feature/current/smartfo-initial-reqs/story-03-002-rm-mode |
 | 03-003 | Trash directory manager and index tracking | 03 | [ ] Todo | | true | 01-002, 01-003 | 04-003, 05-002 | trash.rs | feature/current/smartfo-initial-reqs/story-03-003-trash-manager |
