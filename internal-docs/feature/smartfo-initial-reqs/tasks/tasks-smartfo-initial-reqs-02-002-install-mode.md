@@ -27,14 +27,14 @@ Implement `smartfo --install` to create symlinks (`mv`, `rm`, `smv`, `srm`) and 
 
 ## Sub-Tasks
 
-- [ ] Implement symlink target directory resolution (`$XDG_BIN_HOME`, `~/.local/bin`, `/usr/local/bin` for root)
-- [ ] Create symlinks for `mv`, `rm`, `smv`, `srm` pointing to the smartfo binary
-- [ ] Detect existing non-smartfo files and refuse unless `--force` is passed
-- [ ] Detect if invoked inside a Git repo and conditionally install hooks
-- [ ] Implement `smartfo-git-hook-client` subcommand (pre-commit hook)
-- [ ] Implement `smartfo-git-hook-server` subcommand (pre-receive hook)
-- [ ] Support `--hooks client`, `--hooks server`, `--hooks client,server`, `--no-hooks`
-- [ ] Write unit tests for install logic with temp directories
+- [x] Implement symlink target directory resolution (`$XDG_BIN_HOME`, `~/.local/bin`, `/usr/local/bin` for root)
+- [x] Create symlinks for `mv`, `rm`, `smv`, `srm` pointing to the smartfo binary
+- [x] Detect existing non-smartfo files and refuse unless `--force` is passed
+- [x] Detect if invoked inside a Git repo and conditionally install hooks
+- [x] Implement `smartfo-git-hook-client` subcommand (pre-commit hook)
+- [x] Implement `smartfo-git-hook-server` subcommand (pre-receive hook)
+- [x] Support `--hooks client`, `--hooks server`, `--hooks client,server`, `--no-hooks`
+- [x] Write unit tests for install logic with temp directories
 
 ## Relevant Files
 
@@ -44,12 +44,12 @@ Implement `smartfo --install` to create symlinks (`mv`, `rm`, `smv`, `srm`) and 
 
 ## Acceptance Criteria
 
-- [ ] `smartfo --install` creates symlinks in the correct directory
-- [ ] Existing non-smartfo binaries are refused without `--force`
-- [ ] `--hooks client` installs only `.git/hooks/pre-commit`
-- [ ] `--hooks server` installs only `.git/hooks/pre-receive`
-- [ ] `--no-hooks` skips all hook installation
-- [ ] Root install targets `/usr/local/bin` when on PATH
+- [x] `smartfo --install` creates symlinks in the correct directory
+- [x] Existing non-smartfo binaries are refused without `--force`
+- [x] `--hooks client` installs only `.git/hooks/pre-commit` (infrastructure in place, actual hook scripts in story 05-001)
+- [x] `--hooks server` installs only `.git/hooks/pre-receive` (infrastructure in place, actual hook scripts in story 05-001)
+- [x] `--no-hooks` skips all hook installation
+- [x] Root install targets `/usr/local/bin` when on PATH
 
 ## Test Plan
 

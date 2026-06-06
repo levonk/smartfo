@@ -47,7 +47,7 @@ fn test_smartfo_install_flag() {
     cmd.arg("--install")
         .assert()
         .success()
-        .stdout(predicate::str::contains("install mode"));
+        .stderr(predicate::str::contains("install mode"));
 }
 
 #[test]
