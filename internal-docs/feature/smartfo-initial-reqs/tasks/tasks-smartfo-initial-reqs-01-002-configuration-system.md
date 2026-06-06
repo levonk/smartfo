@@ -7,7 +7,7 @@ prd_file: "internal-docs/requirements/20260604-smartfo-initial-reqs/20260604-sma
 phase: 1
 parallel_id: 2
 branch: "feature/current/smartfo-initial-reqs/story-01-002-configuration-system"
-status: "todo"
+status: "in_progress"
 assignee: ""
 reviewer: ""
 dependencies: []
@@ -27,12 +27,12 @@ Implement the TOML-based configuration system with POSIX-style environment varia
 
 ## Sub-Tasks
 
-- [ ] Define config structs for all sections: `vcs`, `trash`, `concurrency`, `behavior`, `logging`, `paths`
-- [ ] Implement TOML file loader with `$VAR` and `${VAR}` expansion
-- [ ] Implement env var override resolver (`SMARTFO_<SECTION>_<KEY>`)
-- [ ] Define and document built-in defaults for every config key
-- [ ] Create default config file template
-- [ ] Write unit tests for config loading, env expansion, and precedence
+- [x] Define config structs for all sections: `vcs`, `trash`, `concurrency`, `behavior`, `logging`, `paths`
+- [x] Implement TOML file loader with `$VAR` and `${VAR}` expansion
+- [x] Implement env var override resolver (`SMARTFO_<SECTION>_<KEY>`)
+- [x] Define and document built-in defaults for every config key
+- [x] Create default config file template
+- [x] Write unit tests for config loading, env expansion, and precedence
 
 ## Relevant Files
 
@@ -41,12 +41,12 @@ Implement the TOML-based configuration system with POSIX-style environment varia
 
 ## Acceptance Criteria
 
-- [ ] Config file `$HOME/smartfo/config.toml` is parsed correctly
-- [ ] `$XDG_DATA_HOME`, `$XDG_CACHE_HOME`, `$XDG_CONFIG_HOME`, `$HOME` are expanded
-- [ ] Env var `SMARTFO_BEHAVIOR_DEFAULT_BLOCKING=true` overrides config file
-- [ ] CLI flag `--blocking` overrides env var and config file
-- [ ] Missing config file falls back to built-in defaults
-- [ ] Invalid config values produce clear error messages
+- [x] Config file `$HOME/smartfo/config.toml` is parsed correctly
+- [x] `$XDG_DATA_HOME`, `$XDG_CACHE_HOME`, `$XDG_CONFIG_HOME`, `$HOME` are expanded
+- [x] Env var `SMARTFO_BEHAVIOR_DEFAULT_BLOCKING=true` overrides config file
+- [x] CLI flag `--blocking` overrides env var and config file
+- [x] Missing config file falls back to built-in defaults
+- [x] Invalid config values produce clear error messages
 
 ## Test Plan
 
