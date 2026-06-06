@@ -1,5 +1,5 @@
 use clap::Parser;
-use anyhow::Result;
+use anyhow::{Result, Context};
 use tracing::info;
 use tracing_subscriber::{fmt, EnvFilter, prelude::*};
 use std::path::PathBuf;
@@ -8,6 +8,7 @@ mod cli;
 mod config;
 mod vcs;
 mod mv;
+mod rm;
 mod audit;
 use cli::{MvArgs, RmArgs, SmartfoArgs, SmartfoCommand};
 
@@ -116,12 +117,39 @@ fn run_rm(args: RmArgs) -> Result<()> {
         return Ok(());
     }
 
-    // TODO: Implement trash enqueueing (story 03-002)
     if args.paths.is_empty() {
         anyhow::bail!("missing operand");
     }
 
+    // Handle --plain mode (exact POSIX behavior, no smart features)
+    if args.plain {
+        return run_rm_plain(&args);
+    }
+
+    // Smart rm mode with VCS awareness and trash
+    // TODO: Implement full smart rm logic (story 03-002)
     info!("rm mode: paths={:?}", args.paths);
+    Ok(())
+}
+
+/// Run rm in plain POSIX mode (bypass all smart features)
+fn run_rm_plain(args: &RmArgs) -> Result<()> {
+    for path in &args.paths {
+        if args.recursive || args.dir {
+            // Remove directory recursively
+            if path.is_dir() {
+                std::fs::remove_dir_all(path)
+                    .with_context(|| format!("Failed to remove directory: {}", path.display()))?;
+            } else {
+                std::fs::remove_file(path)
+                    .with_context(|| format!("Failed to remove file: {}", path.display()))?;
+            }
+        } else {
+            // Remove file only (POSIX rm default)
+            std::fs::remove_file(path)
+                .with_context(|| format!("Failed to remove file: {}", path.display()))?;
+        }
+    }
     Ok(())
 }
 

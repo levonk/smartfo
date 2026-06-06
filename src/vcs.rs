@@ -41,6 +41,16 @@ impl VcsInfo {
     pub fn new(vcs_type: VcsType, repo_root: std::path::PathBuf) -> Self {
         Self { vcs_type, repo_root }
     }
+
+    /// Get the VCS type
+    pub fn vcs_type(&self) -> VcsType {
+        self.vcs_type
+    }
+
+    /// Get the repository root
+    pub fn repo_root(&self) -> &std::path::PathBuf {
+        &self.repo_root
+    }
 }
 
 /// Detect the VCS for a given path

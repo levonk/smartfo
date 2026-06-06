@@ -86,6 +86,12 @@ pub struct TrashConfig {
     /// Whether to delete ignored files directly instead of trashing
     #[serde(default = "default_trash_delete_ignored")]
     pub delete_ignored: bool,
+    /// Whether to preserve directory tree structure in trash
+    #[serde(default = "default_trash_preserve_tree")]
+    pub preserve_tree: bool,
+    /// Whether to backup VCS-committed files to trash (false = use VCS-aware delete for clean files)
+    #[serde(default = "default_trash_backup_vcs_committed")]
+    pub backup_vcs_committed: bool,
 }
 
 fn default_trash_root() -> PathBuf {
@@ -114,6 +120,14 @@ fn default_trash_delete_ignored() -> bool {
     true
 }
 
+fn default_trash_preserve_tree() -> bool {
+    true
+}
+
+fn default_trash_backup_vcs_committed() -> bool {
+    false
+}
+
 impl Default for TrashConfig {
     fn default() -> Self {
         Self {
@@ -122,6 +136,8 @@ impl Default for TrashConfig {
             min_free_mb: default_trash_min_free_mb(),
             retention_days: default_trash_retention_days(),
             delete_ignored: default_trash_delete_ignored(),
+            preserve_tree: default_trash_preserve_tree(),
+            backup_vcs_committed: default_trash_backup_vcs_committed(),
         }
     }
 }
@@ -419,6 +435,8 @@ fn merge_configs(base: Config, file: Config) -> Config {
                 base.trash.retention_days
             },
             delete_ignored: file.trash.delete_ignored,
+            preserve_tree: file.trash.preserve_tree,
+            backup_vcs_committed: file.trash.backup_vcs_committed,
         },
         concurrency: ConcurrencyConfig {
             max_concurrent_jobs: if file.concurrency.max_concurrent_jobs != default_max_concurrent_jobs() {

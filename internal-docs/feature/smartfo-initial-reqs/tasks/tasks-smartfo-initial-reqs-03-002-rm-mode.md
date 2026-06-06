@@ -7,7 +7,7 @@ prd_file: "internal-docs/requirements/20260604-smartfo-initial-reqs/20260604-sma
 phase: 3
 parallel_id: 2
 branch: "feature/current/smartfo-initial-reqs/story-03-002-rm-mode"
-status: "todo"
+status: "in_progress"
 assignee: ""
 reviewer: ""
 dependencies: ["01-001", "01-002", "02-001"]
@@ -27,16 +27,16 @@ Implement rm mode that enqueues trash moves by default, handles VCS-committed fi
 
 ## Sub-Tasks
 
-- [ ] Implement file classification: VCS-committed clean, VCS-committed dirty, ignored, untracked
-- [ ] Implement trash enqueue for untracked/non-ignored files (default async)
-- [ ] Implement VCS-aware remove (`git rm`) for clean committed files when `backup_vcs_committed = false`
-- [ ] Implement trash + VCS remove for dirty committed files
-- [ ] Implement direct delete for ignored files when `backup_ignored_files = false`
-- [ ] Implement `--force-delete` bypass (direct delete, no trash)
-- [ ] Implement `--plain` bypass (exact POSIX rm behavior)
-- [ ] Implement `--blocking` flag to wait for completion
-- [ ] Integrate audit logging for every delete
-- [ ] Write unit tests for classification and delete paths
+- [x] Implement file classification: VCS-committed clean, VCS-committed dirty, ignored, untracked
+- [x] Implement trash enqueue for untracked/non-ignored files (default async)
+- [x] Implement VCS-aware remove (`git rm`) for clean committed files when `backup_vcs_committed = false`
+- [x] Implement trash + VCS remove for dirty committed files
+- [x] Implement direct delete for ignored files when `backup_ignored_files = false`
+- [x] Implement `--force-delete` bypass (direct delete, no trash)
+- [x] Implement `--plain` bypass (exact POSIX rm behavior)
+- [x] Implement `--blocking` flag to wait for completion
+- [x] Integrate audit logging for every delete
+- [x] Write unit tests for classification and delete paths
 
 ## Relevant Files
 
@@ -46,13 +46,13 @@ Implement rm mode that enqueues trash moves by default, handles VCS-committed fi
 
 ## Acceptance Criteria
 
-- [ ] Untracked files are moved to trash by default (async)
-- [ ] Clean committed files use `git rm` without trash when configured
-- [ ] Dirty committed files go to trash AND get `git rm`
-- [ ] Ignored files are deleted directly without trash when configured
-- [ ] `--force-delete` bypasses trash entirely
-- [ ] `--plain` behaves exactly like POSIX `rm`
-- [ ] `--blocking` waits for the daemon to complete
+- [x] Untracked files are moved to trash by default (async)
+- [x] Clean committed files use `git rm` without trash when configured
+- [x] Dirty committed files go to trash AND get `git rm`
+- [x] Ignored files are deleted directly without trash when configured
+- [x] `--force-delete` bypasses trash entirely
+- [x] `--plain` behaves exactly like POSIX `rm`
+- [x] `--blocking` waits for the daemon to complete
 
 ## Test Plan
 
