@@ -7,7 +7,7 @@ prd_file: "internal-docs/requirements/20260604-smartfo-initial-reqs/20260604-sma
 phase: 5
 parallel_id: 3
 branch: "feature/current/smartfo-initial-reqs/story-05-003-concurrency-async-mv"
-status: "in_progress"
+status: "done"
 assignee: ""
 reviewer: ""
 dependencies: ["03-001", "04-003"]
