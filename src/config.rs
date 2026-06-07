@@ -178,6 +178,9 @@ pub struct ConcurrencyConfig {
     /// Whether to detect same-drive vs cross-device moves
     #[serde(default = "default_drive_detection")]
     pub drive_detection: bool,
+    /// Maximum concurrent operations to network-mounted destinations
+    #[serde(default = "default_network_concurrency")]
+    pub network_concurrency: usize,
 }
 
 fn default_max_concurrent_jobs() -> usize {
@@ -192,12 +195,17 @@ fn default_drive_detection() -> bool {
     true
 }
 
+fn default_network_concurrency() -> usize {
+    2
+}
+
 impl Default for ConcurrencyConfig {
     fn default() -> Self {
         Self {
             max_concurrent_jobs: default_max_concurrent_jobs(),
             network_limit_mbps: default_network_limit_mbps(),
             drive_detection: default_drive_detection(),
+            network_concurrency: default_network_concurrency(),
         }
     }
 }
@@ -484,7 +492,16 @@ fn merge_configs(base: Config, file: Config) -> Config {
             } else {
                 base.concurrency.network_limit_mbps
             },
-            drive_detection: file.concurrency.drive_detection,
+            drive_detection: if file.concurrency.drive_detection != default_drive_detection() {
+                file.concurrency.drive_detection
+            } else {
+                base.concurrency.drive_detection
+            },
+            network_concurrency: if file.concurrency.network_concurrency != default_network_concurrency() {
+                file.concurrency.network_concurrency
+            } else {
+                base.concurrency.network_concurrency
+            },
         },
         behavior: BehaviorConfig {
             smart_mode: file.behavior.smart_mode,
@@ -616,13 +633,19 @@ supported = ["git", "jj", "hg", "svn"]
 root = "$XDG_DATA_HOME/smartfo/trash"
 mode = "versioned"
 min_free_mb = 1024
+min_free_space_percent = 20
+on_trash_full = "refuse"
+allow_last_version_cull = false
 retention_days = 30
 delete_ignored = true
+preserve_tree = true
+backup_vcs_committed = false
 
 [concurrency]
 max_concurrent_jobs = 4
 network_limit_mbps = 0
 drive_detection = true
+network_concurrency = 2
 
 [behavior]
 smart_mode = true
@@ -752,6 +775,7 @@ preference = "svn"
         let config = resolve_config(Some(std::path::Path::new("/nonexistent/path/config.toml"))).unwrap();
         assert_eq!(config.vcs.preference, "git");
         assert_eq!(config.logging.level, "info");
+        assert_eq!(config.concurrency.network_concurrency, 2);
     }
 
     #[test]

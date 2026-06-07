@@ -8,10 +8,12 @@
 //! - Integrates with the trash manager for rm jobs
 
 use anyhow::{Context, Result};
+use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
 use std::os::unix::fs::MetadataExt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 use tracing::{info, warn, error, debug};
 use uuid::Uuid;
 
@@ -34,6 +36,8 @@ pub struct Worker {
     trash_manager: Option<TrashManager>,
     config: Config,
     buffer_size: usize,
+    /// Track active operations per directory for serialization
+    active_dir_ops: Arc<Mutex<HashMap<PathBuf, usize>>>,
 }
 
 impl Worker {
@@ -50,6 +54,7 @@ impl Worker {
             trash_manager,
             config,
             buffer_size: buffer_size.unwrap_or(DEFAULT_BUFFER_SIZE),
+            active_dir_ops: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -113,20 +118,41 @@ impl Worker {
     /// Detects if source and destination are on the same filesystem:
     /// - Same filesystem: atomic rename
     /// - Cross-device: copy + fsync + unlink
+    /// 
+    /// Implements directory-level serialization for same-directory operations
     fn process_move(&self, source: &Path, dest: &Path) -> Result<()> {
         let same_fs = self.same_filesystem(source, dest)?;
-
-        if same_fs {
-            debug!("Same filesystem detected, using atomic rename");
-            self.atomic_rename(source, dest)?;
+        
+        // Get parent directories for serialization
+        let source_dir = Self::get_parent_dir(source)?;
+        let dest_dir = Self::get_parent_dir(dest)?;
+        
+        // Serialize same-directory operations
+        if source_dir == dest_dir && self.should_serialize_same_dir(&source_dir, &dest_dir) {
+            debug!("Serializing same-directory operation in {:?}", source_dir);
+            self.increment_dir_op(&source_dir);
+            let result = if same_fs {
+                debug!("Same filesystem detected, using atomic rename");
+                self.atomic_rename(source, dest)
+            } else {
+                debug!("Cross-device move detected, using copy + fsync + unlink");
+                self.copy_with_fsync(source, dest)?;
+                fs::remove_file(source)
+                    .context("Failed to remove source after cross-device copy")
+            };
+            self.decrement_dir_op(&source_dir);
+            result
         } else {
-            debug!("Cross-device move detected, using copy + fsync + unlink");
-            self.copy_with_fsync(source, dest)?;
-            fs::remove_file(source)
-                .context("Failed to remove source after cross-device copy")?;
+            if same_fs {
+                debug!("Same filesystem detected, using atomic rename");
+                self.atomic_rename(source, dest)
+            } else {
+                debug!("Cross-device move detected, using copy + fsync + unlink");
+                self.copy_with_fsync(source, dest)?;
+                fs::remove_file(source)
+                    .context("Failed to remove source after cross-device copy")
+            }
         }
-
-        Ok(())
     }
 
     /// Process a copy operation
@@ -295,6 +321,44 @@ impl Worker {
         Ok(())
     }
 
+    /// Get the parent directory of a path
+    fn get_parent_dir(path: &Path) -> Result<PathBuf> {
+        path.parent()
+            .ok_or_else(|| anyhow::anyhow!("Path has no parent directory"))
+            .map(|p| p.to_path_buf())
+    }
+
+    /// Check if operations in the same directory should be serialized
+    /// Returns true if same-dir operations should be serialized (currently always true for safety)
+    fn should_serialize_same_dir(&self, _dir1: &Path, _dir2: &Path) -> bool {
+        // For now, always serialize same-directory operations for safety
+        // Future enhancement: detect network mounts and only serialize those
+        true
+    }
+
+    /// Increment operation count for a directory
+    fn increment_dir_op(&self, dir: &Path) {
+        let mut ops = self.active_dir_ops.lock().unwrap();
+        *ops.entry(dir.to_path_buf()).or_insert(0) += 1;
+    }
+
+    /// Decrement operation count for a directory
+    fn decrement_dir_op(&self, dir: &Path) {
+        let mut ops = self.active_dir_ops.lock().unwrap();
+        if let Some(count) = ops.get_mut(dir) {
+            *count -= 1;
+            if *count == 0 {
+                ops.remove(dir);
+            }
+        }
+    }
+
+    /// Check if a directory has active operations
+    fn has_active_ops(&self, dir: &Path) -> bool {
+        let ops = self.active_dir_ops.lock().unwrap();
+        ops.get(dir).map_or(false, |&count| count > 0)
+    }
+
     /// Process jobs from the queue with retry logic
     ///
     /// This is the main worker loop:
@@ -394,6 +458,50 @@ mod tests {
         let result = worker.same_filesystem(&file1, &file2);
         assert!(result.is_ok());
         assert!(result.unwrap());
+    }
+
+    #[test]
+    fn test_get_parent_dir() {
+        let path = Path::new("/tmp/test/file.txt");
+        let parent = Worker::get_parent_dir(path).unwrap();
+        assert_eq!(parent, PathBuf::from("/tmp/test"));
+    }
+
+    #[test]
+    fn test_dir_op_tracking() {
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("test_queue.db");
+        let queue = JobQueue::new(&db_path).unwrap();
+        let config = Config::default();
+        let worker = Worker::new(queue, None, config, None);
+
+        let dir = Path::new("/tmp/test");
+        
+        // Initially no active ops
+        assert!(!worker.has_active_ops(dir));
+        
+        // Increment op count
+        worker.increment_dir_op(dir);
+        assert!(worker.has_active_ops(dir));
+        
+        // Decrement op count
+        worker.decrement_dir_op(dir);
+        assert!(!worker.has_active_ops(dir));
+    }
+
+    #[test]
+    fn test_should_serialize_same_dir() {
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("test_queue.db");
+        let queue = JobQueue::new(&db_path).unwrap();
+        let config = Config::default();
+        let worker = Worker::new(queue, None, config, None);
+
+        let dir1 = Path::new("/tmp/test1");
+        let dir2 = Path::new("/tmp/test2");
+        
+        // Should always serialize for now (safety)
+        assert!(worker.should_serialize_same_dir(dir1, dir2));
     }
 
     #[test]

@@ -11,6 +11,7 @@
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::os::unix::fs::MetadataExt;
 use crate::vcs::{VcsInfo, detect_vcs, is_tracked};
 use crate::audit::{AuditEntry, append_audit_log};
 
@@ -29,6 +30,107 @@ pub enum MoveScenario {
     NeitherTrackedInRepo,
     /// Source and destination are the same path
     SamePath,
+}
+
+/// Check if two paths are on the same filesystem
+///
+/// Uses device IDs (stat) to compare filesystems (cross-platform alternative to statfs)
+///
+/// # Arguments
+/// * `path1` - First path
+/// * `path2` - Second path
+///
+/// # Returns
+/// true if both paths are on the same filesystem, false otherwise
+pub fn same_filesystem(path1: &Path, path2: &Path) -> Result<bool> {
+    // If file doesn't exist, check parent directory instead
+    let check_path1 = if path1.exists() {
+        path1.to_path_buf()
+    } else {
+        path1.parent()
+            .ok_or_else(|| anyhow::anyhow!("Path has no parent directory"))?
+            .to_path_buf()
+    };
+
+    let check_path2 = if path2.exists() {
+        path2.to_path_buf()
+    } else {
+        path2.parent()
+            .ok_or_else(|| anyhow::anyhow!("Path has no parent directory"))?
+            .to_path_buf()
+    };
+
+    let metadata1 = std::fs::metadata(&check_path1)
+        .context("Failed to get metadata for first path")?;
+    let metadata2 = std::fs::metadata(&check_path2)
+        .context("Failed to get metadata for second path")?;
+
+    let dev1 = metadata1.dev();
+    let dev2 = metadata2.dev();
+
+    Ok(dev1 == dev2)
+}
+
+/// Check if a file exceeds the async threshold size
+///
+/// # Arguments
+/// * `path` - Path to check
+/// * `threshold_mb` - Threshold in megabytes
+///
+/// # Returns
+/// true if file size exceeds threshold, false otherwise
+pub fn exceeds_async_threshold(path: &Path, threshold_mb: u64) -> Result<bool> {
+    let metadata = std::fs::metadata(path)
+        .context("Failed to get file metadata")?;
+    
+    let size_mb = metadata.len() / (1024 * 1024);
+    Ok(size_mb > threshold_mb)
+}
+
+/// Determine if a move operation should be async
+///
+/// # Arguments
+/// * `source` - Source path
+/// * `dest` - Destination path
+/// * `async_flag` - Whether --async flag is set
+/// * `blocking_flag` - Whether --blocking flag is set
+/// * `threshold_mb` - File size threshold for async (in MB)
+///
+/// # Returns
+/// true if move should be async, false otherwise
+pub fn should_be_async(
+    source: &Path,
+    dest: &Path,
+    async_flag: bool,
+    blocking_flag: bool,
+    threshold_mb: u64,
+) -> Result<bool> {
+    // --blocking overrides everything
+    if blocking_flag {
+        tracing::debug!("Blocking mode requested, forcing synchronous");
+        return Ok(false);
+    }
+
+    // --async forces async regardless of other conditions
+    if async_flag {
+        tracing::debug!("Async mode requested, forcing asynchronous");
+        return Ok(true);
+    }
+
+    // Cross-device moves are always async
+    if !same_filesystem(source, dest)? {
+        tracing::debug!("Cross-device move detected, will be async");
+        return Ok(true);
+    }
+
+    // Large files are async
+    if exceeds_async_threshold(source, threshold_mb)? {
+        tracing::debug!("File size exceeds threshold ({}MB), will be async", threshold_mb);
+        return Ok(true);
+    }
+
+    tracing::debug!("Move is small and same-filesystem, will be synchronous");
+    Ok(false)
 }
 
 /// Classify the move scenario based on source and destination paths
@@ -472,6 +574,94 @@ mod tests {
         
         assert!(backup_path.to_string_lossy().contains("~"));
         assert!(backup_path.to_string_lossy().contains(".txt"));
+    }
+
+    #[test]
+    fn test_same_filesystem_same_dir() {
+        let path1 = Path::new("/tmp/test1.txt");
+        let path2 = Path::new("/tmp/test2.txt");
+        
+        let result = same_filesystem(path1, path2).unwrap();
+        assert!(result);
+    }
+
+    #[test]
+    fn test_same_filesystem_different_dirs() {
+        let path1 = Path::new("/tmp/test1.txt");
+        let path2 = Path::new("/var/test2.txt");
+        
+        let _result = same_filesystem(path1, path2).unwrap();
+        // On most systems, /tmp and /var are on the same filesystem
+        // This test is more of a sanity check that the function works
+        // We don't assert the actual value since it depends on filesystem setup
+    }
+
+    #[test]
+    fn test_exceeds_async_threshold_large_file() {
+        let path = Path::new("/tmp/smartfo_test_large_12345.txt");
+        
+        // Create a file larger than 100MB threshold
+        let large_data = vec![0u8; 101 * 1024 * 1024]; // 101MB
+        std::fs::write(path, &large_data).unwrap();
+        
+        let result = exceeds_async_threshold(path, 100).unwrap();
+        assert!(result);
+        
+        // Cleanup
+        std::fs::remove_file(path).ok();
+    }
+
+    #[test]
+    fn test_exceeds_async_threshold_small_file() {
+        let path = Path::new("/tmp/smartfo_test_small_12345.txt");
+        
+        // Create a small file
+        std::fs::write(path, "test").unwrap();
+        
+        let result = exceeds_async_threshold(path, 100).unwrap();
+        assert!(!result);
+        
+        // Cleanup
+        std::fs::remove_file(path).ok();
+    }
+
+    #[test]
+    fn test_should_be_async_blocking_flag() {
+        let source = Path::new("/tmp/test1.txt");
+        let dest = Path::new("/tmp/test2.txt");
+        
+        // --blocking should override everything
+        let result = should_be_async(source, dest, true, true, 100).unwrap();
+        assert!(!result);
+    }
+
+    #[test]
+    fn test_should_be_async_async_flag() {
+        let source = Path::new("/tmp/test1.txt");
+        let dest = Path::new("/tmp/test2.txt");
+        
+        // --async should force async
+        let result = should_be_async(source, dest, true, false, 100).unwrap();
+        assert!(result);
+    }
+
+    #[test]
+    fn test_should_be_async_cross_device() {
+        let source = Path::new("/tmp/smartfo_test_cross_source_12345.txt");
+        let dest = Path::new("/tmp/smartfo_test_cross_dest_12345.txt");
+        
+        // Create the files
+        std::fs::write(source, "test").unwrap();
+        std::fs::write(dest, "test").unwrap();
+        
+        // For this test, we'll just check that the function works
+        // Cross-device detection depends on the actual filesystem setup
+        let _async = should_be_async(source, dest, false, false, 100).unwrap();
+        // We don't assert the actual value since it depends on filesystem setup
+        
+        // Cleanup
+        std::fs::remove_file(source).ok();
+        std::fs::remove_file(dest).ok();
     }
 
     #[test]
