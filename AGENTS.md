@@ -108,22 +108,22 @@ $TRASH_ROOT/<absolute-path-from-root>/foo/bar/baz.txt/<iso-timestamp>-<counter>
 
 ```bash
 # Build
-cargo build
+devbox run cargo build
 
 # Run tests
-cargo test
+devbox run cargo test
 
 # Run with all features
-cargo test --all-features
+devbox run cargo test --all-features
 
 # Release build
-cargo build --release
+devbox run cargo build --release
 
 # Lint
-cargo clippy -- -D warnings
+devbox run cargo clippy -- -D warnings
 
 # Format
-cargo fmt
+devbox run cargo fmt
 ```
 
 ---

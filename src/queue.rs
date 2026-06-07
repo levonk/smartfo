@@ -251,6 +251,22 @@ impl JobQueue {
         Ok(())
     }
 
+    /// Reset a failed job back to queued status for retry
+    pub fn reset_to_queued(&self, uuid: &Uuid) -> Result<()> {
+        let now = Utc::now();
+        self.conn.execute(
+            "UPDATE jobs SET status = ?1, updated_at = ?2 WHERE uuid = ?3",
+            params![
+                JobStatus::Queued.to_i32(),
+                now.to_rfc3339(),
+                uuid.to_string(),
+            ],
+        ).context("Failed to reset job to queued")?;
+
+        trace!("Reset job {} to queued for retry", uuid);
+        Ok(())
+    }
+
     /// Get the status of a job
     pub fn get_status(&self, uuid: &Uuid) -> Result<Option<JobStatus>> {
         let mut stmt = self.conn.prepare(

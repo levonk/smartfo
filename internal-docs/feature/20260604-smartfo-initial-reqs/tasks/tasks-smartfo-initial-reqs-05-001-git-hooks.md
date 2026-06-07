@@ -7,7 +7,7 @@ prd_file: "internal-docs/requirements/20260604-smartfo-initial-reqs/20260604-sma
 phase: 5
 parallel_id: 1
 branch: "feature/current/smartfo-initial-reqs/story-05-001-git-hooks"
-status: "todo"
+status: "done"
 assignee: ""
 reviewer: ""
 dependencies: ["01-003", "02-002", "03-001", "03-002"]
@@ -27,28 +27,28 @@ Implement the client-side `pre-commit` and server-side `pre-receive` Git hooks t
 
 ## Sub-Tasks
 
-- [ ] Implement `smartfo-git-hook-client` subcommand that reads staged changes
-- [ ] Detect raw deletions (deleted file with no matching audit entry)
-- [ ] Detect raw renames (removed + added with similar content, no audit entry)
-- [ ] Implement `smartfo-git-hook-server` subcommand that reads incoming push
-- [ ] Cross-reference repo-local audit log at `{REPO_ROOT}/.smartfo/audit/operations.jsonl`
-- [ ] Generate clear error messages pointing users to use `smartfo` commands
-- [ ] Write integration tests with temp Git repos
+- [x] Implement `smartfo-git-hook-client` subcommand that reads staged changes
+- [x] Detect raw deletions (deleted file with no matching audit entry)
+- [x] Detect raw renames (removed + added with similar content, no audit entry)
+- [x] Implement `smartfo-git-hook-server` subcommand that reads incoming push
+- [x] Cross-reference repo-local audit log at `{REPO_ROOT}/.smartfo/audit/operations.jsonl`
+- [x] Generate clear error messages pointing users to use `smartfo` commands
+- [x] Write integration tests with temp Git repos
 
 ## Relevant Files
 
 - `src/main.rs` — Hook subcommand dispatch
-- `src/hooks/` or inline hook logic — Hook implementations
+- `src/hooks.rs` — Hook implementations (new file)
 - `src/audit.rs` — Audit log reading for verification
 
 ## Acceptance Criteria
 
-- [ ] `pre-commit` blocks raw `rm` deletions with clear message
-- [ ] `pre-commit` blocks raw `mv` renames with clear message
-- [ ] `pre-receive` blocks pushes containing raw deletions
-- [ ] `pre-receive` blocks pushes containing raw renames
-- [ ] Valid smartfo operations pass hook verification
-- [ ] Server-side hook reads from repo-local audit log
+- [x] `pre-commit` blocks raw `rm` deletions with clear message
+- [x] `pre-commit` blocks raw `mv` renames with clear message
+- [x] `pre-receive` blocks pushes containing raw deletions
+- [x] `pre-receive` blocks pushes containing raw renames
+- [x] Valid smartfo operations pass hook verification
+- [x] Server-side hook reads from repo-local audit log
 
 ## Test Plan
 

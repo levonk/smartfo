@@ -10,7 +10,7 @@ use anyhow::{Context, Result};
 use nix::unistd::{fork, ForkResult, setsid, Pid};
 use nix::sys::signal::{self, SigHandler, Signal};
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::{BufRead, BufReader, Write};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -260,27 +260,29 @@ impl Daemon {
             // Send ping
             writeln!(stream, "PING")
                 .context("Failed to send ping")?;
-            
+
             // Wait for response
+            let mut reader = BufReader::new(&stream);
             let mut response = String::new();
-            stream.read_to_string(&mut response)
+            reader.read_line(&mut response)
                 .context("Failed to read ping response")?;
-            
+
             if response.trim() == "PONG" {
                 info!("Daemon is alive");
                 return Ok(true);
             }
         }
-        
+
         Ok(false)
     }
 
     /// Handle a client connection (simple echo/pong for now)
     ///
     /// This is a placeholder - will be expanded to handle job enqueue/status
-    pub fn handle_client_connection(&self, mut stream: UnixStream) -> Result<()> {
+    pub fn handle_client_connection(&self, stream: UnixStream) -> Result<()> {
+        let mut reader = BufReader::new(stream);
         let mut request = String::new();
-        stream.read_to_string(&mut request)
+        reader.read_line(&mut request)
             .context("Failed to read request from client")?;
 
         let request = request.trim();
@@ -288,13 +290,15 @@ impl Daemon {
 
         match request {
             "PING" => {
-                writeln!(stream, "PONG")
+                let mut writer = reader.into_inner();
+                writeln!(writer, "PONG")
                     .context("Failed to send PONG response")?;
                 info!("Sent PONG response");
             }
             _ => {
+                let mut writer = reader.into_inner();
                 warn!("Unknown request: {}", request);
-                writeln!(stream, "ERROR: Unknown command")
+                writeln!(writer, "ERROR: Unknown command")
                     .context("Failed to send error response")?;
             }
         }
@@ -576,8 +580,9 @@ mod tests {
         writeln!(stream, "PING").unwrap();
 
         // Read response
+        let mut reader = BufReader::new(stream);
         let mut response = String::new();
-        stream.read_to_string(&mut response).unwrap();
+        reader.read_line(&mut response).unwrap();
 
         assert_eq!(response.trim(), "PONG");
 

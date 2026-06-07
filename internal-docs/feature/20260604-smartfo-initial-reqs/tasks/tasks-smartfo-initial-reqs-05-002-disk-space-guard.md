@@ -7,7 +7,7 @@ prd_file: "internal-docs/requirements/20260604-smartfo-initial-reqs/20260604-sma
 phase: 5
 parallel_id: 2
 branch: "feature/current/smartfo-initial-reqs/story-05-002-disk-space-guard"
-status: "todo"
+status: "in_progress"
 assignee: ""
 reviewer: ""
 dependencies: ["03-003", "04-003"]
@@ -27,12 +27,12 @@ Implement the disk space guard that checks free space before trash operations, a
 
 ## Sub-Tasks
 
-- [ ] Implement free space check on the trash filesystem before each operation
-- [ ] Implement oldest-first culling of trash entries when below `min_free_space_percent`
-- [ ] Implement `allow_last_version_cull` gate (protect last version unless config allows)
-- [ ] Implement `on_trash_full` behaviors: `"refuse"` and `"delete"`
-- [ ] Integrate culling into the worker before trash moves
-- [ ] Write unit tests for space guard and culling logic
+- [x] Implement free space check on the trash filesystem before each operation
+- [x] Implement oldest-first culling of trash entries when below `min_free_space_percent`
+- [x] Implement `allow_last_version_cull` gate (protect last version unless config allows)
+- [x] Implement `on_trash_full` behaviors: `"refuse"` and `"delete"`
+- [x] Integrate culling into the worker before trash moves
+- [x] Write unit tests for space guard and culling logic
 
 ## Relevant Files
 
@@ -41,11 +41,11 @@ Implement the disk space guard that checks free space before trash operations, a
 
 ## Acceptance Criteria
 
-- [ ] Operation is refused when free space < 20% and culling cannot free enough
-- [ ] Oldest entries are culled first when space is low
-- [ ] `on_trash_full = "delete"` bypasses trash with a warning
-- [ ] Last version is preserved unless `allow_last_version_cull = true`
-- [ ] Clear error message includes `--force-delete` hint
+- [x] Operation is refused when free space < 20% and culling cannot free enough
+- [x] Oldest entries are culled first when space is low
+- [x] `on_trash_full = "delete"` bypasses trash with a warning
+- [x] Last version is preserved unless `allow_last_version_cull = true`
+- [x] Clear error message includes `--force-delete` hint
 
 ## Test Plan
 

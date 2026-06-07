@@ -13,6 +13,8 @@ mod audit;
 mod trash;
 mod queue;
 mod daemon;
+mod worker;
+mod hooks;
 use cli::{MvArgs, RmArgs, SmartfoArgs, SmartfoCommand};
 
 /// Resolve the symlink target directory based on XDG conventions and permissions.
@@ -290,15 +292,19 @@ fn create_symlink(source: &PathBuf, target: &PathBuf, force: bool) -> Result<()>
 }
 
 fn run_git_hook_client() -> Result<()> {
-    // TODO: Implement pre-commit hook (story 05-001)
-    info!("git-hook-client: verifying staged changes against audit log");
-    Ok(())
+    // Detect the Git repository root
+    let repo_root = detect_git_repo()
+        .ok_or_else(|| anyhow::anyhow!("Not inside a Git repository"))?;
+
+    hooks::run_pre_commit_hook(&repo_root)
 }
 
 fn run_git_hook_server() -> Result<()> {
-    // TODO: Implement pre-receive hook (story 05-001)
-    info!("git-hook-server: verifying incoming push against audit log");
-    Ok(())
+    // Detect the Git repository root
+    let repo_root = detect_git_repo()
+        .ok_or_else(|| anyhow::anyhow!("Not inside a Git repository"))?;
+
+    hooks::run_pre_receive_hook(&repo_root)
 }
 
 fn main() -> Result<()> {

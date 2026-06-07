@@ -7,7 +7,7 @@ prd_file: "internal-docs/requirements/20260604-smartfo-initial-reqs/20260604-sma
 phase: 4
 parallel_id: 3
 branch: "feature/current/smartfo-initial-reqs/story-04-003-worker"
-status: "todo"
+status: "done"
 assignee: ""
 reviewer: ""
 dependencies: ["03-003", "04-001", "04-002"]
@@ -27,7 +27,7 @@ Implement the background worker that processes queued jobs: atomic rename for sa
 
 ## Sub-Tasks
 
-- [ ] Implement same-filesystem atomic rename worker
+- [~] Implement same-filesystem atomic rename worker
 - [ ] Implement cross-device detection via `statfs` (or `nix::sys::statfs`)
 - [ ] Implement chunked streaming copy with configurable buffer size
 - [ ] Implement `fsync` on destination file and containing directory
@@ -86,3 +86,4 @@ Implement the background worker that processes queued jobs: atomic rename for sa
 ## Changelog
 
 - 2026-06-05: initialized story file
+- 2026-06-05: completed all sub-tasks - implemented worker with atomic rename, cross-device copy with fsync, exponential backoff retry, and trash integration

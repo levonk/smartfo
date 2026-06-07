@@ -80,6 +80,15 @@ pub struct TrashConfig {
     /// Minimum free space (in MB) before auto-culling oldest entries
     #[serde(default = "default_trash_min_free_mb")]
     pub min_free_mb: u64,
+    /// Minimum free space percentage (0-100) before auto-culling oldest entries
+    #[serde(default = "default_trash_min_free_space_percent")]
+    pub min_free_space_percent: u8,
+    /// Behavior when trash is full: "refuse" or "delete"
+    #[serde(default = "default_trash_on_trash_full")]
+    pub on_trash_full: String,
+    /// Whether to allow culling the last version of a file
+    #[serde(default = "default_trash_allow_last_version_cull")]
+    pub allow_last_version_cull: bool,
     /// Retention period in days (0 = unlimited)
     #[serde(default = "default_trash_retention_days")]
     pub retention_days: u64,
@@ -112,6 +121,18 @@ fn default_trash_min_free_mb() -> u64 {
     1024
 }
 
+fn default_trash_min_free_space_percent() -> u8 {
+    20
+}
+
+fn default_trash_on_trash_full() -> String {
+    "refuse".to_string()
+}
+
+fn default_trash_allow_last_version_cull() -> bool {
+    false
+}
+
 fn default_trash_retention_days() -> u64 {
     30
 }
@@ -134,6 +155,9 @@ impl Default for TrashConfig {
             root: default_trash_root(),
             mode: default_trash_mode(),
             min_free_mb: default_trash_min_free_mb(),
+            min_free_space_percent: default_trash_min_free_space_percent(),
+            on_trash_full: default_trash_on_trash_full(),
+            allow_last_version_cull: default_trash_allow_last_version_cull(),
             retention_days: default_trash_retention_days(),
             delete_ignored: default_trash_delete_ignored(),
             preserve_tree: default_trash_preserve_tree(),
@@ -429,6 +453,17 @@ fn merge_configs(base: Config, file: Config) -> Config {
             } else {
                 base.trash.min_free_mb
             },
+            min_free_space_percent: if file.trash.min_free_space_percent != default_trash_min_free_space_percent() {
+                file.trash.min_free_space_percent
+            } else {
+                base.trash.min_free_space_percent
+            },
+            on_trash_full: if file.trash.on_trash_full != default_trash_on_trash_full() {
+                file.trash.on_trash_full
+            } else {
+                base.trash.on_trash_full
+            },
+            allow_last_version_cull: file.trash.allow_last_version_cull,
             retention_days: if file.trash.retention_days != default_trash_retention_days() {
                 file.trash.retention_days
             } else {
