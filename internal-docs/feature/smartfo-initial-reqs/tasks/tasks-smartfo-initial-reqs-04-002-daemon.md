@@ -7,7 +7,7 @@ prd_file: "internal-docs/requirements/20260604-smartfo-initial-reqs/20260604-sma
 phase: 4
 parallel_id: 2
 branch: "feature/current/smartfo-initial-reqs/story-04-002-daemon"
-status: "todo"
+status: "in_progress"
 assignee: ""
 reviewer: ""
 dependencies: ["01-001", "04-001"]
@@ -27,13 +27,13 @@ Implement the self-spawning daemon that double-forks on first async operation, w
 
 ## Sub-Tasks
 
-- [ ] Implement double-fork detachment for background daemon
-- [ ] Implement PID lockfile at `$XDG_DATA_HOME/smartfo/daemon.pid`
-- [ ] Implement Unix domain socket at `$XDG_DATA_HOME/smartfo/daemon.sock`
-- [ ] Implement CLI connection to existing daemon (spawn if absent)
-- [ ] Implement graceful shutdown on SIGTERM (complete in-flight jobs before exit)
-- [ ] Implement daemon health check / ping protocol
-- [ ] Write unit tests for lockfile and socket lifecycle
+- [x] Implement double-fork detachment for background daemon
+- [x] Implement PID lockfile at `$XDG_DATA_HOME/smartfo/daemon.pid`
+- [x] Implement Unix domain socket at `$XDG_DATA_HOME/smartfo/daemon.sock`
+- [x] Implement CLI connection to existing daemon (spawn if absent)
+- [x] Implement graceful shutdown on SIGTERM (complete in-flight jobs before exit)
+- [x] Implement daemon health check / ping protocol
+- [x] Write unit tests for lockfile and socket lifecycle
 
 ## Relevant Files
 
@@ -42,12 +42,12 @@ Implement the self-spawning daemon that double-forks on first async operation, w
 
 ## Acceptance Criteria
 
-- [ ] First async operation spawns daemon automatically
-- [ ] Subsequent invocations connect to existing daemon via socket
-- [ ] Daemon survives parent process exit
-- [ ] `SIGTERM` triggers graceful shutdown after in-flight jobs complete
-- [ ] Dead daemon (stale PID) is detected and replaced automatically
-- [ ] Socket communication handles enqueue and status requests
+- [x] First async operation spawns daemon automatically
+- [x] Subsequent invocations connect to existing daemon via socket
+- [x] Daemon survives parent process exit
+- [x] `SIGTERM` triggers graceful shutdown after in-flight jobs complete
+- [x] Dead daemon (stale PID) is detected and replaced automatically
+- [x] Socket communication handles enqueue and status requests
 
 ## Test Plan
 
