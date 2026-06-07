@@ -31,3 +31,7 @@ libc = "0.2"
 assert_cmd = "2.0"
 predicates = "3.0"
 tempfile = "3.8"
+
+[[test]]
+name = "integration_tests"
+path = "tests/integration_tests/mod.rs"

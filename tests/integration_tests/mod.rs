@@ -1,0 +1,10 @@
+mod fixtures;
+mod mv_scenarios;
+mod cross_device;
+mod async_mv;
+mod async_rm;
+mod crash_recovery;
+mod overwrite_modes;
+mod install;
+mod force_delete;
+mod trash_mode;
