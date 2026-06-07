@@ -48,7 +48,7 @@ updated_at: "2026-06-05"
 | 02-002 | Install mode with symlinks and Git hooks | 02 | [x] Done | | true | 01-001 | 05-001 | cli.rs, main.rs | feature/current/smartfo-initial-reqs/story-02-002-install-mode |
 | 03-001 | mv mode — POSIX-compatible VCS-aware move | 03 | [x] Done | | true | 01-001, 01-002, 02-001 | 04-003, 05-001, 05-003, 06-001, 06-002 | mv.rs | feature/current/smartfo-initial-reqs/story-03-001-mv-mode |
 | 03-002 | rm mode — trash enqueueing and VCS-aware delete | 03 | [x] Done | | true | 01-001, 01-002, 02-001 | 04-003, 05-001, 06-001, 06-002 | rm.rs | feature/current/smartfo-initial-reqs/story-03-002-rm-mode |
-| 03-003 | Trash directory manager and index tracking | 03 | [~] In-Progress | | true | 01-002, 01-003 | 04-003, 05-002 | trash.rs | feature/current/smartfo-initial-reqs/story-03-003-trash-manager |
+| 03-003 | Trash directory manager and index tracking | 03 | [x] Done | | true | 01-002, 01-003 | 04-003, 05-002 | trash.rs | feature/current/smartfo-initial-reqs/story-03-003-trash-manager |
 | 04-001 | Durable job queue with SQLite WAL | 04 | [ ] Todo | | true | 01-002, 01-003 | 04-002, 04-003 | queue.rs | feature/current/smartfo-initial-reqs/story-04-001-job-queue |
 | 04-002 | Self-spawning daemon with Unix socket | 04 | [ ] Todo | | true | 01-001, 04-001 | 04-003, 05-003 | daemon.rs | feature/current/smartfo-initial-reqs/story-04-002-daemon |
 | 04-003 | Background worker — move/copy/fsync/retry | 04 | [ ] Todo | | true | 03-003, 04-001, 04-002 | 05-002, 05-003, 06-001, 06-002 | worker.rs | feature/current/smartfo-initial-reqs/story-04-003-worker |
