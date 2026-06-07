@@ -53,7 +53,7 @@ updated_at: "2026-06-05"
 | 04-002 | Self-spawning daemon with Unix socket | 04 | [x] Done | | true | 01-001, 04-001 | 04-003, 05-003 | daemon.rs | feature/current/smartfo-initial-reqs/story-04-002-daemon |
 | 04-003 | Background worker — move/copy/fsync/retry | 04 | [x] Done | | true | 03-003, 04-001, 04-002 | 05-002, 05-003, 06-001, 06-002 | worker.rs | feature/current/smartfo-initial-reqs/story-04-003-worker |
 | 05-001 | Git hooks — pre-commit and pre-receive | 05 | [x] Done | | true | 01-003, 02-002, 03-001, 03-002 | 06-001, 06-002 | hooks/ | feature/current/smartfo-initial-reqs/story-05-001-git-hooks |
-| 05-002 | Disk space guard and auto-culling | 05 | [~] In-Progress | | true | 03-003, 04-003 | 06-001, 06-002 | trash.rs, worker.rs | feature/current/smartfo-initial-reqs/story-05-002-disk-space-guard |
+| 05-002 | Disk space guard and auto-culling | 05 | [x] Done | | true | 03-003, 04-003 | 06-001, 06-002 | trash.rs, worker.rs | feature/current/smartfo-initial-reqs/story-05-002-disk-space-guard |
 | 05-003 | Concurrency and async mv triggers | 05 | [ ] Todo | | true | 03-001, 04-003 | 06-001, 06-002 | mv.rs, worker.rs, daemon.rs | feature/current/smartfo-initial-reqs/story-05-003-concurrency-async-mv |
 | 06-001 | Integration tests | 06 | [ ] Todo | | true | 03-001, 03-002, 04-003, 05-001, 05-002, 05-003 | — | tests/integration/ | feature/current/smartfo-initial-reqs/story-06-001-integration-tests |
 | 06-002 | Property tests | 06 | [ ] Todo | | true | 03-001, 03-002, 04-003, 05-001, 05-002 | — | tests/property/ | feature/current/smartfo-initial-reqs/story-06-002-property-tests |
