@@ -7,7 +7,7 @@ prd_file: "internal-docs/requirements/20260604-smartfo-initial-reqs/20260604-sma
 phase: 4
 parallel_id: 1
 branch: "feature/current/smartfo-initial-reqs/story-04-001-job-queue"
-status: "todo"
+status: "in_progress"
 assignee: ""
 reviewer: ""
 dependencies: ["01-002", "01-003"]
@@ -27,14 +27,14 @@ Implement the durable job queue using SQLite WAL mode. Each job tracks UUID, sou
 
 ## Sub-Tasks
 
-- [ ] Define SQLite schema for jobs table (UUID, source, dest, status, retry_count, op_type, created_at, updated_at)
-- [ ] Implement queue initialization with WAL mode
-- [ ] Implement `enqueue()` for adding jobs
-- [ ] Implement `dequeue()` for claiming the next pending job
-- [ ] Implement `mark_done()` and `mark_failed()` with retry increment
-- [ ] Implement `get_status()` for polling job state
-- [ ] Implement crash recovery on startup (restart in-flight jobs or mark failed)
-- [ ] Write unit tests for queue operations and crash recovery
+- [x] Define SQLite schema for jobs table (UUID, source, dest, status, retry_count, op_type, created_at, updated_at)
+- [x] Implement queue initialization with WAL mode
+- [x] Implement `enqueue()` for adding jobs
+- [x] Implement `dequeue()` for claiming the next pending job
+- [x] Implement `mark_done()` and `mark_failed()` with retry increment
+- [x] Implement `get_status()` for polling job state
+- [x] Implement crash recovery on startup (restart in-flight jobs or mark failed)
+- [x] Write unit tests for queue operations and crash recovery
 
 ## Relevant Files
 
@@ -43,12 +43,12 @@ Implement the durable job queue using SQLite WAL mode. Each job tracks UUID, sou
 
 ## Acceptance Criteria
 
-- [ ] Jobs survive SQLite connection close and reopen
-- [ ] WAL mode is enabled for concurrent read/write safety
-- [ ] In-flight jobs are recovered on daemon restart
-- [ ] Failed jobs are retried up to max retry count
-- [ ] Queue supports at least 1000 pending jobs without performance degradation
-- [ ] Job status transitions are atomic
+- [x] Jobs survive SQLite connection close and reopen
+- [x] WAL mode is enabled for concurrent read/write safety
+- [x] In-flight jobs are recovered on daemon restart
+- [x] Failed jobs are retried up to max retry count
+- [x] Queue supports at least 1000 pending jobs without performance degradation
+- [x] Job status transitions are atomic
 
 ## Test Plan
 

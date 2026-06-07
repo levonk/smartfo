@@ -11,6 +11,7 @@ mod mv;
 mod rm;
 mod audit;
 mod trash;
+mod queue;
 use cli::{MvArgs, RmArgs, SmartfoArgs, SmartfoCommand};
 
 /// Resolve the symlink target directory based on XDG conventions and permissions.

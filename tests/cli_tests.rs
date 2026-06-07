@@ -1,7 +1,6 @@
 use assert_cmd::Command;
 use assert_cmd::assert::OutputAssertExt;
 use predicates::prelude::*;
-use std::path::Path;
 
 /// Create a symlink to the smartfo binary with the given name.
 fn symlink_binary(name: &str) -> tempfile::TempDir {
