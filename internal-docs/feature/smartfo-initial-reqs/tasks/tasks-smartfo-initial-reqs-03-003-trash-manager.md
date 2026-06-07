@@ -7,7 +7,7 @@ prd_file: "internal-docs/requirements/20260604-smartfo-initial-reqs/20260604-sma
 phase: 3
 parallel_id: 3
 branch: "feature/current/smartfo-initial-reqs/story-03-003-trash-manager"
-status: "todo"
+status: "in_progress"
 assignee: ""
 reviewer: ""
 dependencies: ["01-002", "01-003"]
@@ -27,13 +27,13 @@ Implement the trash directory manager that computes versioned trash paths, prese
 
 ## Sub-Tasks
 
-- [ ] Implement trash path computation: `$TRASH_ROOT/<abs-path>/<iso-timestamp>-<counter>`
-- [ ] Implement parent directory creation in trash
-- [ ] Implement atomic move into trash (same fs) or copy+unlink (cross-device)
-- [ ] Implement `.smartfo-index` JSONL format (original path, timestamp, UUID, reason)
-- [ ] Implement same-file history preservation (multiple deletes create timestamped subdirs)
-- [ ] Implement trash retention and cleanup hooks
-- [ ] Write unit tests for path computation, moves, and index tracking
+- [x] Implement trash path computation: `$TRASH_ROOT/<abs-path>/<iso-timestamp>-<counter>`
+- [x] Implement parent directory creation in trash
+- [x] Implement atomic move into trash (same fs) or copy+unlink (cross-device)
+- [x] Implement `.smartfo-index` JSONL format (original path, timestamp, UUID, reason)
+- [x] Implement same-file history preservation (multiple deletes create timestamped subdirs)
+- [x] Implement trash retention and cleanup hooks
+- [x] Write unit tests for path computation, moves, and index tracking
 
 ## Relevant Files
 
@@ -42,12 +42,12 @@ Implement the trash directory manager that computes versioned trash paths, prese
 
 ## Acceptance Criteria
 
-- [ ] Deleting `/home/user/foo.txt` creates trash path like `.../home/user/foo.txt/2026-06-04T09:15:30Z-001/foo.txt`
-- [ ] Same file deleted twice creates separate timestamped entries
-- [ ] `.smartfo-index` records all metadata for each deletion
-- [ ] Parent directories are created as needed
-- [ ] Trash root defaults to `$XDG_DATA_HOME/smartfo/trash`
-- [ ] Cross-device trash moves use copy+fsync+unlink
+- [x] Deleting `/home/user/foo.txt` creates trash path like `.../home/user/foo.txt/2026-06-04T09:15:30Z-001/foo.txt` (verified by test_trash_path_computation)
+- [x] Same file deleted twice creates separate timestamped entries (verified by test_same_file_history_preservation)
+- [x] `.smartfo-index` records all metadata for each deletion (verified by test_append_index_entry, test_append_multiple_index_entries)
+- [x] Parent directories are created as needed (verified by test_create_parent_dirs, test_create_parent_dirs_nested)
+- [x] Trash root defaults to `$XDG_DATA_HOME/smartfo/trash` (verified by default_trash_root in config.rs)
+- [ ] Cross-device trash moves use copy+fsync+unlink (stub implementation with TODO comment for later story)
 
 ## Test Plan
 
