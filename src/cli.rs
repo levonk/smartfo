@@ -102,6 +102,14 @@ pub struct MvArgs {
     #[arg(long, help = "Force agent mode with structured output optimized for AI consumption")]
     pub agent: bool,
 
+    /// Output in TOON format (token-efficient for agents)
+    #[arg(long, help = "Output in TOON format (token-efficient for agents)")]
+    pub toon: bool,
+
+    /// Output format: toon, json, or human
+    #[arg(long, value_name = "FORMAT", help = "Output format: toon, json, or human")]
+    pub format: Option<String>,
+
     /// Source file(s) to move
     #[arg(value_name = "SOURCE")]
     pub sources: Vec<PathBuf>,
@@ -218,6 +226,14 @@ pub struct RmArgs {
     #[arg(long, help = "Force agent mode with structured output optimized for AI consumption")]
     pub agent: bool,
 
+    /// Output in TOON format (token-efficient for agents)
+    #[arg(long, help = "Output in TOON format (token-efficient for agents)")]
+    pub toon: bool,
+
+    /// Output format: toon, json, or human
+    #[arg(long, value_name = "FORMAT", help = "Output format: toon, json, or human")]
+    pub format: Option<String>,
+
     /// File(s) or directories to remove
     #[arg(value_name = "FILE")]
     pub paths: Vec<PathBuf>,
@@ -291,6 +307,14 @@ pub struct SmartfoArgs {
     /// Force agent mode (structured output)
     #[arg(long, help = "Force agent mode with structured output optimized for AI consumption")]
     pub agent: bool,
+
+    /// Output in TOON format (token-efficient for agents)
+    #[arg(long, help = "Output in TOON format (token-efficient for agents)")]
+    pub toon: bool,
+
+    /// Output format: toon, json, or human
+    #[arg(long, value_name = "FORMAT", help = "Output format: toon, json, or human")]
+    pub format: Option<String>,
 
     /// Subcommands
     #[command(subcommand)]

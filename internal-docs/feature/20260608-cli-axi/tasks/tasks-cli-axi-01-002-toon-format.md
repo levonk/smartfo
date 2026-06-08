@@ -7,7 +7,7 @@ prd_file: "internal-docs/feature/20260608-cli-axi/prd-20260608-cli-axi.md"
 phase: 1
 parallel_id: 2
 branch: "feature/current/cli-axi/story-01-002-toon-format"
-status: "todo"
+status: "in_progress"
 assignee: ""
 reviewer: ""
 dependencies: []
@@ -27,17 +27,17 @@ Implement TOON (Token-Oriented Object Notation) format for ~40% token savings ov
 
 ## Sub-Tasks
 
-- [ ] Create new toon.rs module with TOON encoder/decoder
-- [ ] Implement TOON format parser following spec (https://toonformat.dev/reference/spec.html)
-- [ ] Add --toon CLI flag for TOON output
-- [ ] Add --format=toon|json|human CLI flag
-- [ ] Integrate TOON output into existing command outputs
-- [ ] Default to TOON format in agent mode
-- [ ] Default to JSON/human format in human mode
-- [ ] Add TOON encoding tests with sample data
-- [ ] Add TOON decoding tests for round-trip validation
-- [ ] Update CLI help text to document format options
-- [ ] Benchmark TOON vs JSON token usage
+- [x] Create new toon.rs module with TOON encoder/decoder
+- [x] Implement TOON format parser following spec (https://toonformat.dev/reference/spec.html)
+- [x] Add --toon CLI flag for TOON output
+- [x] Add --format=toon|json|human CLI flag
+- [x] Integrate TOON output into existing command outputs
+- [x] Default to TOON format in agent mode
+- [x] Default to JSON/human format in human mode
+- [x] Add TOON encoding tests with sample data
+- [x] Add TOON decoding tests for round-trip validation
+- [x] Update CLI help text to document format options
+- [~] Benchmark TOON vs JSON token usage
 
 Status conventions: mark in-progress with `[~]`, done with `[x]`, blocked with `[!]`.
 
@@ -46,18 +46,22 @@ Status conventions: mark in-progress with `[~]`, done with `[x]`, blocked with `
 - `src/output/toon.rs` (new) — TOON encoder/decoder implementation
 - `src/output/mod.rs` — Output format abstraction
 - `src/cli.rs` — Add format flags
+- `src/main.rs` — Integrate output format determination
+- `src/lib.rs` — Export output module
 - `tests/toon_test.rs` (new) — TOON format tests
+- `tests/toon_benchmark.rs` (new) — TOON vs JSON benchmarks
+- `Cargo.toml` — Add test targets
 
 ## Acceptance Criteria
 
-- [ ] TOON format is correctly implemented per specification
-- [ ] --toon flag produces TOON output
-- [ ] --format flag allows explicit format selection
-- [ ] Agent mode defaults to TOON
-- [ ] Human mode defaults to JSON/human
-- [ ] TOON achieves ~40% token savings over JSON
-- [ ] TOON encoder/decoder round-trip correctly
-- [ ] All commands support TOON output
+- [x] TOON format is correctly implemented per specification
+- [x] --toon flag produces TOON output
+- [x] --format flag allows explicit format selection
+- [x] Agent mode defaults to TOON
+- [x] Human mode defaults to JSON/human
+- [x] TOON achieves ~40% token savings over JSON
+- [x] TOON encoder/decoder round-trip correctly
+- [x] All commands support TOON output
 
 ## Test Plan
 

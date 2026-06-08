@@ -49,7 +49,7 @@ pub fn project_config_path() -> Option<PathBuf> {
 }
 
 /// Top-level smartfo configuration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct Config {
     #[serde(default)]
     pub vcs: VcsConfig,
@@ -63,19 +63,6 @@ pub struct Config {
     pub logging: LoggingConfig,
     #[serde(default)]
     pub paths: PathsConfig,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            vcs: VcsConfig::default(),
-            trash: TrashConfig::default(),
-            concurrency: ConcurrencyConfig::default(),
-            behavior: BehaviorConfig::default(),
-            logging: LoggingConfig::default(),
-            paths: PathsConfig::default(),
-        }
-    }
 }
 
 /// VCS detection and preference settings.
@@ -257,7 +244,7 @@ impl Default for ConcurrencyConfig {
 }
 
 /// Output mode for smartfo operations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum OutputMode {
     /// Agent mode: optimized for AI/agent consumption (structured output, minimal prompts)
@@ -265,13 +252,8 @@ pub enum OutputMode {
     /// Human mode: optimized for human interaction (friendly messages, interactive prompts)
     Human,
     /// Auto mode: automatically detect based on environment (TTY, agent session)
+    #[default]
     Auto,
-}
-
-impl Default for OutputMode {
-    fn default() -> Self {
-        OutputMode::Auto
-    }
 }
 
 impl OutputMode {
@@ -544,7 +526,7 @@ pub fn resolve_config(config_path: Option<&std::path::Path>) -> anyhow::Result<C
     }
 
     // Layer 4: User config
-    let user_path = config_path.map(PathBuf::from).or_else(|| default_config_path()).filter(|p| p.exists());
+    let user_path = config_path.map(PathBuf::from).or_else(default_config_path).filter(|p| p.exists());
     if let Some(path) = user_path {
         let user_config = load_config_file(&path)?;
         config = merge_configs(config, user_config);
@@ -701,26 +683,25 @@ fn apply_env_overrides(config: &mut Config) -> anyhow::Result<()> {
             let (section, key_name) = (parts[0].to_lowercase(), parts[1].to_lowercase());
 
             match section.as_str() {
-                "vcs" => match key_name.as_str() {
-                    "preference" => config.vcs.preference = value,
-                    _ => {}
-                },
-                "trash" => match key_name.as_str() {
-                    "root" => config.trash.root = PathBuf::from(expand_env_vars(&value)),
-                    "mode" => config.trash.mode = value,
-                    "min_free_mb" => {
-                        if let Ok(v) = value.parse() {
-                            config.trash.min_free_mb = v;
+                "vcs" if key_name.as_str() == "preference" => config.vcs.preference = value,
+                "trash" => {
+                    match key_name.as_str() {
+                        "root" => config.trash.root = PathBuf::from(expand_env_vars(&value)),
+                        "mode" => config.trash.mode = value,
+                        "min_free_mb" => {
+                            if let Ok(v) = value.parse() {
+                                config.trash.min_free_mb = v;
+                            }
                         }
-                    }
-                    "retention_days" => {
-                        if let Ok(v) = value.parse() {
-                            config.trash.retention_days = v;
+                        "retention_days" => {
+                            if let Ok(v) = value.parse() {
+                                config.trash.retention_days = v;
+                            }
                         }
+                        "delete_ignored" => config.trash.delete_ignored = value.parse().unwrap_or(true),
+                        _ => {}
                     }
-                    "delete_ignored" => config.trash.delete_ignored = value.parse().unwrap_or(true),
-                    _ => {}
-                },
+                }
                 "concurrency" => match key_name.as_str() {
                     "max_concurrent_jobs" => {
                         if let Ok(v) = value.parse() {

@@ -16,7 +16,9 @@ mod daemon;
 mod worker;
 mod hooks;
 mod install;
+mod output;
 use cli::{MvArgs, RmArgs, SmartfoArgs, SmartfoCommand};
+use output::OutputFormat;
 
 /// Resolve the symlink target directory based on XDG conventions and permissions.
 /// Priority: $XDG_BIN_HOME > ~/.local/bin (create if missing) > /usr/local/bin (if root)
@@ -57,6 +59,41 @@ fn detect_mode() -> String {
                 .map(|name| name.to_string_lossy().to_string())
         })
         .unwrap_or_else(|| "smartfo".to_string())
+}
+
+/// Determine output format based on CLI flags and mode
+fn determine_output_format(
+    toon_flag: bool,
+    format_flag: &Option<String>,
+    agent_flag: bool,
+    human_flag: bool,
+) -> OutputFormat {
+    // Explicit --toon flag takes precedence
+    if toon_flag {
+        return OutputFormat::Toon;
+    }
+    
+    // Explicit --format flag
+    if let Some(format) = format_flag {
+        if let Some(parsed) = OutputFormat::parse(format) {
+            return parsed;
+        }
+    }
+    
+    // Use mode-based defaults
+    let output_mode = config::OutputMode::determine_mode(agent_flag, human_flag, config::OutputMode::Auto);
+    match output_mode {
+        config::OutputMode::Agent => OutputFormat::Toon,
+        config::OutputMode::Human => OutputFormat::Human,
+        config::OutputMode::Auto => {
+            // Auto mode: use TOON if in agent session, otherwise human
+            if config::OutputMode::detect_agent_session() {
+                OutputFormat::Toon
+            } else {
+                OutputFormat::Human
+            }
+        }
+    }
 }
 
 fn init_logging(json: bool, verbose: u8, quiet: bool) -> Result<()> {
@@ -126,6 +163,8 @@ fn run_mv(args: MvArgs) -> Result<()> {
         println!("      --sync               Fsync destination file and directory after operation");
         println!("      --reason=REASON      Annotate intent in the audit log");
         println!("      --json               Output operation metadata as JSON");
+        println!("      --toon               Output in TOON format (token-efficient for agents)");
+        println!("      --format=FORMAT      Output format: toon, json, or human");
         println!("      --dry-run            Preview operations without executing");
         println!("      --usage              Show brief usage message");
         println!("  -h, --help               Show this help message");
@@ -181,6 +220,8 @@ fn run_rm(args: RmArgs) -> Result<()> {
         println!("      --sync               Fsync after operation");
         println!("      --reason=REASON      Annotate intent in the audit log");
         println!("      --json               Output operation metadata as JSON");
+        println!("      --toon               Output in TOON format (token-efficient for agents)");
+        println!("      --format=FORMAT      Output format: toon, json, or human");
         println!("      --dry-run            Preview operations without executing");
         println!("      --usage              Show brief usage message");
         println!("  -h, --help               Show this help message");
@@ -416,16 +457,22 @@ fn main() -> Result<()> {
         "mv" | "smv" => {
             let args = MvArgs::parse();
             init_logging(args.json, if args.verbose { 1 } else { 0 }, false)?;
+            let output_format = determine_output_format(args.toon, &args.format, args.agent, args.human);
+            info!("Output format: {:?}", output_format);
             run_mv(args)
         }
         "rm" | "srm" => {
             let args = RmArgs::parse();
             init_logging(args.json, 0, false)?;
+            let output_format = determine_output_format(args.toon, &args.format, args.agent, args.human);
+            info!("Output format: {:?}", output_format);
             run_rm(args)
         }
         "smartfo" | _ => {
             let args = SmartfoArgs::parse();
             init_logging(false, 0, false)?;
+            let output_format = determine_output_format(args.toon, &args.format, args.agent, args.human);
+            info!("Output format: {:?}", output_format);
 
             // Handle --version flag at root level
             if args.version {
@@ -445,6 +492,8 @@ fn main() -> Result<()> {
                 println!("      --no-hooks            Skip hook installation");
                 println!("      --force               Overwrite existing files when installing");
                 println!("      --init-config         Initialize or recreate default config file");
+                println!("      --toon               Output in TOON format (token-efficient for agents)");
+                println!("      --format=FORMAT      Output format: toon, json, or human");
                 println!("      --usage               Show brief usage message");
                 println!("  -h, --help               Show this help message");
                 println!("  -V, --version            Print version information");
