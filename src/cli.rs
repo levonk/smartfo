@@ -114,6 +114,10 @@ pub struct MvArgs {
     #[arg(long, value_name = "FIELDS", help = "Select specific output fields (comma-separated)")]
     pub fields: Option<String>,
 
+    /// Disable content truncation (show full output)
+    #[arg(long, help = "Disable content truncation and show full output")]
+    pub full: bool,
+
     /// Source file(s) to move
     #[arg(value_name = "SOURCE")]
     pub sources: Vec<PathBuf>,
@@ -242,6 +246,10 @@ pub struct RmArgs {
     #[arg(long, value_name = "FIELDS", help = "Select specific output fields (comma-separated)")]
     pub fields: Option<String>,
 
+    /// Disable content truncation (show full output)
+    #[arg(long, help = "Disable content truncation and show full output")]
+    pub full: bool,
+
     /// File(s) or directories to remove
     #[arg(value_name = "FILE")]
     pub paths: Vec<PathBuf>,
@@ -327,6 +335,10 @@ pub struct SmartfoArgs {
     /// Select specific output fields (comma-separated)
     #[arg(long, value_name = "FIELDS", help = "Select specific output fields (comma-separated)")]
     pub fields: Option<String>,
+
+    /// Disable content truncation (show full output)
+    #[arg(long, help = "Disable content truncation and show full output")]
+    pub full: bool,
 
     /// Subcommands
     #[command(subcommand)]

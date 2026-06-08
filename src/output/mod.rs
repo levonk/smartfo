@@ -3,8 +3,10 @@
 
 pub mod toon;
 pub mod schema;
+pub mod truncation;
 
 pub use schema::{Field, Schema, SchemaRegistry, FieldSelector, FieldFilterable};
+pub use truncation::{truncate, truncate_with_ellipsis, TruncatedContent, TruncationMetadata, DEFAULT_TRUNCATION_LIMIT};
 
 use serde::Serialize;
 use std::io::Write;
@@ -46,6 +48,8 @@ pub struct OutputWriter<W: Write> {
     writer: W,
     format: OutputFormat,
     field_selector: Option<schema::FieldSelector>,
+    truncation_enabled: bool,
+    truncation_limit: usize,
 }
 
 impl<W: Write> OutputWriter<W> {
@@ -55,6 +59,8 @@ impl<W: Write> OutputWriter<W> {
             writer, 
             format,
             field_selector: None,
+            truncation_enabled: true,
+            truncation_limit: DEFAULT_TRUNCATION_LIMIT,
         }
     }
 
@@ -64,7 +70,21 @@ impl<W: Write> OutputWriter<W> {
             writer, 
             format,
             field_selector: Some(field_selector),
+            truncation_enabled: true,
+            truncation_limit: DEFAULT_TRUNCATION_LIMIT,
         }
+    }
+
+    /// Set truncation enabled/disabled
+    pub fn with_truncation(mut self, enabled: bool) -> Self {
+        self.truncation_enabled = enabled;
+        self
+    }
+
+    /// Set truncation limit
+    pub fn with_truncation_limit(mut self, limit: usize) -> Self {
+        self.truncation_limit = limit;
+        self
     }
 
     /// Write data in the configured format

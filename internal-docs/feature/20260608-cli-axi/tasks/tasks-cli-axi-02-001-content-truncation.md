@@ -7,7 +7,7 @@ prd_file: "internal-docs/feature/20260608-cli-axi/prd-20260608-cli-axi.md"
 phase: 2
 parallel_id: 1
 branch: "feature/current/cli-axi/story-02-001-content-truncation"
-status: "todo"
+status: "done"
 assignee: ""
 reviewer: ""
 dependencies: ["01-003"]
@@ -27,16 +27,16 @@ Implement content truncation for large text fields (500-1500 chars default). Add
 
 ## Sub-Tasks
 
-- [ ] Implement truncation logic with configurable limit (default 1000 chars)
-- [ ] Add --full CLI flag to disable truncation
-- [ ] Include truncation metadata in output (total size, truncated indicator)
-- [ ] Add help suggestions for --full flag when content is truncated
-- [ ] Apply truncation to file paths, VCS messages, error details
-- [ ] Add truncation tests for various field types
-- [ ] Update CLI help text to document truncation behavior
-- [ ] Add config option for default truncation limit
-- [ ] Test truncation with different content sizes
-- [ ] Ensure truncation works in both agent and human modes
+- [x] Implement truncation logic with configurable limit (default 1000 chars)
+- [x] Add --full CLI flag to disable truncation
+- [x] Include truncation metadata in output (total size, truncated indicator)
+- [x] Add help suggestions for --full flag when content is truncated
+- [x] Apply truncation to file paths, VCS messages, error details
+- [x] Add truncation tests for various field types
+- [x] Update CLI help text to document truncation behavior
+- [x] Add config option for default truncation limit
+- [x] Test truncation with different content sizes
+- [x] Ensure truncation works in both agent and human modes
 
 Status conventions: mark in-progress with `[~]`, done with `[x]`, blocked with `[!]`.
 

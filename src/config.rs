@@ -336,6 +336,9 @@ pub struct BehaviorConfig {
     /// Output mode: agent, human, or auto-detection
     #[serde(default)]
     pub mode: OutputMode,
+    /// Default truncation limit for text fields (in characters)
+    #[serde(default = "default_truncation_limit")]
+    pub truncation_limit: usize,
 }
 
 fn default_smart_mode() -> bool {
@@ -358,6 +361,10 @@ fn default_daemon_fallback_quiet() -> bool {
     false
 }
 
+fn default_truncation_limit() -> usize {
+    1000
+}
+
 impl Default for BehaviorConfig {
     fn default() -> Self {
         Self {
@@ -367,6 +374,7 @@ impl Default for BehaviorConfig {
             sync_after_op: default_sync_after_op(),
             daemon_fallback_quiet: default_daemon_fallback_quiet(),
             mode: OutputMode::default(),
+            truncation_limit: default_truncation_limit(),
         }
     }
 }
@@ -645,6 +653,11 @@ fn merge_configs(base: Config, file: Config) -> Config {
             sync_after_op: file.behavior.sync_after_op,
             daemon_fallback_quiet: file.behavior.daemon_fallback_quiet,
             mode: file.behavior.mode,
+            truncation_limit: if file.behavior.truncation_limit != default_truncation_limit() {
+                file.behavior.truncation_limit
+            } else {
+                base.behavior.truncation_limit
+            },
         },
         logging: LoggingConfig {
             level: if file.logging.level != default_log_level() {
