@@ -7,7 +7,7 @@ prd_file: "internal-docs/feature/20260607-cli-standards/prd-cli-standards-compli
 phase: 1
 parallel_id: 3
 branch: "feature/current/cli-standards-compliance/story-01-003-install-uninstall"
-status: "todo"
+status: "in_progress"
 assignee: ""
 reviewer: ""
 dependencies: []
@@ -27,7 +27,7 @@ Enhance existing --install flag to generate shell completion scripts, initialize
 
 ## Sub-Tasks
 
-- [ ] Create new install.rs module for install/uninstall logic
+- [x] Create new install.rs module for install/uninstall logic
 - [ ] Implement shell completion script generation for bash using clap
 - [ ] Implement shell completion script generation for zsh using clap
 - [ ] Implement shell completion script generation for fish using clap
@@ -48,9 +48,9 @@ Enhance existing --install flag to generate shell completion scripts, initialize
 
 ## Relevant Files
 
-- `src/install.rs` — New module for install/uninstall logic
-- `src/main.rs` — Add --uninstall flag, integrate install.rs
-- `src/cli.rs` — Add --uninstall flag to smartfo mode parser
+- `src/install.rs` — New module for install/uninstall logic (created with Installer struct, directory creation, symlink management, and stub methods for completions/config/man pages)
+- `src/main.rs` — Added install module declaration, integrated Installer into run_install, added run_uninstall function
+- `src/cli.rs` — Added --uninstall and --force-uninstall flags to SmartfoArgs
 - `tests/install_tests.rs` — Add tests for install/uninstall functionality
 
 ## Acceptance Criteria

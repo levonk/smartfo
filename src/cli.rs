@@ -252,6 +252,14 @@ pub struct SmartfoArgs {
     #[arg(long = "init-config")]
     pub init_config: bool,
 
+    /// Uninstall smartfo (remove symlinks, completions, man pages)
+    #[arg(long)]
+    pub uninstall: bool,
+
+    /// Bypass confirmation prompts during uninstall
+    #[arg(long)]
+    pub force_uninstall: bool,
+
     /// Print version information
     #[arg(short = 'V', long = "version")]
     pub version: bool,

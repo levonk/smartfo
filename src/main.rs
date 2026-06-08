@@ -15,6 +15,7 @@ mod queue;
 mod daemon;
 mod worker;
 mod hooks;
+mod install;
 use cli::{MvArgs, RmArgs, SmartfoArgs, SmartfoCommand};
 
 /// Resolve the symlink target directory based on XDG conventions and permissions.
@@ -247,6 +248,8 @@ fn run_install(args: &SmartfoArgs) -> Result<()> {
         println!("      --no-hooks            Skip hook installation");
         println!("      --force               Overwrite existing files when installing");
         println!("      --init-config         Initialize or recreate default config file");
+        println!("      --uninstall           Uninstall smartfo (remove symlinks, completions, man pages)");
+        println!("      --force-uninstall     Bypass confirmation prompts during uninstall");
         println!("      --usage               Show brief usage message");
         println!("  -h, --help               Show this help message");
         println!("  -V, --version            Print version information");
@@ -257,6 +260,11 @@ fn run_install(args: &SmartfoArgs) -> Result<()> {
         return Ok(());
     }
 
+    // Handle --uninstall flag
+    if args.uninstall {
+        return run_uninstall(args);
+    }
+
     // Initialize config if it doesn't exist
     if config::init_config_if_missing()? {
         info!("Created default config file");
@@ -264,29 +272,11 @@ fn run_install(args: &SmartfoArgs) -> Result<()> {
 
     info!("install mode: hooks={:?} no_hooks={} force={}", args.hooks, args.no_hooks, args.force);
 
-    // Resolve symlink target directory
-    let target_dir = if nix::unistd::Uid::effective().is_root() {
-        // If running as root, try /usr/local/bin
-        PathBuf::from("/usr/local/bin")
-    } else {
-        resolve_symlink_target_dir()?
-    };
+    // Use the new install.rs module
+    let installer = install::Installer::new()?;
+    installer.install()?;
 
-    info!("Symlink target directory: {}", target_dir.display());
-
-    // Get the current executable path
-    let current_exe = std::env::current_exe()
-        .map_err(|_| anyhow::anyhow!("Failed to determine current executable path"))?;
-
-    // Create symlinks for mv, rm, smv, srm
-    let symlink_names = ["mv", "rm", "smv", "srm"];
-    for name in &symlink_names {
-        let symlink_path = target_dir.join(name);
-        create_symlink(&current_exe, &symlink_path, args.force)?;
-        info!("Created symlink: {} -> {}", symlink_path.display(), current_exe.display());
-    }
-
-    // Handle hook installation
+    // Handle hook installation (legacy logic for now, will be integrated into install.rs later)
     if !args.no_hooks {
         // Detect if we're inside a Git repository
         if let Some(repo_root) = detect_git_repo() {
@@ -298,6 +288,15 @@ fn run_install(args: &SmartfoArgs) -> Result<()> {
     } else {
         info!("Hook installation skipped due to --no-hooks flag");
     }
+
+    Ok(())
+}
+
+fn run_uninstall(args: &SmartfoArgs) -> Result<()> {
+    info!("uninstall mode: force_uninstall={}", args.force_uninstall);
+
+    let installer = install::Installer::new()?;
+    installer.uninstall(args.force_uninstall)?;
 
     Ok(())
 }
