@@ -4,7 +4,7 @@
 | -------- | ----------- | ------ | ------------ | ------------- | ------- | ------ |
 | 01-001 | Standard Arguments Implementation | feature/current/cli-standards-compliance/story-01-001-standard-arguments | None | Parallel-safe: true | cli.rs, main.rs | [x] Done |
 | 01-002 | Config Initialization & System Config | feature/current/cli-standards-compliance/story-01-002-config-initialization | None | Parallel-safe: true | config.rs | [x] Done |
-| 01-003 | Install/Uninstall Enhancement | feature/current/cli-standards-compliance/story-01-003-install-uninstall | None | Parallel-safe: true | main.rs, install.rs (new) | [~] In-Progress |
+| 01-003 | Install/Uninstall Enhancement | feature/current/cli-standards-compliance/story-01-003-install-uninstall | None | Parallel-safe: true | main.rs, install.rs (new) | [x] Done |
 | 01-004 | Input & Globbing Support | feature/current/cli-standards-compliance/story-01-004-input-globbing | None | Parallel-safe: true | cli.rs | [ ] Todo |
 | 01-005 | Output Discipline & JSON Mode | feature/current/cli-standards-compliance/story-01-005-output-discipline | None | Parallel-safe: true | logging.rs, cli.rs | [ ] Todo |
 | 01-006 | Developer UX Standard Compliance | feature/current/cli-standards-compliance/story-01-006-developer-ux-standard | None | Parallel-safe: true | root, docs | [ ] Todo |

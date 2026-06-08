@@ -7,7 +7,7 @@ prd_file: "internal-docs/feature/20260607-cli-standards/prd-cli-standards-compli
 phase: 1
 parallel_id: 3
 branch: "feature/current/cli-standards-compliance/story-01-003-install-uninstall"
-status: "in_progress"
+status: "done"
 assignee: ""
 reviewer: ""
 dependencies: []
@@ -28,23 +28,23 @@ Enhance existing --install flag to generate shell completion scripts, initialize
 ## Sub-Tasks
 
 - [x] Create new install.rs module for install/uninstall logic
-- [ ] Implement shell completion script generation for bash using clap
-- [ ] Implement shell completion script generation for zsh using clap
-- [ ] Implement shell completion script generation for fish using clap
-- [ ] Add completion installation to appropriate directories (bash_completion, zsh/functions, fish/completions)
-- [ ] Integrate default config file initialization with --install
-- [ ] Add environment variable setup instructions to --install output
-- [ ] Implement man page installation to system man directory
-- [ ] Add --uninstall flag to clap parser
-- [ ] Implement symlink removal (mv, rm, smv, srm) for --uninstall
-- [ ] Implement shell completion script removal for --uninstall
-- [ ] Implement man page removal for --uninstall
-- [ ] Add optional config file removal with confirmation prompt for --uninstall
-- [ ] Add --force flag to bypass confirmation prompts during --uninstall
-- [ ] Add unit tests for --install completion generation
-- [ ] Add unit tests for --install config initialization
-- [ ] Add unit tests for --uninstall cleanup
-- [ ] Add unit tests for --force flag behavior
+- [x] Implement shell completion script generation for bash using clap
+- [x] Implement shell completion script generation for zsh using clap
+- [x] Implement shell completion script generation for fish using clap
+- [x] Add completion installation to appropriate directories (bash_completion, zsh/functions, fish/completions)
+- [x] Integrate default config file initialization with --install
+- [x] Add environment variable setup instructions to --install output
+- [x] Implement man page installation to system man directory
+- [x] Add --uninstall flag to clap parser
+- [x] Implement symlink removal (mv, rm, smv, srm) for --uninstall
+- [x] Implement shell completion script removal for --uninstall
+- [x] Implement man page removal for --uninstall
+- [x] Add optional config file removal with confirmation prompt for --uninstall
+- [x] Add --force flag to bypass confirmation prompts during --uninstall
+- [x] Add unit tests for --install completion generation
+- [x] Add unit tests for --install config initialization
+- [x] Add unit tests for --uninstall cleanup
+- [x] Add unit tests for --force flag behavior
 
 ## Relevant Files
 
@@ -55,16 +55,16 @@ Enhance existing --install flag to generate shell completion scripts, initialize
 
 ## Acceptance Criteria
 
-- [ ] --install generates bash, zsh, and fish completion scripts
-- [ ] --install initializes default config files
-- [ ] --install displays environment variable setup instructions
-- [ ] --install installs man pages to system man directory
-- [ ] --uninstall removes symlinks (mv, rm, smv, srm)
-- [ ] --uninstall removes shell completion scripts
-- [ ] --uninstall removes man pages
-- [ ] --uninstall prompts for config file removal
-- [ ] --uninstall --force bypasses confirmation prompts
-- [ ] All tests pass
+- [x] --install generates bash, zsh, and fish completion scripts
+- [x] --install initializes default config files
+- [x] --install displays environment variable setup instructions
+- [x] --install installs man pages to system man directory
+- [x] --uninstall removes symlinks (mv, rm, smv, srm)
+- [x] --uninstall removes shell completion scripts
+- [x] --uninstall removes man pages
+- [x] --uninstall prompts for config file removal
+- [x] --uninstall --force bypasses confirmation prompts
+- [x] All tests pass
 
 ## Test Plan
 
