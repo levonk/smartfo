@@ -7,7 +7,7 @@ prd_file: "internal-docs/feature/20260607-cli-standards/prd-cli-standards-compli
 phase: 1
 parallel_id: 1
 branch: "feature/current/cli-standards-compliance/story-01-001-standard-arguments"
-status: "in_progress"
+status: "done"
 assignee: ""
 reviewer: ""
 dependencies: []

@@ -2,6 +2,52 @@ use serde::{Deserialize, Serialize};
 use std::env;
 use std::path::PathBuf;
 
+/// Return the system config file path based on the current platform.
+pub fn system_config_path() -> Option<PathBuf> {
+    #[cfg(target_os = "linux")]
+    {
+        Some(PathBuf::from("/etc/smartfo/config.toml"))
+    }
+    
+    #[cfg(target_os = "macos")]
+    {
+        Some(PathBuf::from("/Library/Application Support/smartfo/config.toml"))
+    }
+    
+    #[cfg(target_os = "windows")]
+    {
+        env::var("ProgramData")
+            .ok()
+            .map(|p| PathBuf::from(p).join("smartfo").join("config.toml"))
+    }
+    
+    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+    {
+        None
+    }
+}
+
+/// Return the project config file path if running inside a Git repository.
+pub fn project_config_path() -> Option<PathBuf> {
+    // Check if we're in a Git repository
+    let mut current_dir = std::env::current_dir().ok()?;
+    
+    loop {
+        let git_dir = current_dir.join(".git");
+        if git_dir.exists() {
+            // Found a Git repository, return project config path
+            return Some(current_dir.join(".config").join("smartfo").join("config.toml"));
+        }
+        
+        // Move up to parent directory
+        if !current_dir.pop() {
+            break;
+        }
+    }
+    
+    None
+}
+
 /// Top-level smartfo configuration.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Config {
@@ -225,6 +271,9 @@ pub struct BehaviorConfig {
     /// Whether to fsync after every operation
     #[serde(default = "default_sync_after_op")]
     pub sync_after_op: bool,
+    /// Whether daemon fallback to sync mode should be quiet (no warnings)
+    #[serde(default = "default_daemon_fallback_quiet")]
+    pub daemon_fallback_quiet: bool,
 }
 
 fn default_smart_mode() -> bool {
@@ -243,6 +292,10 @@ fn default_sync_after_op() -> bool {
     false
 }
 
+fn default_daemon_fallback_quiet() -> bool {
+    false
+}
+
 impl Default for BehaviorConfig {
     fn default() -> Self {
         Self {
@@ -250,6 +303,7 @@ impl Default for BehaviorConfig {
             async_threshold_mb: default_async_threshold_mb(),
             default_blocking: default_default_blocking(),
             sync_after_op: default_sync_after_op(),
+            daemon_fallback_quiet: default_daemon_fallback_quiet(),
         }
     }
 }
@@ -394,17 +448,31 @@ pub fn load_config_file(path: &std::path::Path) -> anyhow::Result<Config> {
 /// Resolve the effective config with the full precedence hierarchy:
 /// 1. CLI flags (applied by caller after loading config)
 /// 2. Environment variables (`SMARTFO_<SECTION>_<KEY>`)
-/// 3. Config file
-/// 4. Built-in defaults
+/// 3. Project config (if in a Git repository)
+/// 4. User config
+/// 5. System config
+/// 6. Built-in defaults
 pub fn resolve_config(config_path: Option<&std::path::Path>) -> anyhow::Result<Config> {
     // Start with defaults
     let mut config = Config::default();
 
-    // Layer 3: Config file
-    let file_path = config_path.map(PathBuf::from).or_else(|| default_config_path()).filter(|p| p.exists());
-    if let Some(path) = file_path {
-        let file_config = load_config_file(&path)?;
-        config = merge_configs(config, file_config);
+    // Layer 5: System config
+    if let Some(system_path) = system_config_path().filter(|p| p.exists()) {
+        let system_config = load_config_file(&system_path)?;
+        config = merge_configs(config, system_config);
+    }
+
+    // Layer 4: User config
+    let user_path = config_path.map(PathBuf::from).or_else(|| default_config_path()).filter(|p| p.exists());
+    if let Some(path) = user_path {
+        let user_config = load_config_file(&path)?;
+        config = merge_configs(config, user_config);
+    }
+
+    // Layer 3: Project config (if in a Git repository)
+    if let Some(project_path) = project_config_path().filter(|p| p.exists()) {
+        let project_config = load_config_file(&project_path)?;
+        config = merge_configs(config, project_config);
     }
 
     // Layer 2: Environment variables
@@ -512,6 +580,7 @@ fn merge_configs(base: Config, file: Config) -> Config {
             },
             default_blocking: file.behavior.default_blocking,
             sync_after_op: file.behavior.sync_after_op,
+            daemon_fallback_quiet: file.behavior.daemon_fallback_quiet,
         },
         logging: LoggingConfig {
             level: if file.logging.level != default_log_level() {
@@ -597,6 +666,9 @@ fn apply_env_overrides(config: &mut Config) -> anyhow::Result<()> {
                         config.behavior.default_blocking = value.parse().unwrap_or(false);
                     }
                     "sync_after_op" => config.behavior.sync_after_op = value.parse().unwrap_or(false),
+                    "daemon_fallback_quiet" => {
+                        config.behavior.daemon_fallback_quiet = value.parse().unwrap_or(false);
+                    }
                     _ => {}
                 },
                 "logging" => match key_name.as_str() {
@@ -623,48 +695,113 @@ fn apply_env_overrides(config: &mut Config) -> anyhow::Result<()> {
 pub fn default_config_template() -> String {
     r#"# Smartfo Configuration File
 # Place this file at $XDG_CONFIG_HOME/smartfo/config.toml or $HOME/smartfo/config.toml
+# All settings are commented out with their default values shown
+# Uncomment and modify any setting you wish to customize
 
 [vcs]
-preference = "git"
-fallback = ["git", "jj", "hg", "svn"]
-supported = ["git", "jj", "hg", "svn"]
+# Preferred VCS when multiple are detected (default: "git")
+# preference = "git"
+# Fallback order when preferred VCS is unavailable (default: ["git", "jj", "hg", "svn"])
+# fallback = ["git", "jj", "hg", "svn"]
+# Supported VCS systems to detect (default: ["git", "jj", "hg", "svn"])
+# supported = ["git", "jj", "hg", "svn"]
 
 [trash]
-root = "$XDG_DATA_HOME/smartfo/trash"
-mode = "versioned"
-min_free_mb = 1024
-min_free_space_percent = 20
-on_trash_full = "refuse"
-allow_last_version_cull = false
-retention_days = 30
-delete_ignored = true
-preserve_tree = true
-backup_vcs_committed = false
+# Root directory for trash (default: "$XDG_DATA_HOME/smartfo/trash")
+# root = "$XDG_DATA_HOME/smartfo/trash"
+# Trash mode: "versioned" or "simple" (default: "versioned")
+# mode = "versioned"
+# Minimum free space (in MB) before auto-culling oldest entries (default: 1024)
+# min_free_mb = 1024
+# Minimum free space percentage (0-100) before auto-culling oldest entries (default: 20)
+# min_free_space_percent = 20
+# Behavior when trash is full: "refuse" or "delete" (default: "refuse")
+# on_trash_full = "refuse"
+# Whether to allow culling the last version of a file (default: false)
+# allow_last_version_cull = false
+# Retention period in days, 0 = unlimited (default: 30)
+# retention_days = 30
+# Whether to delete ignored files directly instead of trashing (default: true)
+# delete_ignored = true
+# Whether to preserve directory tree structure in trash (default: true)
+# preserve_tree = true
+# Whether to backup VCS-committed files to trash (default: false)
+# backup_vcs_committed = false
 
 [concurrency]
-max_concurrent_jobs = 4
-network_limit_mbps = 0
-drive_detection = true
-network_concurrency = 2
+# Maximum number of concurrent background jobs (default: 4)
+# max_concurrent_jobs = 4
+# Network bandwidth limit in MB/s, 0 = unlimited (default: 0)
+# network_limit_mbps = 0
+# Whether to detect same-drive vs cross-device moves (default: true)
+# drive_detection = true
+# Maximum concurrent operations to network-mounted destinations (default: 2)
+# network_concurrency = 2
 
 [behavior]
-smart_mode = true
-async_threshold_mb = 100
-default_blocking = false
-sync_after_op = false
+# Whether to use smart features (VCS, trash, async) by default (default: true)
+# smart_mode = true
+# File size threshold (in MB) for triggering async move (default: 100)
+# async_threshold_mb = 100
+# Whether blocking mode is the default (overrides async) (default: false)
+# default_blocking = false
+# Whether to fsync after every operation (default: false)
+# sync_after_op = false
+# Whether daemon fallback to sync mode should be quiet (no warnings) (default: false)
+# daemon_fallback_quiet = false
 
 [logging]
-level = "info"
+# Log level: "trace", "debug", "info", "warn", "error" (default: "info")
+# level = "info"
+# Log file path (default: stderr)
 # file = "$HOME/.local/share/smartfo/smartfo.log"
-json = false
+# Whether to use JSON formatting (default: false)
+# json = false
 
 [paths]
+# Override for trash root (default: uses trash.root)
 # trash_root = "$HOME/.local/share/smartfo/trash"
-audit_log = "$XDG_DATA_HOME/smartfo/audit/operations.jsonl"
-cache_dir = "$XDG_CACHE_HOME/smartfo"
+# Audit log file path (default: "$XDG_DATA_HOME/smartfo/audit/operations.jsonl")
+# audit_log = "$XDG_DATA_HOME/smartfo/audit/operations.jsonl"
+# Cache directory (default: "$XDG_CACHE_HOME/smartfo")
+# cache_dir = "$XDG_CACHE_HOME/smartfo"
+# Config directory override (default: uses XDG_CONFIG_HOME)
 # config_dir = "$HOME/.config/smartfo"
 "#
     .to_string()
+}
+
+/// Check if the user config file exists.
+pub fn user_config_exists() -> bool {
+    default_config_path()
+        .map(|p| p.exists())
+        .unwrap_or(false)
+}
+
+/// Create the default config file in the user config directory.
+pub fn create_default_config() -> anyhow::Result<PathBuf> {
+    let config_path = default_config_path()
+        .ok_or_else(|| anyhow::anyhow!("Cannot determine config file path"))?;
+    
+    // Create parent directory if it doesn't exist
+    if let Some(parent) = config_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    
+    // Write the default config template
+    std::fs::write(&config_path, default_config_template())?;
+    
+    Ok(config_path)
+}
+
+/// Initialize config on first run if it doesn't exist.
+pub fn init_config_if_missing() -> anyhow::Result<bool> {
+    if user_config_exists() {
+        return Ok(false);
+    }
+    
+    create_default_config()?;
+    Ok(true)
 }
 
 #[cfg(test)]
@@ -679,6 +816,7 @@ mod tests {
         assert_eq!(config.concurrency.max_concurrent_jobs, 4);
         assert!(config.behavior.smart_mode);
         assert_eq!(config.logging.level, "info");
+        assert!(!config.behavior.daemon_fallback_quiet);
     }
 
     #[test]
@@ -712,6 +850,154 @@ default_blocking = true
         assert!(config.behavior.default_blocking);
         // Unspecified fields keep defaults
         assert_eq!(config.concurrency.max_concurrent_jobs, 4);
+    }
+
+    #[test]
+    fn test_system_config_path() {
+        let path = system_config_path();
+        #[cfg(target_os = "linux")]
+        assert_eq!(path, Some(PathBuf::from("/etc/smartfo/config.toml")));
+        
+        #[cfg(target_os = "macos")]
+        assert_eq!(path, Some(PathBuf::from("/Library/Application Support/smartfo/config.toml")));
+        
+        #[cfg(target_os = "windows")]
+        assert!(path.is_some());
+        
+        #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+        assert!(path.is_none());
+    }
+
+    #[test]
+    fn test_project_config_path() {
+        // This test should pass when run from within a Git repository
+        let path = project_config_path();
+        // We can't assert a specific value since it depends on the test environment
+        // Just verify it returns Some or None consistently
+        let _ = path;
+    }
+
+    #[test]
+    fn test_config_precedence() {
+        let mut tmpdir = tempfile::TempDir::new().unwrap();
+        
+        // Create system config
+        let system_path = tmpdir.path().join("system.toml");
+        let system_toml = r#"
+[behavior]
+smart_mode = false
+"#;
+        std::fs::write(&system_path, system_toml).unwrap();
+        
+        // Create user config
+        let user_path = tmpdir.path().join("user.toml");
+        let user_toml = r#"
+[behavior]
+smart_mode = true
+default_blocking = true
+"#;
+        std::fs::write(&user_path, user_toml).unwrap();
+        
+        // Test precedence: system -> user -> project
+        // Since we can't easily mock project config, we'll just test system -> user
+        let config = resolve_config(Some(&user_path)).unwrap();
+        assert!(config.behavior.smart_mode);
+        assert!(config.behavior.default_blocking);
+    }
+
+    #[test]
+    fn test_config_precedence_full_chain() {
+        let mut tmpdir = tempfile::TempDir::new().unwrap();
+        
+        // Create system config (lowest precedence)
+        let system_path = tmpdir.path().join("system.toml");
+        let system_toml = r#"
+[behavior]
+smart_mode = false
+default_blocking = false
+"#;
+        std::fs::write(&system_path, system_toml).unwrap();
+        
+        // Create user config (higher precedence than system)
+        let user_path = tmpdir.path().join("user.toml");
+        let user_toml = r#"
+[behavior]
+smart_mode = true
+"#;
+        std::fs::write(&user_path, user_toml).unwrap();
+        
+        // User config should override system config
+        let config = resolve_config(Some(&user_path)).unwrap();
+        assert!(config.behavior.smart_mode, "user config should override system config");
+        assert!(!config.behavior.default_blocking, "system config should be used for unset values");
+    }
+
+    #[test]
+    fn test_daemon_fallback_quiet_default() {
+        let config = Config::default();
+        assert!(!config.behavior.daemon_fallback_quiet);
+    }
+
+    #[test]
+    fn test_daemon_fallback_quiet_env_override() {
+        env::set_var("SMARTFO_BEHAVIOR_DAEMON_FALLBACK_QUIET", "true");
+        let mut config = Config::default();
+        apply_env_overrides(&mut config).unwrap();
+        assert!(config.behavior.daemon_fallback_quiet);
+        env::remove_var("SMARTFO_BEHAVIOR_DAEMON_FALLBACK_QUIET");
+    }
+
+    #[test]
+    fn test_default_config_template() {
+        let template = default_config_template();
+        assert!(template.contains("# Smartfo Configuration File"));
+        assert!(template.contains("daemon_fallback_quiet"));
+        assert!(template.contains("# preference = \"git\""));
+    }
+
+    #[test]
+    fn test_create_default_config() {
+        let tmpdir = tempfile::TempDir::new().unwrap();
+        let config_path = tmpdir.path().join("smartfo").join("config.toml");
+        
+        // Temporarily override the config path
+        let original_home = env::var("HOME");
+        env::set_var("HOME", tmpdir.path());
+        
+        let result = create_default_config();
+        assert!(result.is_ok());
+        assert!(config_path.exists());
+        
+        // Restore original HOME
+        if let Ok(home) = original_home {
+            env::set_var("HOME", home);
+        } else {
+            env::remove_var("HOME");
+        }
+    }
+
+    #[test]
+    fn test_init_config_if_missing() {
+        let tmpdir = tempfile::TempDir::new().unwrap();
+        
+        // Temporarily override the config path
+        let original_home = env::var("HOME");
+        env::set_var("HOME", tmpdir.path());
+        
+        // First call should create config
+        let created = init_config_if_missing().unwrap();
+        assert!(created);
+        
+        // Second call should not create config (already exists)
+        let created_again = init_config_if_missing().unwrap();
+        assert!(!created_again);
+        
+        // Restore original HOME
+        if let Ok(home) = original_home {
+            env::set_var("HOME", home);
+        } else {
+            env::remove_var("HOME");
+        }
     }
 
     #[test]

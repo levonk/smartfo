@@ -223,6 +223,7 @@ Smartfo is a drop-in replacement for POSIX mv and rm that provides:
 
 Installation:
   smartfo --install         # Install symlinks and hooks
+  smartfo --init-config     # Create default config file
 
 Usage:
   mv file1 file2            # Use via mv symlink
@@ -246,6 +247,10 @@ pub struct SmartfoArgs {
     /// Overwrite existing files when installing
     #[arg(long)]
     pub force: bool,
+
+    /// Initialize or recreate default config file
+    #[arg(long = "init-config")]
+    pub init_config: bool,
 
     /// Print version information
     #[arg(short = 'V', long = "version")]

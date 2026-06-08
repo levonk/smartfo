@@ -246,6 +246,7 @@ fn run_install(args: &SmartfoArgs) -> Result<()> {
         println!("      --hooks=TYPE          Hook types to install: client, server, or client,server");
         println!("      --no-hooks            Skip hook installation");
         println!("      --force               Overwrite existing files when installing");
+        println!("      --init-config         Initialize or recreate default config file");
         println!("      --usage               Show brief usage message");
         println!("  -h, --help               Show this help message");
         println!("  -V, --version            Print version information");
@@ -254,6 +255,11 @@ fn run_install(args: &SmartfoArgs) -> Result<()> {
         println!("  git-hook-client          Run client-side pre-commit hook");
         println!("  git-hook-server          Run server-side pre-receive hook");
         return Ok(());
+    }
+
+    // Initialize config if it doesn't exist
+    if config::init_config_if_missing()? {
+        info!("Created default config file");
     }
 
     info!("install mode: hooks={:?} no_hooks={} force={}", args.hooks, args.no_hooks, args.force);
@@ -439,6 +445,7 @@ fn main() -> Result<()> {
                 println!("      --hooks=TYPE          Hook types to install: client, server, or client,server");
                 println!("      --no-hooks            Skip hook installation");
                 println!("      --force               Overwrite existing files when installing");
+                println!("      --init-config         Initialize or recreate default config file");
                 println!("      --usage               Show brief usage message");
                 println!("  -h, --help               Show this help message");
                 println!("  -V, --version            Print version information");
@@ -446,6 +453,14 @@ fn main() -> Result<()> {
                 println!("Subcommands:");
                 println!("  git-hook-client          Run client-side pre-commit hook");
                 println!("  git-hook-server          Run server-side pre-receive hook");
+                return Ok(());
+            }
+
+            // Handle --init-config flag
+            if args.init_config {
+                info!("--init-config flag triggered");
+                let config_path = config::create_default_config()?;
+                println!("Created default config file at: {}", config_path.display());
                 return Ok(());
             }
 

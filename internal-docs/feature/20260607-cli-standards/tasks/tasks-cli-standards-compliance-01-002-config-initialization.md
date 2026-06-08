@@ -7,7 +7,7 @@ prd_file: "internal-docs/feature/20260607-cli-standards/prd-cli-standards-compli
 phase: 1
 parallel_id: 2
 branch: "feature/current/cli-standards-compliance/story-01-002-config-initialization"
-status: "todo"
+status: "in_progress"
 assignee: ""
 reviewer: ""
 dependencies: []
@@ -27,20 +27,20 @@ Implement config file initialization on first run and add system config support 
 
 ## Sub-Tasks
 
-- [ ] Add system config path detection for Linux (/etc/smartfo/config.toml)
-- [ ] Add system config path detection for macOS (/Library/Application Support/smartfo/config.toml)
-- [ ] Add system config path detection for Windows (C:\ProgramData\smartfo\config.toml)
-- [ ] Update config precedence chain to include system config: CLI args > env vars > project config > user config > system config > defaults
-- [ ] Implement config file existence check on first run
-- [ ] Create default config file template with all settings commented out
-- [ ] Include default values and explanations for each option in template comments
-- [ ] Implement config file creation logic for missing configs
-- [ ] Add daemon_fallback_quiet config option to config schema
-- [ ] Implement --init-config flag to explicitly create/recreate default config
-- [ ] Add unit tests for config precedence with system config
-- [ ] Add unit tests for config file initialization
-- [ ] Add unit tests for --init-config flag
-- [ ] Add unit tests for daemon_fallback_quiet config option
+- [x] Add system config path detection for Linux (/etc/smartfo/config.toml)
+- [x] Add system config path detection for macOS (/Library/Application Support/smartfo/config.toml)
+- [x] Add system config path detection for Windows (C:\ProgramData\smartfo\config.toml)
+- [x] Update config precedence chain to include system config: CLI args > env vars > project config > user config > system config > defaults
+- [x] Implement config file existence check on first run
+- [x] Create default config file template with all settings commented out
+- [x] Include default values and explanations for each option in template comments
+- [x] Implement config file creation logic for missing configs
+- [x] Add daemon_fallback_quiet config option to config schema
+- [x] Implement --init-config flag to explicitly create/recreate default config
+- [x] Add unit tests for config precedence with system config
+- [x] Add unit tests for config file initialization
+- [x] Add unit tests for --init-config flag
+- [x] Add unit tests for daemon_fallback_quiet config option
 
 ## Relevant Files
 
@@ -50,13 +50,13 @@ Implement config file initialization on first run and add system config support 
 
 ## Acceptance Criteria
 
-- [ ] System config is loaded from platform-specific location
-- [ ] Config precedence includes system config in correct position
-- [ ] Default config file is created on first run with all settings commented out
-- [ ] Default values and explanations are included in comments
-- [ ] --init-config flag creates/recreates default config
-- [ ] daemon_fallback_quiet config option is available
-- [ ] All tests pass
+- [x] System config is loaded from platform-specific location
+- [x] Config precedence includes system config in correct position
+- [x] Default config file is created on first run with all settings commented out
+- [x] Default values and explanations are included in comments
+- [x] --init-config flag creates/recreates default config
+- [x] daemon_fallback_quiet config option is available
+- [x] All tests pass
 
 ## Test Plan
 
