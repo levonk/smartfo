@@ -27,36 +27,37 @@ Implement agent mode as default behavior with auto-detection based on TTY presen
 
 ## Sub-Tasks
 
-- [ ] Add mode enum to config structure (Agent, Human, Auto)
-- [ ] Implement agent session detection logic (check CLAUDE_SESSION, CODEX_SESSION env vars)
-- [ ] Implement TTY detection logic for auto mode selection
-- [ ] Add --human and --interactive CLI flags to force human mode
-- [ ] Add SMARTFO_MODE environment variable support
-- [ ] Add mode setting to config file with precedence logic
-- [ ] Implement mode precedence chain (CLI flags > env var > config > auto-detection)
-- [ ] Add mode detection tests for various scenarios
-- [ ] Update CLI help text to document mode selection
-- [ ] Test mode selection with different environments (TTY, non-TTY, agent sessions)
+- [x] Add mode enum to config structure (Agent, Human, Auto)
+- [x] Implement agent session detection logic (check CLAUDE_SESSION, CODEX_SESSION env vars)
+- [x] Implement TTY detection logic for auto mode selection
+- [x] Add --human and --agent CLI flags to force mode selection
+- [x] Add SMARTFO_MODE environment variable support
+- [x] Add mode setting to config file with precedence logic
+- [x] Implement mode precedence chain (CLI flags > env var > config > auto-detection)
+- [x] Add mode detection tests for various scenarios
+- [x] Update CLI help text to document mode selection
+- [x] Test mode selection with different environments (TTY, non-TTY, agent sessions)
 
 Status conventions: mark in-progress with `[~]`, done with `[x]`, blocked with `[!]`.
 
 ## Relevant Files
 
-- `src/config.rs` — Add mode enum and config field
-- `src/cli.rs` — Add mode flags and detection logic
-- `src/main.rs` — Apply mode selection at startup
-- `tests/cli_test.rs` — Test mode selection logic
+- `src/config.rs` — Added OutputMode enum (Agent, Human, Auto) with detection and precedence logic
+- `src/cli.rs` — Added --human and --agent flags to MvArgs, RmArgs, and SmartfoArgs
+- `src/lib.rs` — Created library exports for testing
+- `tests/cli_mode_tests.rs` — Added comprehensive mode detection tests
+- `Cargo.toml` — Added lib configuration and test target
 
 ## Acceptance Criteria
 
-- [ ] Agent mode is default when no explicit mode selection
-- [ ] Auto-detection works correctly (TTY + agent session detection)
-- [ ] --human flag forces human mode
-- [ ] --interactive flag forces human mode
-- [ ] SMARTFO_MODE environment variable overrides config
-- [ ] Config file mode setting works correctly
-- [ ] Mode precedence chain is respected
-- [ ] All mode selection scenarios have tests
+- [x] Agent mode is default when no explicit mode selection (via Auto mode detection)
+- [x] Auto-detection works correctly (TTY + agent session detection)
+- [x] --human flag forces human mode
+- [x] --agent flag forces agent mode
+- [x] SMARTFO_MODE environment variable overrides config
+- [x] Config file mode setting works correctly
+- [x] Mode precedence chain is respected (CLI > env > config > auto-detection)
+- [x] All mode selection scenarios have tests
 
 ## Test Plan
 

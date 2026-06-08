@@ -256,6 +256,83 @@ impl Default for ConcurrencyConfig {
     }
 }
 
+/// Output mode for smartfo operations.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum OutputMode {
+    /// Agent mode: optimized for AI/agent consumption (structured output, minimal prompts)
+    Agent,
+    /// Human mode: optimized for human interaction (friendly messages, interactive prompts)
+    Human,
+    /// Auto mode: automatically detect based on environment (TTY, agent session)
+    Auto,
+}
+
+impl Default for OutputMode {
+    fn default() -> Self {
+        OutputMode::Auto
+    }
+}
+
+impl OutputMode {
+    /// Detect if running in an agent session by checking environment variables
+    pub fn detect_agent_session() -> bool {
+        std::env::var("CLAUDE_SESSION").is_ok()
+            || std::env::var("CODEX_SESSION").is_ok()
+            || std::env::var("AGENT_SESSION").is_ok()
+    }
+
+    /// Detect if running in a TTY
+    pub fn is_tty() -> bool {
+        atty::is(atty::Stream::Stdout)
+    }
+
+    /// Resolve the actual mode based on auto-detection logic
+    pub fn resolve(self) -> Self {
+        match self {
+            OutputMode::Agent => OutputMode::Agent,
+            OutputMode::Human => OutputMode::Human,
+            OutputMode::Auto => {
+                // Auto-detection: prefer agent mode when in agent session or non-TTY
+                if Self::detect_agent_session() || !Self::is_tty() {
+                    OutputMode::Agent
+                } else {
+                    OutputMode::Human
+                }
+            }
+        }
+    }
+
+    /// Determine the final output mode based on precedence chain
+    /// Precedence: CLI flags > env var > config > auto-detection
+    pub fn determine_mode(
+        cli_human: bool,
+        cli_agent: bool,
+        config_mode: OutputMode,
+    ) -> OutputMode {
+        // CLI flags take highest precedence
+        if cli_agent {
+            return OutputMode::Agent;
+        }
+        if cli_human {
+            return OutputMode::Human;
+        }
+
+        // Environment variable override
+        if let Ok(env_mode) = std::env::var("SMARTFO_MODE") {
+            return match env_mode.to_lowercase().as_str() {
+                "agent" => OutputMode::Agent,
+                "human" => OutputMode::Human,
+                "auto" => OutputMode::Auto,
+                _ => config_mode,
+            };
+        }
+
+        // Config setting (resolve Auto mode)
+        config_mode.resolve()
+    }
+}
+
 /// Behavioral toggles and thresholds.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BehaviorConfig {
@@ -274,6 +351,9 @@ pub struct BehaviorConfig {
     /// Whether daemon fallback to sync mode should be quiet (no warnings)
     #[serde(default = "default_daemon_fallback_quiet")]
     pub daemon_fallback_quiet: bool,
+    /// Output mode: agent, human, or auto-detection
+    #[serde(default)]
+    pub mode: OutputMode,
 }
 
 fn default_smart_mode() -> bool {
@@ -304,6 +384,7 @@ impl Default for BehaviorConfig {
             default_blocking: default_default_blocking(),
             sync_after_op: default_sync_after_op(),
             daemon_fallback_quiet: default_daemon_fallback_quiet(),
+            mode: OutputMode::default(),
         }
     }
 }
@@ -581,6 +662,7 @@ fn merge_configs(base: Config, file: Config) -> Config {
             default_blocking: file.behavior.default_blocking,
             sync_after_op: file.behavior.sync_after_op,
             daemon_fallback_quiet: file.behavior.daemon_fallback_quiet,
+            mode: file.behavior.mode,
         },
         logging: LoggingConfig {
             level: if file.logging.level != default_log_level() {
@@ -668,6 +750,14 @@ fn apply_env_overrides(config: &mut Config) -> anyhow::Result<()> {
                     "sync_after_op" => config.behavior.sync_after_op = value.parse().unwrap_or(false),
                     "daemon_fallback_quiet" => {
                         config.behavior.daemon_fallback_quiet = value.parse().unwrap_or(false);
+                    }
+                    "mode" => {
+                        config.behavior.mode = match value.to_lowercase().as_str() {
+                            "agent" => OutputMode::Agent,
+                            "human" => OutputMode::Human,
+                            "auto" => OutputMode::Auto,
+                            _ => OutputMode::Auto,
+                        };
                     }
                     _ => {}
                 },

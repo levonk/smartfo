@@ -94,6 +94,14 @@ pub struct MvArgs {
     #[arg(long = "usage")]
     pub usage: bool,
 
+    /// Force human mode (interactive output, friendly messages)
+    #[arg(long, help = "Force human mode with interactive output and friendly messages")]
+    pub human: bool,
+
+    /// Force agent mode (structured output)
+    #[arg(long, help = "Force agent mode with structured output optimized for AI consumption")]
+    pub agent: bool,
+
     /// Source file(s) to move
     #[arg(value_name = "SOURCE")]
     pub sources: Vec<PathBuf>,
@@ -202,6 +210,14 @@ pub struct RmArgs {
     #[arg(long = "usage")]
     pub usage: bool,
 
+    /// Force human mode (interactive output, friendly messages)
+    #[arg(long, help = "Force human mode with interactive output and friendly messages")]
+    pub human: bool,
+
+    /// Force agent mode (structured output)
+    #[arg(long, help = "Force agent mode with structured output optimized for AI consumption")]
+    pub agent: bool,
+
     /// File(s) or directories to remove
     #[arg(value_name = "FILE")]
     pub paths: Vec<PathBuf>,
@@ -267,6 +283,14 @@ pub struct SmartfoArgs {
     /// Show brief usage message
     #[arg(long = "usage")]
     pub usage: bool,
+
+    /// Force human mode (interactive output, friendly messages)
+    #[arg(long, help = "Force human mode with interactive output and friendly messages")]
+    pub human: bool,
+
+    /// Force agent mode (structured output)
+    #[arg(long, help = "Force agent mode with structured output optimized for AI consumption")]
+    pub agent: bool,
 
     /// Subcommands
     #[command(subcommand)]

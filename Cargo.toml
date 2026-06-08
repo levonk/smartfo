@@ -4,6 +4,14 @@ version = "0.1.0"
 edition = "2021"
 description = "VCS-aware safe mv/rm replacement with trash and audit"
 
+[lib]
+name = "smartfo"
+path = "src/lib.rs"
+
+[[bin]]
+name = "smartfo"
+path = "src/main.rs"
+
 [dependencies]
 clap = { version = "4.4", features = ["derive", "env"] }
 clap_complete = "4.4"
@@ -43,3 +51,7 @@ path = "tests/integration_tests/mod.rs"
 [[test]]
 name = "property"
 path = "tests/property/mod.rs"
+
+[[test]]
+name = "cli_mode_tests"
+path = "tests/cli_mode_tests.rs"
