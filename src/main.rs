@@ -18,7 +18,7 @@ mod hooks;
 mod install;
 mod output;
 use cli::{MvArgs, RmArgs, SmartfoArgs, SmartfoCommand};
-use output::OutputFormat;
+use output::{OutputFormat, schema::{SchemaRegistry, FieldSelector}};
 
 /// Resolve the symlink target directory based on XDG conventions and permissions.
 /// Priority: $XDG_BIN_HOME > ~/.local/bin (create if missing) > /usr/local/bin (if root)
@@ -96,6 +96,35 @@ fn determine_output_format(
     }
 }
 
+/// Determine field selector based on CLI flags and schema
+fn determine_field_selector(
+    fields_flag: &Option<String>,
+    schema_name: &str,
+) -> Option<FieldSelector> {
+    let registry = SchemaRegistry::new();
+    let schema = registry.get_or_default_schema(schema_name);
+    
+    if let Some(fields_str) = fields_flag {
+        match FieldSelector::from_string(fields_str, schema) {
+            Ok(selector) => Some(selector),
+            Err(e) => {
+                eprintln!("Error parsing fields: {}", e);
+                eprintln!("Available fields: {}", 
+                    schema.get_available_fields()
+                        .iter()
+                        .map(|f| f.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                );
+                Some(FieldSelector::from_schema(schema))
+            }
+        }
+    } else {
+        // Use default fields from schema
+        Some(FieldSelector::from_schema(schema))
+    }
+}
+
 fn init_logging(json: bool, verbose: u8, quiet: bool) -> Result<()> {
     let log_level = match verbose {
         0 => "info",
@@ -165,6 +194,7 @@ fn run_mv(args: MvArgs) -> Result<()> {
         println!("      --json               Output operation metadata as JSON");
         println!("      --toon               Output in TOON format (token-efficient for agents)");
         println!("      --format=FORMAT      Output format: toon, json, or human");
+        println!("      --fields=FIELDS      Select specific output fields (comma-separated)");
         println!("      --dry-run            Preview operations without executing");
         println!("      --usage              Show brief usage message");
         println!("  -h, --help               Show this help message");
@@ -222,6 +252,7 @@ fn run_rm(args: RmArgs) -> Result<()> {
         println!("      --json               Output operation metadata as JSON");
         println!("      --toon               Output in TOON format (token-efficient for agents)");
         println!("      --format=FORMAT      Output format: toon, json, or human");
+        println!("      --fields=FIELDS      Select specific output fields (comma-separated)");
         println!("      --dry-run            Preview operations without executing");
         println!("      --usage              Show brief usage message");
         println!("  -h, --help               Show this help message");

@@ -110,6 +110,10 @@ pub struct MvArgs {
     #[arg(long, value_name = "FORMAT", help = "Output format: toon, json, or human")]
     pub format: Option<String>,
 
+    /// Select specific output fields (comma-separated)
+    #[arg(long, value_name = "FIELDS", help = "Select specific output fields (comma-separated)")]
+    pub fields: Option<String>,
+
     /// Source file(s) to move
     #[arg(value_name = "SOURCE")]
     pub sources: Vec<PathBuf>,
@@ -234,6 +238,10 @@ pub struct RmArgs {
     #[arg(long, value_name = "FORMAT", help = "Output format: toon, json, or human")]
     pub format: Option<String>,
 
+    /// Select specific output fields (comma-separated)
+    #[arg(long, value_name = "FIELDS", help = "Select specific output fields (comma-separated)")]
+    pub fields: Option<String>,
+
     /// File(s) or directories to remove
     #[arg(value_name = "FILE")]
     pub paths: Vec<PathBuf>,
@@ -315,6 +323,10 @@ pub struct SmartfoArgs {
     /// Output format: toon, json, or human
     #[arg(long, value_name = "FORMAT", help = "Output format: toon, json, or human")]
     pub format: Option<String>,
+
+    /// Select specific output fields (comma-separated)
+    #[arg(long, value_name = "FIELDS", help = "Select specific output fields (comma-separated)")]
+    pub fields: Option<String>,
 
     /// Subcommands
     #[command(subcommand)]

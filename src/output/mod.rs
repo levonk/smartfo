@@ -2,6 +2,9 @@
 // Supports multiple output formats: TOON, JSON, and human-readable
 
 pub mod toon;
+pub mod schema;
+
+pub use schema::{Field, Schema, SchemaRegistry, FieldSelector, FieldFilterable};
 
 use serde::Serialize;
 use std::io::Write;
@@ -42,28 +45,52 @@ impl OutputFormat {
 pub struct OutputWriter<W: Write> {
     writer: W,
     format: OutputFormat,
+    field_selector: Option<schema::FieldSelector>,
 }
 
 impl<W: Write> OutputWriter<W> {
     /// Create a new output writer
     pub fn new(writer: W, format: OutputFormat) -> Self {
-        Self { writer, format }
+        Self { 
+            writer, 
+            format,
+            field_selector: None,
+        }
+    }
+
+    /// Create a new output writer with field selection
+    pub fn with_fields(writer: W, format: OutputFormat, field_selector: schema::FieldSelector) -> Self {
+        Self { 
+            writer, 
+            format,
+            field_selector: Some(field_selector),
+        }
     }
 
     /// Write data in the configured format
-    pub fn write<T: Serialize>(&mut self, data: &T) -> anyhow::Result<()> {
+    pub fn write<T: Serialize + schema::FieldFilterable>(&mut self, data: &T) -> anyhow::Result<()> {
+        let output_data = if let Some(ref selector) = self.field_selector {
+            // Apply field filtering
+            let fields = selector.get_fields();
+            let value = data.filter_fields(fields)?;
+            value
+        } else {
+            // No filtering, use full data
+            serde_json::to_value(data)?
+        };
+
         match self.format {
             OutputFormat::Toon => {
-                let toon_output = toon::to_string(data)?;
+                let toon_output = toon::to_string(&output_data)?;
                 writeln!(self.writer, "{}", toon_output)?;
             }
             OutputFormat::Json => {
-                let json_output = serde_json::to_string_pretty(data)?;
+                let json_output = serde_json::to_string_pretty(&output_data)?;
                 writeln!(self.writer, "{}", json_output)?;
             }
             OutputFormat::Human => {
                 // Human-readable format - use JSON for now, can be enhanced later
-                let json_output = serde_json::to_string_pretty(data)?;
+                let json_output = serde_json::to_string_pretty(&output_data)?;
                 writeln!(self.writer, "{}", json_output)?;
             }
         }
