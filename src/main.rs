@@ -18,7 +18,9 @@ mod hooks;
 mod install;
 mod output;
 use cli::{MvArgs, RmArgs, SmartfoArgs, SmartfoCommand};
-use output::{OutputFormat, schema::{SchemaRegistry, FieldSelector}};
+use output::OutputFormat;
+use output::schema::{SchemaRegistry, FieldSelector};
+use output::aggregates::*;
 
 /// Resolve the symlink target directory based on XDG conventions and permissions.
 /// Priority: $XDG_BIN_HOME > ~/.local/bin (create if missing) > /usr/local/bin (if root)
@@ -301,6 +303,83 @@ fn run_rm_plain(args: &RmArgs) -> Result<()> {
     Ok(())
 }
 
+fn run_list(all: bool, limit: Option<usize>, args: &SmartfoArgs) -> Result<()> {
+    info!("list command: all={}, limit={:?}", all, limit);
+    
+    // Determine output format
+    let output_format = determine_output_format(args.toon, &args.format, args.agent, args.human);
+    
+    // Determine field selector
+    let field_selector = determine_field_selector(&args.fields, "list");
+    
+    // Create sample data for demonstration (TODO: replace with actual queue/audit data)
+    let items = vec![
+        serde_json::json!({"id": "1", "type": "move", "status": "completed", "source": "/tmp/file1.txt"}),
+        serde_json::json!({"id": "2", "type": "remove", "status": "pending", "source": "/tmp/file2.txt"}),
+        serde_json::json!({"id": "3", "type": "move", "status": "completed", "source": "/tmp/file3.txt"}),
+    ];
+    
+    // Compute aggregate
+    let total = if all { 100 } else { limit.unwrap_or(items.len()) };
+    let aggregate = AggregateComputer::compute_list_aggregate(&items, total);
+    
+    // Create output with aggregate
+    let output = serde_json::json!({
+        "items": items,
+        "aggregate": aggregate,
+    });
+    
+    // Apply field selection if specified
+    let output_data = if let Some(ref _selector) = field_selector {
+        // For now, just return the output as-is since field selection needs structured data
+        output
+    } else {
+        output
+    };
+    
+    // Write output
+    let mut writer = output::OutputWriter::new(std::io::stdout(), output_format);
+    writer.write(&output_data)?;
+    
+    Ok(())
+}
+
+fn run_status(detailed: bool, args: &SmartfoArgs) -> Result<()> {
+    info!("status command: detailed={}", detailed);
+    
+    // Determine output format
+    let output_format = determine_output_format(args.toon, &args.format, args.agent, args.human);
+    
+    // Determine field selector
+    let field_selector = determine_field_selector(&args.fields, "status");
+    
+    // Create sample aggregates for demonstration (TODO: replace with actual daemon/queue data)
+    let operations = Some(AggregateComputer::compute_operation_aggregate(10, 7, 2));
+    let queue = Some(AggregateComputer::compute_queue_aggregate(5, 2));
+    let daemon = Some(AggregateComputer::compute_daemon_aggregate("running", Some(1234)));
+    
+    let status_aggregate = StatusAggregate::new(operations, queue, daemon);
+    
+    // Create output with aggregate
+    let output = serde_json::json!({
+        "status": status_aggregate,
+    });
+    
+    // Apply field selection if specified
+    let output_data = if let Some(ref _selector) = field_selector {
+        // For now, just return the output as-is since field selection needs structured data
+        output
+    } else {
+        output
+    };
+    
+    // Write output
+    let mut writer = output::OutputWriter::new(std::io::stdout(), output_format);
+    writer.write(&output_data)?;
+    
+    Ok(())
+}
+
 fn run_install(args: &SmartfoArgs) -> Result<()> {
     // Handle --version flag
     if args.version {
@@ -532,6 +611,8 @@ fn main() -> Result<()> {
                 println!("Subcommands:");
                 println!("  git-hook-client          Run client-side pre-commit hook");
                 println!("  git-hook-server          Run server-side pre-receive hook");
+                println!("  list                     List operations and queue status (with aggregate counts)");
+                println!("  status                   Show daemon and queue status (with aggregate information)");
                 return Ok(());
             }
 
@@ -547,6 +628,8 @@ fn main() -> Result<()> {
                 match cmd {
                     SmartfoCommand::GitHookClient => run_git_hook_client(),
                     SmartfoCommand::GitHookServer => run_git_hook_server(),
+                    SmartfoCommand::List { all, limit } => run_list(*all, *limit, &args),
+                    SmartfoCommand::Status { detailed } => run_status(*detailed, &args),
                 }
             } else if args.install {
                 run_install(&args)

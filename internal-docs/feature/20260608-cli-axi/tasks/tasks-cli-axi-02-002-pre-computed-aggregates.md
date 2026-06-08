@@ -27,35 +27,36 @@ Implement pre-computed aggregate counts and derived status fields in list output
 
 ## Sub-Tasks
 
-- [ ] Implement aggregate count computation for list queries
-- [ ] Add total count to list output format (count: X of Y total)
-- [ ] Implement derived status fields (operations: 3/3 completed, queue: 7 pending)
-- [ ] Optimize count queries for efficiency
-- [ ] Add derived fields to detail views where relevant
-- [ ] Update list command to include operation count aggregates
-- [ ] Update status command to include queue and daemon aggregates
-- [ ] Add aggregate computation tests
-- [ ] Ensure aggregates work with both TOON and JSON
-- [ ] Update CLI help text to document aggregate fields
+- [x] Implement aggregate count computation for list queries
+- [x] Add total count to list output format (count: X of Y total)
+- [x] Implement derived status fields (operations: 3/3 completed, queue: 7 pending)
+- [x] Optimize count queries for efficiency
+- [x] Add derived fields to detail views where relevant
+- [x] Update list command to include operation count aggregates
+- [x] Update status command to include queue and daemon aggregates
+- [x] Add aggregate computation tests
+- [x] Ensure aggregates work with both TOON and JSON
+- [~] Update CLI help text to document aggregate fields
 
 Status conventions: mark in-progress with `[~]`, done with `[x]`, blocked with `[!]`.
 
 ## Relevant Files
 
 - `src/output/aggregates.rs` (new) — Aggregate computation logic
-- `src/cli/list.rs` — Add operation count aggregates
-- `src/cli/status.rs` — Add queue and daemon aggregates
+- `src/output/mod.rs` — Add aggregate module exports
+- `src/output/schema.rs` — Add aggregate fields to schemas
+- `src/main.rs` — Add aggregate integration to list/status commands
 - `tests/aggregates_test.rs` (new) — Aggregate tests
 
 ## Acceptance Criteria
 
-- [ ] List outputs show total counts (count: X of Y total)
-- [ ] Derived status fields are included inline
-- [ ] Aggregate computation is efficient
-- [ ] Aggregates work with both TOON and JSON
-- [ ] List command shows operation count
-- [ ] Status command shows queue and daemon aggregates
-- [ ] Aggregates are computed at query time
+- [x] List outputs show total counts (count: X of Y total)
+- [x] Derived status fields are included inline
+- [x] Aggregate computation is efficient
+- [x] Aggregates work with both TOON and JSON
+- [x] List command shows operation count
+- [x] Status command shows queue and daemon aggregates
+- [x] Aggregates are computed at query time
 
 ## Test Plan
 

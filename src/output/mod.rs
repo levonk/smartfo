@@ -4,9 +4,10 @@
 pub mod toon;
 pub mod schema;
 pub mod truncation;
+pub mod aggregates;
 
-pub use schema::{Field, Schema, SchemaRegistry, FieldSelector, FieldFilterable};
-pub use truncation::{truncate, truncate_with_ellipsis, TruncatedContent, TruncationMetadata, DEFAULT_TRUNCATION_LIMIT};
+pub use schema::FieldFilterable;
+pub use truncation::DEFAULT_TRUNCATION_LIMIT;
 
 use serde::Serialize;
 use std::io::Write;

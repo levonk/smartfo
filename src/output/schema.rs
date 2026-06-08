@@ -34,6 +34,17 @@ pub enum Field {
     VcsMessage,
     Metadata,
     Error,
+    
+    // Aggregate fields
+    Count,
+    Total,
+    CountDisplay,
+    Completed,
+    Failed,
+    Pending,
+    StatusDisplay,
+    QueueDisplay,
+    DaemonDisplay,
 }
 
 impl Field {
@@ -57,6 +68,15 @@ impl Field {
             "vcs_message" => Some(Field::VcsMessage),
             "metadata" => Some(Field::Metadata),
             "error" => Some(Field::Error),
+            "count" => Some(Field::Count),
+            "total" => Some(Field::Total),
+            "count_display" => Some(Field::CountDisplay),
+            "completed" => Some(Field::Completed),
+            "failed" => Some(Field::Failed),
+            "pending" => Some(Field::Pending),
+            "status_display" => Some(Field::StatusDisplay),
+            "queue_display" => Some(Field::QueueDisplay),
+            "daemon_display" => Some(Field::DaemonDisplay),
             _ => None,
         }
     }
@@ -81,6 +101,15 @@ impl Field {
             Field::VcsMessage => "vcs_message",
             Field::Metadata => "metadata",
             Field::Error => "error",
+            Field::Count => "count",
+            Field::Total => "total",
+            Field::CountDisplay => "count_display",
+            Field::Completed => "completed",
+            Field::Failed => "failed",
+            Field::Pending => "pending",
+            Field::StatusDisplay => "status_display",
+            Field::QueueDisplay => "queue_display",
+            Field::DaemonDisplay => "daemon_display",
         }
     }
 }
@@ -204,6 +233,9 @@ impl SchemaRegistry {
                     Field::FullPath,
                     Field::VcsMessage,
                     Field::Metadata,
+                    Field::Count,
+                    Field::Total,
+                    Field::CountDisplay,
                 ],
             ),
         );
@@ -223,6 +255,12 @@ impl SchemaRegistry {
                     Field::Timestamp,
                     Field::Error,
                     Field::Metadata,
+                    Field::Completed,
+                    Field::Failed,
+                    Field::Pending,
+                    Field::StatusDisplay,
+                    Field::QueueDisplay,
+                    Field::DaemonDisplay,
                 ],
             ),
         );

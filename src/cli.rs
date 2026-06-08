@@ -354,4 +354,21 @@ pub enum SmartfoCommand {
     /// Server-side pre-receive hook
     #[command(name = "git-hook-server")]
     GitHookServer,
+    /// List operations and queue status
+    #[command(name = "list", about = "List operations and queue status with aggregate counts")]
+    List {
+        /// Show all items including completed
+        #[arg(long)]
+        all: bool,
+        /// Limit number of items to show
+        #[arg(long, value_name = "N")]
+        limit: Option<usize>,
+    },
+    /// Show daemon and queue status
+    #[command(name = "status", about = "Show daemon and queue status with aggregate information")]
+    Status {
+        /// Show detailed status
+        #[arg(long)]
+        detailed: bool,
+    },
 }
