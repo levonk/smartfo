@@ -56,4 +56,4 @@ updated_at: "2026-06-05"
 | 05-002 | Disk space guard and auto-culling | 05 | [x] Done | | true | 03-003, 04-003 | 06-001, 06-002 | trash.rs, worker.rs | feature/current/smartfo-initial-reqs/story-05-002-disk-space-guard |
 | 05-003 | Concurrency and async mv triggers | 05 | [x] Done | | true | 03-001, 04-003 | 06-001, 06-002 | mv.rs, worker.rs, daemon.rs | feature/current/smartfo-initial-reqs/story-05-003-concurrency-async-mv |
 | 06-001 | Integration tests | 06 | [x] Done | | true | 03-001, 03-002, 04-003, 05-001, 05-002, 05-003 | — | tests/integration_tests/ | feature/current/smartfo-initial-reqs/story-06-001-integration-tests |
-| 06-002 | Property tests | 06 | [ ] Todo | | true | 03-001, 03-002, 04-003, 05-001, 05-002 | — | tests/property/ | feature/current/smartfo-initial-reqs/story-06-002-property-tests |
+| 06-002 | Property tests | 06 | [~] In-Progress | | true | 03-001, 03-002, 04-003, 05-001, 05-002 | — | tests/property/ | feature/current/smartfo-initial-reqs/story-06-002-property-tests |

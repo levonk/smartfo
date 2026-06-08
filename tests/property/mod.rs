@@ -1,0 +1,10 @@
+mod no_data_loss;
+mod trash_preserve;
+mod vcs_consistency;
+mod same_file_history;
+mod audit_validity;
+mod disk_space_culling;
+mod hook_detection;
+mod install_idempotency;
+mod force_delete;
+mod trash_mode;

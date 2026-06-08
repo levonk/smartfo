@@ -7,7 +7,7 @@ prd_file: "internal-docs/requirements/20260604-smartfo-initial-reqs/20260604-sma
 phase: 6
 parallel_id: 2
 branch: "feature/current/smartfo-initial-reqs/story-06-002-property-tests"
-status: "todo"
+status: "in_progress"
 assignee: ""
 reviewer: ""
 dependencies: ["03-001", "03-002", "04-003", "05-001", "05-002"]
@@ -27,34 +27,40 @@ Write property-based tests for safety guarantees: no data loss, directory tree p
 
 ## Sub-Tasks
 
-- [ ] Set up `proptest` or `quickcheck` framework
-- [ ] Property: No data loss under any move/delete path
-- [ ] Property: Directory trees preserved in trash
-- [ ] Property: VCS state consistent after move (no uncommitted tracked file loss)
-- [ ] Property: Same-file deletion history preserved across multiple deletes
-- [ ] Property: Disk space guard culls oldest entries first
-- [ ] Property: Audit log contains valid metadata for every operation
-- [ ] Property: Git hooks correctly detect and block raw deletions and raw renames
-- [ ] Property: `--install` correctly creates symlinks and hooks without overwriting existing files
-- [ ] Property: `--force-delete` bypasses trash regardless of `trash_mode` or disk space
-- [ ] Property: `trash_mode = "never"` performs direct delete without trash
-- [ ] Property: `trash_mode = "auto"` falls back to direct delete when trash is full
+- [x] Set up `proptest` or `quickcheck` framework
+- [x] Property: No data loss under any move/delete path
+- [x] Property: Directory trees preserved in trash
+- [x] Property: VCS state consistent after move (no uncommitted tracked file loss)
+- [x] Property: Same-file deletion history preserved across multiple deletes
+- [x] Property: Disk space guard culls oldest entries first
+- [x] Property: Audit log contains valid metadata for every operation
+- [x] Property: Git hooks correctly detect and block raw deletions and raw renames
+- [x] Property: `--install` correctly creates symlinks and hooks without overwriting existing files
+- [x] Property: `--force-delete` bypasses trash regardless of `trash_mode` or disk space
+- [x] Property: `trash_mode = "never"` performs direct delete without trash
+- [x] Property: `trash_mode = "auto"` falls back to direct delete when trash is full
 
 ## Relevant Files
 
-- `tests/property/no_data_loss.rs`
-- `tests/property/trash_preserve.rs`
-- `tests/property/vcs_consistency.rs`
-- `tests/property/audit_validity.rs`
-- `tests/property/disk_space_culling.rs`
-- `tests/property/hook_detection.rs`
+- `tests/property/mod.rs` - Property test module declaration
+- `tests/property/no_data_loss.rs` - Property tests for no data loss on move/copy
+- `tests/property/trash_preserve.rs` - Property tests for directory tree preservation
+- `tests/property/vcs_consistency.rs` - Property tests for VCS state consistency
+- `tests/property/same_file_history.rs` - Property tests for same-file deletion history
+- `tests/property/audit_validity.rs` - Property tests for audit log metadata validity
+- `tests/property/disk_space_culling.rs` - Property tests for disk space culling ordering
+- `tests/property/hook_detection.rs` - Property tests for Git hook detection
+- `tests/property/install_idempotency.rs` - Property tests for install idempotency
+- `tests/property/force_delete.rs` - Property tests for --force-delete behavior
+- `tests/property/trash_mode.rs` - Property tests for trash_mode behavior
+- `Cargo.toml` - Added proptest, fs_extra, and serde_json dev dependencies
 
 ## Acceptance Criteria
 
-- [ ] All property tests pass with 100+ iterations each
-- [ ] Shrinking produces minimal failing cases
-- [ ] Coverage includes edge cases (empty files, deep nesting, unicode paths)
-- [ ] Property tests run in CI with reasonable duration (<5 minutes total)
+- [x] All property tests pass with 100+ iterations each
+- [x] Shrinking produces minimal failing cases
+- [x] Coverage includes edge cases (empty files, deep nesting, unicode paths)
+- [x] Property tests run in CI with reasonable duration (<5 minutes total)
 
 ## Test Plan
 
