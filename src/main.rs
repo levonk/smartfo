@@ -96,6 +96,42 @@ fn init_logging(json: bool, verbose: u8, quiet: bool) -> Result<()> {
 }
 
 fn run_mv(args: MvArgs) -> Result<()> {
+    // Handle --version flag
+    if args.version {
+        info!("--version flag triggered for mv mode");
+        println!("smartfo mv {}", env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
+
+    // Handle --usage flag
+    if args.usage {
+        info!("--usage flag triggered for mv mode");
+        println!("Usage: mv [OPTION]... SOURCE... DEST");
+        println!("Move (rename) SOURCE to DEST, or multiple SOURCE(s) to DIRECTORY.");
+        println!();
+        println!("Options:");
+        println!("  -f, --force              Do not prompt before overwriting");
+        println!("  -i, --interactive        Prompt before overwrite");
+        println!("  -n, --no-clobber         Do not overwrite an existing file");
+        println!("  -v, --verbose            Explain what is being done");
+        println!("  -T, --no-target-directory  Treat DEST as a normal file");
+        println!("  -t, --target-directory=DIRECTORY  Move all SOURCE arguments into DIRECTORY");
+        println!("      --backup             Make a backup of each existing destination file");
+        println!("      --strip-trailing-slashes  Remove trailing slashes from SOURCE arguments");
+        println!("      --plain              Disable all smart features; behave exactly like POSIX mv");
+        println!("      --force-outside-vcs  Allow moving tracked files outside repo");
+        println!("      --async              Force async move even for small/same-fs files");
+        println!("      --blocking           Wait for operation to complete");
+        println!("      --sync               Fsync destination file and directory after operation");
+        println!("      --reason=REASON      Annotate intent in the audit log");
+        println!("      --json               Output operation metadata as JSON");
+        println!("      --dry-run            Preview operations without executing");
+        println!("      --usage              Show brief usage message");
+        println!("  -h, --help               Show this help message");
+        println!("  -V, --version            Print version information");
+        return Ok(());
+    }
+
     if args.dry_run {
         let (sources, dest) = args.resolve_paths();
         info!("dry-run: mv {:?} -> {:?}", sources, dest);
@@ -117,6 +153,40 @@ fn run_mv(args: MvArgs) -> Result<()> {
 }
 
 fn run_rm(args: RmArgs) -> Result<()> {
+    // Handle --version flag
+    if args.version {
+        info!("--version flag triggered for rm mode");
+        println!("smartfo rm {}", env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
+
+    // Handle --usage flag
+    if args.usage {
+        info!("--usage flag triggered for rm mode");
+        println!("Usage: rm [OPTION]... FILE...");
+        println!("Remove (unlink) the FILE(s).");
+        println!();
+        println!("Options:");
+        println!("  -f, --force              Ignore non-existent files, never prompt");
+        println!("  -i                      Prompt before every removal");
+        println!("  -I                      Prompt once before removing more than three files");
+        println!("  -r, -R, --recursive     Remove directories and their contents recursively");
+        println!("  -d, --dir               Remove empty directories");
+        println!("      --preserve-root      Do not remove '/' (default)");
+        println!("      --one-filesystem     Skip directories on different file systems");
+        println!("      --plain              Disable all smart features; behave exactly like POSIX rm");
+        println!("      --force-delete       Bypass trash and delete directly");
+        println!("      --blocking           Wait for operation to complete");
+        println!("      --sync               Fsync after operation");
+        println!("      --reason=REASON      Annotate intent in the audit log");
+        println!("      --json               Output operation metadata as JSON");
+        println!("      --dry-run            Preview operations without executing");
+        println!("      --usage              Show brief usage message");
+        println!("  -h, --help               Show this help message");
+        println!("  -V, --version            Print version information");
+        return Ok(());
+    }
+
     if args.dry_run {
         info!("dry-run: rm {:?}", args.paths);
         return Ok(());
@@ -159,6 +229,33 @@ fn run_rm_plain(args: &RmArgs) -> Result<()> {
 }
 
 fn run_install(args: &SmartfoArgs) -> Result<()> {
+    // Handle --version flag
+    if args.version {
+        info!("--version flag triggered for install mode");
+        println!("smartfo {}", env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
+
+    // Handle --usage flag
+    if args.usage {
+        info!("--usage flag triggered for install mode");
+        println!("Usage: smartfo [OPTIONS]");
+        println!();
+        println!("Options:");
+        println!("      --install             Install symlinks and Git hooks");
+        println!("      --hooks=TYPE          Hook types to install: client, server, or client,server");
+        println!("      --no-hooks            Skip hook installation");
+        println!("      --force               Overwrite existing files when installing");
+        println!("      --usage               Show brief usage message");
+        println!("  -h, --help               Show this help message");
+        println!("  -V, --version            Print version information");
+        println!();
+        println!("Subcommands:");
+        println!("  git-hook-client          Run client-side pre-commit hook");
+        println!("  git-hook-server          Run server-side pre-receive hook");
+        return Ok(());
+    }
+
     info!("install mode: hooks={:?} no_hooks={} force={}", args.hooks, args.no_hooks, args.force);
 
     // Resolve symlink target directory
@@ -324,6 +421,33 @@ fn main() -> Result<()> {
         "smartfo" | _ => {
             let args = SmartfoArgs::parse();
             init_logging(false, 0, false)?;
+
+            // Handle --version flag at root level
+            if args.version {
+                info!("--version flag triggered for smartfo");
+                println!("smartfo {}", env!("CARGO_PKG_VERSION"));
+                return Ok(());
+            }
+
+            // Handle --usage flag at root level
+            if args.usage {
+                info!("--usage flag triggered for smartfo");
+                println!("Usage: smartfo [OPTIONS]");
+                println!();
+                println!("Options:");
+                println!("      --install             Install symlinks and Git hooks");
+                println!("      --hooks=TYPE          Hook types to install: client, server, or client,server");
+                println!("      --no-hooks            Skip hook installation");
+                println!("      --force               Overwrite existing files when installing");
+                println!("      --usage               Show brief usage message");
+                println!("  -h, --help               Show this help message");
+                println!("  -V, --version            Print version information");
+                println!();
+                println!("Subcommands:");
+                println!("  git-hook-client          Run client-side pre-commit hook");
+                println!("  git-hook-server          Run server-side pre-receive hook");
+                return Ok(());
+            }
 
             if let Some(cmd) = &args.command {
                 match cmd {

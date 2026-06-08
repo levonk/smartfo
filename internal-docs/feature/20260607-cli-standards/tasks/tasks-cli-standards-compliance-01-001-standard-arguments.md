@@ -7,7 +7,7 @@ prd_file: "internal-docs/feature/20260607-cli-standards/prd-cli-standards-compli
 phase: 1
 parallel_id: 1
 branch: "feature/current/cli-standards-compliance/story-01-001-standard-arguments"
-status: "todo"
+status: "in_progress"
 assignee: ""
 reviewer: ""
 dependencies: []
@@ -27,17 +27,17 @@ Implement standard CLI arguments (--help/-h, --version/-v, --usage) for all mode
 
 ## Sub-Tasks
 
-- [ ] Add --help/-h flag to clap parsers in cli.rs for all modes (mv, rm, smartfo)
-- [ ] Add --version/-v flag to clap parsers in cli.rs for all modes
-- [ ] Add --usage flag to clap parsers in cli.rs for all modes
-- [ ] Implement comprehensive help text for each mode including all available flags and their descriptions
-- [ ] Implement version display showing version string from Cargo.toml
-- [ ] Implement brief usage summary showing basic command syntax
-- [ ] Ensure flags work at root command level (smartfo --help, smartfo --version, smartfo --usage)
-- [ ] Ensure flags work for each mode (mv --help, rm --help, etc.)
-- [ ] Add unit tests for help output for all modes
-- [ ] Add unit tests for version output for all modes
-- [ ] Add unit tests for usage output for all modes
+- [x] Add --help/-h flag to clap parsers in cli.rs for all modes (mv, rm, smartfo)
+- [x] Add --version/-v flag to clap parsers in cli.rs for all modes
+- [x] Add --usage flag to clap parsers in cli.rs for all modes
+- [x] Implement comprehensive help text for each mode including all available flags and their descriptions
+- [x] Implement version display showing version string from Cargo.toml
+- [x] Implement brief usage summary showing basic command syntax
+- [x] Ensure flags work at root command level (smartfo --help, smartfo --version, smartfo --usage)
+- [x] Ensure flags work for each mode (mv --help, rm --help, etc.)
+- [x] Add unit tests for help output for all modes
+- [x] Add unit tests for version output for all modes
+- [x] Add unit tests for usage output for all modes
 
 ## Relevant Files
 
@@ -47,14 +47,14 @@ Implement standard CLI arguments (--help/-h, --version/-v, --usage) for all mode
 
 ## Acceptance Criteria
 
-- [ ] --help/-h displays comprehensive help for current mode
-- [ ] --version/-v displays version information
-- [ ] --usage displays brief usage summary
-- [ ] All three flags work at root command and for each mode (mv, rm, install)
-- [ ] Help text is comprehensive and covers all available flags
-- [ ] Version information matches Cargo.toml version
-- [ ] Usage summary shows basic command syntax
-- [ ] All tests pass
+- [x] --help/-h displays comprehensive help for current mode
+- [x] --version/-v displays version information
+- [x] --usage displays brief usage summary
+- [x] All three flags work at root command and for each mode (mv, rm, install)
+- [x] Help text is comprehensive and covers all available flags
+- [x] Version information matches Cargo.toml version
+- [x] Usage summary shows basic command syntax
+- [x] All tests pass
 
 ## Test Plan
 

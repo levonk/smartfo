@@ -33,6 +33,15 @@ fn test_smartfo_version() {
 }
 
 #[test]
+fn test_smartfo_usage() {
+    let mut cmd = Command::cargo_bin("smartfo").unwrap();
+    cmd.arg("--usage")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Usage:"));
+}
+
+#[test]
 fn test_smartfo_no_args_shows_help() {
     let mut cmd = Command::cargo_bin("smartfo").unwrap();
     cmd.assert()
@@ -55,7 +64,7 @@ fn test_smartfo_git_hook_client() {
     cmd.arg("git-hook-client")
         .assert()
         .success()
-        .stderr(predicate::str::contains("git-hook-client"));
+        .stderr(predicate::str::contains("pre-commit"));
 }
 
 #[test]
@@ -63,8 +72,8 @@ fn test_smartfo_git_hook_server() {
     let mut cmd = Command::cargo_bin("smartfo").unwrap();
     cmd.arg("git-hook-server")
         .assert()
-        .success()
-        .stderr(predicate::str::contains("git-hook-server"));
+        .failure()
+        .stderr(predicate::str::contains("pre-receive"));
 }
 
 #[test]
@@ -85,6 +94,16 @@ fn test_mv_symlink_version() {
         .assert()
         .success()
         .stdout(predicate::str::contains("mv"));
+}
+
+#[test]
+fn test_mv_symlink_usage() {
+    let tmp = symlink_binary("mv");
+    let mut cmd = std::process::Command::new(tmp.path().join("mv"));
+    cmd.arg("--usage")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Usage:"));
 }
 
 #[test]
@@ -126,6 +145,16 @@ fn test_rm_symlink_version() {
         .assert()
         .success()
         .stdout(predicate::str::contains("rm"));
+}
+
+#[test]
+fn test_rm_symlink_usage() {
+    let tmp = symlink_binary("rm");
+    let mut cmd = std::process::Command::new(tmp.path().join("rm"));
+    cmd.arg("--usage")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Usage:"));
 }
 
 #[test]

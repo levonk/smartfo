@@ -6,7 +6,20 @@ use std::path::PathBuf;
 #[command(
     name = "mv",
     about = "Move (rename) files with VCS awareness",
-    version
+    long_about = "Move (rename) files with VCS awareness and trash support.
+
+This is a drop-in replacement for POSIX mv that:
+- Uses VCS-native moves (git mv, hg mv, etc.) when possible
+- Supports async operations for large files
+- Provides comprehensive audit logging
+- Supports all standard POSIX flags (-f, -i, -n, -v, etc.)
+
+Examples:
+  mv file1 file2           # Rename file1 to file2
+  mv file1 dir/            # Move file1 into dir/
+  mv -i file1 file2        # Prompt before overwrite
+  mv --async large.bin /mnt/backup/  # Async move for large file",
+    disable_version_flag = true
 )]
 pub struct MvArgs {
     /// Do not prompt before overwriting
@@ -24,6 +37,10 @@ pub struct MvArgs {
     /// Explain what is being done
     #[arg(short = 'v', long)]
     pub verbose: bool,
+
+    /// Print version information
+    #[arg(short = 'V', long = "version")]
+    pub version: bool,
 
     /// Treat DEST as a normal file
     #[arg(short = 'T', long = "no-target-directory")]
@@ -73,6 +90,10 @@ pub struct MvArgs {
     #[arg(long)]
     pub dry_run: bool,
 
+    /// Show brief usage message
+    #[arg(long = "usage")]
+    pub usage: bool,
+
     /// Source file(s) to move
     #[arg(value_name = "SOURCE")]
     pub sources: Vec<PathBuf>,
@@ -100,7 +121,21 @@ impl MvArgs {
 #[command(
     name = "rm",
     about = "Remove files with trash and VCS awareness",
-    version
+    long_about = "Remove files with trash and VCS awareness.
+
+This is a drop-in replacement for POSIX rm that:
+- Moves files to trash instead of permanent deletion
+- Uses VCS-aware removal for tracked files
+- Supports async operations
+- Provides comprehensive audit logging
+- Supports all standard POSIX flags (-f, -i, -r, -v, etc.)
+
+Examples:
+  rm file.txt             # Move file.txt to trash
+  rm -rf dir/             # Recursively remove directory
+  rm --force-delete file  # Bypass trash and delete directly
+  rm --async large.bin     # Async deletion for large file",
+    disable_version_flag = true
 )]
 pub struct RmArgs {
     /// Ignore non-existent files, never prompt
@@ -122,6 +157,10 @@ pub struct RmArgs {
     /// Remove empty directories
     #[arg(short = 'd', long = "dir")]
     pub dir: bool,
+
+    /// Print version information
+    #[arg(short = 'V', long = "version")]
+    pub version: bool,
 
     /// Do not remove '/' (default)
     #[arg(long)]
@@ -159,6 +198,10 @@ pub struct RmArgs {
     #[arg(long)]
     pub dry_run: bool,
 
+    /// Show brief usage message
+    #[arg(long = "usage")]
+    pub usage: bool,
+
     /// File(s) or directories to remove
     #[arg(value_name = "FILE")]
     pub paths: Vec<PathBuf>,
@@ -169,7 +212,23 @@ pub struct RmArgs {
 #[command(
     name = "smartfo",
     about = "VCS-aware safe mv/rm replacement with trash and audit",
-    version
+    long_about = "VCS-aware safe mv/rm replacement with trash and audit.
+
+Smartfo is a drop-in replacement for POSIX mv and rm that provides:
+- VCS-aware file operations (Git, Mercurial, SVN, Jujutsu)
+- Trash instead of permanent deletion
+- Async background processing
+- Comprehensive audit logging
+- Git hooks to prevent data loss
+
+Installation:
+  smartfo --install         # Install symlinks and hooks
+
+Usage:
+  mv file1 file2            # Use via mv symlink
+  rm file.txt               # Use via rm symlink
+  smartfo --install         # Install or update",
+    disable_version_flag = true
 )]
 pub struct SmartfoArgs {
     /// Install symlinks and Git hooks
@@ -187,6 +246,14 @@ pub struct SmartfoArgs {
     /// Overwrite existing files when installing
     #[arg(long)]
     pub force: bool,
+
+    /// Print version information
+    #[arg(short = 'V', long = "version")]
+    pub version: bool,
+
+    /// Show brief usage message
+    #[arg(long = "usage")]
+    pub usage: bool,
 
     /// Subcommands
     #[command(subcommand)]
