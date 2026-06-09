@@ -21,6 +21,7 @@ use cli::{MvArgs, RmArgs, SmartfoArgs, SmartfoCommand};
 use output::OutputFormat;
 use output::schema::{SchemaRegistry, FieldSelector};
 use output::aggregates::*;
+use output::empty::{EmptyState, check_empty, EmptyContext};
 
 /// Resolve the symlink target directory based on XDG conventions and permissions.
 /// Priority: $XDG_BIN_HOME > ~/.local/bin (create if missing) > /usr/local/bin (if root)
@@ -319,6 +320,24 @@ fn run_list(all: bool, limit: Option<usize>, args: &SmartfoArgs) -> Result<()> {
         serde_json::json!({"id": "3", "type": "move", "status": "completed", "source": "/tmp/file3.txt"}),
     ];
     
+    // Check for empty state
+    let empty_context = EmptyContext::new(if all {
+        "all operations".to_string()
+    } else {
+        format!("operations (limit: {})", limit.unwrap_or_default())
+    });
+    
+    if let Some(empty_state) = check_empty(&items, empty_context) {
+        // Return empty state
+        let output = serde_json::json!({
+            "empty": empty_state,
+        });
+        
+        let mut writer = output::OutputWriter::new(std::io::stdout(), output_format);
+        writer.write(&output)?;
+        return Ok(());
+    }
+    
     // Compute aggregate
     let total = if all { 100 } else { limit.unwrap_or(items.len()) };
     let aggregate = AggregateComputer::compute_list_aggregate(&items, total);
@@ -357,6 +376,26 @@ fn run_status(detailed: bool, args: &SmartfoArgs) -> Result<()> {
     let operations = Some(AggregateComputer::compute_operation_aggregate(10, 7, 2));
     let queue = Some(AggregateComputer::compute_queue_aggregate(5, 2));
     let daemon = Some(AggregateComputer::compute_daemon_aggregate("running", Some(1234)));
+    
+    // Check for empty state (if all aggregates are None or empty)
+    let is_empty = operations.is_none() && queue.is_none() && daemon.is_none();
+    
+    if is_empty {
+        let empty_context = EmptyContext::new(if detailed {
+            "detailed status".to_string()
+        } else {
+            "status summary".to_string()
+        });
+        
+        let empty_state = EmptyState::new(empty_context);
+        let output = serde_json::json!({
+            "empty": empty_state,
+        });
+        
+        let mut writer = output::OutputWriter::new(std::io::stdout(), output_format);
+        writer.write(&output)?;
+        return Ok(());
+    }
     
     let status_aggregate = StatusAggregate::new(operations, queue, daemon);
     

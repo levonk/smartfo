@@ -355,7 +355,7 @@ pub enum SmartfoCommand {
     #[command(name = "git-hook-server")]
     GitHookServer,
     /// List operations and queue status
-    #[command(name = "list", about = "List operations and queue status with aggregate counts")]
+    #[command(name = "list", about = "List operations and queue status with aggregate counts. Returns empty state with context when no results found.")]
     List {
         /// Show all items including completed
         #[arg(long)]
@@ -365,7 +365,7 @@ pub enum SmartfoCommand {
         limit: Option<usize>,
     },
     /// Show daemon and queue status
-    #[command(name = "status", about = "Show daemon and queue status with aggregate information")]
+    #[command(name = "status", about = "Show daemon and queue status with aggregate information. Returns empty state with context when no status data available.")]
     Status {
         /// Show detailed status
         #[arg(long)]

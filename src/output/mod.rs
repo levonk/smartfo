@@ -5,6 +5,7 @@ pub mod toon;
 pub mod schema;
 pub mod truncation;
 pub mod aggregates;
+pub mod empty;
 
 pub use schema::FieldFilterable;
 pub use truncation::DEFAULT_TRUNCATION_LIMIT;

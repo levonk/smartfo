@@ -1,6 +1,6 @@
 // Schema and field selection tests
 
-use smartfo::output::{Field, Schema, SchemaRegistry, FieldSelector};
+use smartfo::output::schema::{Field, Schema, SchemaRegistry, FieldSelector};
 
 #[test]
 fn test_field_parsing() {
