@@ -27,6 +27,9 @@ typecheck:
 release:
     devbox run release
 
+install:
+    devbox run install
+
 # Bootstrap recipes (REQUIRED)
 bootstrap:
     devbox run bootstrap

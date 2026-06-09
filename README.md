@@ -15,6 +15,21 @@ Smartfo is a drop-in replacement for POSIX `mv` and `rm` that provides:
 
 ## Installation
 
+### Nix (Recommended)
+
+```bash
+# Run directly from GitHub
+nix run github:levonk/smartfo
+
+# Install to profile
+nix profile install github:levonk/smartfo
+
+# Development shell
+nix develop
+```
+
+### From Source
+
 ```bash
 # Install symlinks and hooks
 smartfo --install
