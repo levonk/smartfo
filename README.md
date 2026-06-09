@@ -24,6 +24,9 @@ nix run github:levonk/smartfo
 # Install to profile
 nix profile install github:levonk/smartfo
 
+# After installation, set up symlinks
+smartfo --install
+
 # Development shell
 nix develop
 ```

@@ -53,6 +53,15 @@
           installPhase = ''
             mkdir -p $out/bin
             cp target/release/smartfo $out/bin/smartfo
+            
+            # Add post-install message
+            mkdir -p $out/share/doc/smartfo
+            cat > $out/share/doc/smartfo/POST_INSTALL << 'EOF'
+To complete installation, run:
+  smartfo --install
+
+This will install symlinks for mv/rm replacement and set up git hooks.
+EOF
           '';
         };
       in

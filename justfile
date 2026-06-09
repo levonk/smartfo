@@ -30,6 +30,33 @@ release:
 install:
     devbox run install
 
+# Nix-specific commands
+nix-build:
+    nix build
+
+nix-develop:
+    nix develop
+
+nix-run:
+    nix run . -- {{args}}
+
+nix-install:
+    # Build and install to Nix profile
+    nix profile install .
+
+nix-install-with-hooks:
+    # Build, install to profile, and set up symlinks
+    nix profile install .
+    smartfo --install
+
+nix-deploy:
+    # Deploy to flake registry or custom cache
+    # Update flake inputs
+    nix flake update
+    # Build and push to cache (configure your cache URL)
+    # nix build && nix copy --to https://your-cache.example.com .#default
+    echo "Configure your cache URL and uncomment the copy command above"
+
 # Bootstrap recipes (REQUIRED)
 bootstrap:
     devbox run bootstrap
@@ -294,6 +321,14 @@ help:
     echo "  just quality       - Run all quality checks"
     echo "  just release       - Full release pipeline"
     echo "  just prime         - Index documentation and update repository"
+    echo "  just install       - Install the binary locally"
+    echo ""
+    echo "Nix commands:"
+    echo "  just nix-build     - Build with Nix"
+    echo "  just nix-develop   - Enter Nix development shell"
+    echo "  just nix-run       - Run with Nix"
+    echo "  just nix-install   - Install to Nix profile"
+    echo "  just nix-install-with-hooks - Install to Nix profile and set up symlinks"
     echo ""
     echo "Memory & Task Management:"
     echo "  just doc-search    - Search documentation and memory"
