@@ -14,9 +14,11 @@ mod trash;
 mod queue;
 mod daemon;
 mod worker;
+mod git_hooks;
 mod hooks;
 mod install;
 mod output;
+mod error;
 use cli::{MvArgs, RmArgs, SmartfoArgs, SmartfoCommand};
 use output::OutputFormat;
 use output::schema::{SchemaRegistry, FieldSelector};
@@ -205,6 +207,11 @@ fn run_mv(args: MvArgs) -> Result<()> {
         return Ok(());
     }
 
+    // Validate flags before proceeding
+    if let Err(msg) = args.validate() {
+        anyhow::bail!("{}", msg);
+    }
+
     if args.dry_run {
         let (sources, dest) = args.resolve_paths();
         info!("dry-run: mv {:?} -> {:?}", sources, dest);
@@ -261,6 +268,11 @@ fn run_rm(args: RmArgs) -> Result<()> {
         println!("  -h, --help               Show this help message");
         println!("  -V, --version            Print version information");
         return Ok(());
+    }
+
+    // Validate flags before proceeding
+    if let Err(msg) = args.validate() {
+        anyhow::bail!("{}", msg);
     }
 
     if args.dry_run {
@@ -588,7 +600,7 @@ fn run_git_hook_client() -> Result<()> {
     let repo_root = detect_git_repo()
         .ok_or_else(|| anyhow::anyhow!("Not inside a Git repository"))?;
 
-    hooks::run_pre_commit_hook(&repo_root)
+    git_hooks::run_pre_commit_hook(&repo_root)
 }
 
 fn run_git_hook_server() -> Result<()> {
@@ -596,7 +608,34 @@ fn run_git_hook_server() -> Result<()> {
     let repo_root = detect_git_repo()
         .ok_or_else(|| anyhow::anyhow!("Not inside a Git repository"))?;
 
-    hooks::run_pre_receive_hook(&repo_root)
+    git_hooks::run_pre_receive_hook(&repo_root)
+}
+
+fn run_session_context() -> Result<()> {
+    info!("Generating session context");
+    
+    let context = hooks::SessionContext::new()
+        .context("Failed to create session context")?;
+    
+    // Output in TOON format
+    let toon_output = context.to_toon();
+    println!("{}", toon_output);
+    
+    // Cache session metadata
+    hooks::cache_session_metadata(&context)
+        .context("Failed to cache session metadata")?;
+    
+    Ok(())
+}
+
+fn run_install_agent_hooks() -> Result<()> {
+    info!("Installing agent hooks");
+    
+    hooks::install_agent_hooks()
+        .context("Failed to install agent hooks")?;
+    
+    println!("Agent hooks installed successfully");
+    Ok(())
 }
 
 fn main() -> Result<()> {
@@ -643,7 +682,9 @@ fn main() -> Result<()> {
                 println!("      --init-config         Initialize or recreate default config file");
                 println!("      --toon               Output in TOON format (token-efficient for agents)");
                 println!("      --format=FORMAT      Output format: toon, json, or human");
-                println!("      --usage               Show brief usage message");
+                println!("      --session-context     Output session context in TOON format for agent consumption");
+                println!("      --install-agent-hooks Install agent hooks for Claude Code or Codex");
+                println!("      --usage              Show brief usage message");
                 println!("  -h, --help               Show this help message");
                 println!("  -V, --version            Print version information");
                 println!();
@@ -652,6 +693,8 @@ fn main() -> Result<()> {
                 println!("  git-hook-server          Run server-side pre-receive hook");
                 println!("  list                     List operations and queue status (with aggregate counts)");
                 println!("  status                   Show daemon and queue status (with aggregate information)");
+                println!("  session-context          Output session context in TOON format for agent consumption");
+                println!("  install-agent-hooks      Install agent hooks for Claude Code or Codex");
                 return Ok(());
             }
 
@@ -669,15 +712,40 @@ fn main() -> Result<()> {
                     SmartfoCommand::GitHookServer => run_git_hook_server(),
                     SmartfoCommand::List { all, limit } => run_list(*all, *limit, &args),
                     SmartfoCommand::Status { detailed } => run_status(*detailed, &args),
+                    SmartfoCommand::SessionContext => run_session_context(),
+                    SmartfoCommand::InstallAgentHooks => run_install_agent_hooks(),
                 }
             } else if args.install {
                 run_install(&args)
+            } else if args.session_context {
+                run_session_context()
+            } else if args.install_agent_hooks {
+                run_install_agent_hooks()
             } else {
                 // No subcommand or install flag: print help
                 use clap::CommandFactory;
                 SmartfoArgs::command().print_help()?;
                 println!();
                 Ok(())
+            }
+        }
+    }
+}
+
+/// Custom exit code handling
+pub fn exit_with_code(result: Result<()>) -> ! {
+    match result {
+        Ok(()) => std::process::exit(0),
+        Err(e) => {
+            // Determine if this is a usage error (exit code 2) or other error (exit code 1)
+            let is_usage_error = e.to_string().contains("Missing")
+                || e.to_string().contains("Cannot specify")
+                || e.to_string().contains("usage");
+            
+            if is_usage_error {
+                std::process::exit(2);
+            } else {
+                std::process::exit(1);
             }
         }
     }

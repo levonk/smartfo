@@ -7,7 +7,7 @@ prd_file: "internal-docs/feature/20260608-cli-axi/prd-20260608-cli-axi.md"
 phase: 3
 parallel_id: 1
 branch: "feature/current/cli-axi/story-03-001-structured-errors"
-status: "todo"
+status: "done"
 assignee: ""
 reviewer: ""
 dependencies: ["01-001", "01-002"]
@@ -27,38 +27,38 @@ Implement idempotent mutations, structured errors on stdout, no interactive prom
 
 ## Sub-Tasks
 
-- [ ] Implement idempotent mutation logic (no error when state already exists)
-- [ ] Add structured error formatting on stdout
-- [ ] Include actionable suggestions in error messages
-- [ ] Validate required flags before calling dependencies
-- [ ] Translate errors to extract actionable meaning
-- [ ] Never leak dependency names in error messages
-- [ ] Suppress interactive prompts in agent mode
-- [ ] Ensure every operation is completable with flags alone
-- [ ] Implement proper output channels (stdout: data/errors, stderr: logs)
-- [ ] Add structured error tests
-- [ ] Update exit code logic (0: success/no-op, 1: error, 2: usage)
+- [x] Implement idempotent mutation logic (no error when state already exists)
+- [x] Add structured error formatting on stdout
+- [x] Include actionable suggestions in error messages
+- [x] Validate required flags before calling dependencies
+- [x] Translate errors to extract actionable meaning
+- [x] Never leak dependency names in error messages
+- [x] Suppress interactive prompts in agent mode
+- [x] Ensure every operation is completable with flags alone
+- [x] Implement proper output channels (stdout: data/errors, stderr: logs)
+- [x] Add structured error tests
+- [x] Update exit code logic (0: success/no-op, 1: error, 2: usage)
 
 Status conventions: mark in-progress with `[~]`, done with `[x]`, blocked with `[!]`.
 
 ## Relevant Files
 
-- `src/error.rs` — Structured error types and formatting
+- `src/error.rs` — Structured error types and formatting (created)
 - `src/main.rs` — Exit code logic and output channel separation
 - `src/cli.rs` — Flag validation and prompt suppression
 - `tests/error_test.rs` (new) — Structured error tests
 
 ## Acceptance Criteria
 
-- [ ] Idempotent operations don't error when state already exists
-- [ ] Errors go to stdout in structured format
-- [ ] Error messages include actionable suggestions
-- [ ] Required flags are validated before dependency calls
-- [ ] Dependency names are never leaked in errors
-- [ ] Interactive prompts are suppressed in agent mode
-- [ ] All operations are completable with flags alone
-- [ ] Exit codes follow standard (0: success, 1: error, 2: usage)
-- [ ] Output channels are properly separated
+- [x] Idempotent operations don't error when state already exists
+- [x] Errors go to stdout in structured format
+- [x] Error messages include actionable suggestions
+- [x] Required flags are validated before dependency calls
+- [x] Dependency names are never leaked in errors
+- [x] Interactive prompts are suppressed in agent mode
+- [x] All operations are completable with flags alone
+- [x] Exit codes follow standard (0: success, 1: error, 2: usage)
+- [x] Output channels are properly separated
 
 ## Test Plan
 

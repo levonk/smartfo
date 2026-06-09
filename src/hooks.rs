@@ -1,583 +1,419 @@
 use anyhow::{Context, Result};
+use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use tracing::{debug, info};
 
-/// Represents a change detected in Git staged changes
-#[derive(Debug, Clone)]
-pub enum GitChange {
-    /// File was deleted
-    Deletion { path: String },
-    /// File was added
-    Addition { path: String },
-    /// File was modified
-    Modification { path: String },
-    /// File was renamed (old_path -> new_path)
-    Rename { old_path: String, new_path: String },
+/// Session context output for agent consumption
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SessionContext {
+    /// Current working directory
+    pub cwd: String,
+    /// Git repository root (if in a repo)
+    pub git_root: Option<String>,
+    /// Smartfo audit log path (if in a repo)
+    pub audit_log_path: Option<String>,
+    /// Recent operations count
+    pub recent_operations: u64,
+    /// Queue size (if daemon is running)
+    pub queue_size: Option<u64>,
+    /// Session metadata
+    pub metadata: SessionMetadata,
 }
 
-/// Detect Git changes from staged files
-pub fn detect_staged_changes(repo_root: &Path) -> Result<Vec<GitChange>> {
-    debug!("Detecting staged changes in repo: {}", repo_root.display());
+/// Session metadata for caching
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SessionMetadata {
+    /// Session start time
+    pub session_start: String,
+    /// Last context update
+    pub last_update: String,
+    /// Context scope (directory, repo, global)
+    pub scope: String,
+}
 
-    let mut changes = Vec::new();
+impl SessionContext {
+    /// Create a new session context for the current directory
+    pub fn new() -> Result<Self> {
+        let cwd = std::env::current_dir()
+            .context("Failed to get current directory")?
+            .display()
+            .to_string();
 
-    // Get list of staged files using git diff --cached --name-status
-    let output = std::process::Command::new("git")
-        .args(["diff", "--cached", "--name-status"])
-        .current_dir(repo_root)
-        .output()
-        .context("Failed to execute git diff --cached")?;
+        let git_root = detect_git_repo(&cwd);
+        let audit_log_path = git_root.as_ref().map(|root| {
+            PathBuf::from(root).join(".smartfo/audit/operations.jsonl")
+                .display()
+                .to_string()
+        });
 
-    if !output.status.success() {
-        anyhow::bail!("git diff --cached failed: {}", String::from_utf8_lossy(&output.stderr));
+        let recent_operations = if let Some(ref root) = git_root {
+            count_recent_operations(root)?
+        } else {
+            0
+        };
+
+        let queue_size = None; // TODO: Implement daemon queue size check
+
+        let now = chrono::Utc::now().to_rfc3339();
+        let metadata = SessionMetadata {
+            session_start: now.clone(),
+            last_update: now,
+            scope: if git_root.is_some() { "repo".to_string() } else { "directory".to_string() },
+        };
+
+        Ok(Self {
+            cwd,
+            git_root,
+            audit_log_path,
+            recent_operations,
+            queue_size,
+            metadata,
+        })
     }
 
-    let stdout = String::from_utf8(output.stdout)
-        .context("Failed to parse git diff output as UTF-8")?;
-
-    // Parse the output: each line is "STATUS\tPATH" or "STATUS\tOLD_PATH\tNEW_PATH"
-    for line in stdout.lines() {
-        let parts: Vec<&str> = line.split('\t').collect();
-        if parts.is_empty() {
-            continue;
+    /// Convert to TOON format for token-efficient output
+    /// Respects token budget if set via SMARTFO_TOKEN_BUDGET env var
+    pub fn to_toon(&self) -> String {
+        let mut toon = String::new();
+        toon.push_str("(SessionContext\n");
+        toon.push_str(&format!("  (cwd {})\n", crate::output::toon::escape_string(&self.cwd)));
+        if let Some(ref root) = self.git_root {
+            toon.push_str(&format!("  (git_root {})\n", crate::output::toon::escape_string(root)));
         }
+        if let Some(ref audit) = self.audit_log_path {
+            toon.push_str(&format!("  (audit_log_path {})\n", crate::output::toon::escape_string(audit)));
+        }
+        toon.push_str(&format!("  (recent_operations {})\n", self.recent_operations));
+        if let Some(size) = self.queue_size {
+            toon.push_str(&format!("  (queue_size {})\n", size));
+        }
+        toon.push_str("  (metadata\n");
+        toon.push_str(&format!("    (session_start {})\n", crate::output::toon::escape_string(&self.metadata.session_start)));
+        toon.push_str(&format!("    (last_update {})\n", crate::output::toon::escape_string(&self.metadata.last_update)));
+        toon.push_str(&format!("    (scope {})\n", crate::output::toon::escape_string(&self.metadata.scope)));
+        toon.push_str("  )\n");
+        toon.push_str(")\n");
+        
+        // Apply token budget if set
+        if let Ok(budget_str) = std::env::var("SMARTFO_TOKEN_BUDGET") {
+            if let Ok(budget) = budget_str.parse::<usize>() {
+                if toon.len() > budget {
+                    // Truncate to fit budget, preserving structure
+                    toon.truncate(budget.saturating_sub(20)); // Leave room for truncation marker
+                    toon.push_str("...[truncated]");
+                }
+            }
+        }
+        
+        toon
+    }
+}
 
-        let status = parts[0];
-        match status {
-            "D" => {
-                // Deleted file
-                if parts.len() >= 2 {
-                    changes.push(GitChange::Deletion {
-                        path: parts[1].to_string(),
-                    });
-                }
-            }
-            "A" => {
-                // Added file
-                if parts.len() >= 2 {
-                    changes.push(GitChange::Addition {
-                        path: parts[1].to_string(),
-                    });
-                }
-            }
-            "M" => {
-                // Modified file
-                if parts.len() >= 2 {
-                    changes.push(GitChange::Modification {
-                        path: parts[1].to_string(),
-                    });
-                }
-            }
-            "R" => {
-                // Renamed file (git uses R100 for 100% similarity)
-                if parts.len() >= 3 {
-                    changes.push(GitChange::Rename {
-                        old_path: parts[1].to_string(),
-                        new_path: parts[2].to_string(),
-                    });
-                }
-            }
-            _ => {
-                // Other statuses (T, C, etc.) - ignore for now
-                debug!("Ignoring git status: {}", status);
-            }
+/// Detect if the current directory is in a Git repository
+pub fn detect_git_repo(cwd: &str) -> Option<String> {
+    let mut current = PathBuf::from(cwd);
+    
+    loop {
+        let git_dir = current.join(".git");
+        if git_dir.exists() {
+            return Some(current.display().to_string());
+        }
+        
+        if !current.pop() {
+            break;
         }
     }
-
-    debug!("Detected {} staged changes", changes.len());
-    Ok(changes)
+    
+    None
 }
 
-/// Get the path to the repo-local audit log
-pub fn repo_audit_log_path(repo_root: &Path) -> PathBuf {
-    repo_root.join(".smartfo/audit/operations.jsonl")
+/// Detect if the current directory is inside a Git repository (returns PathBuf)
+pub fn detect_git_repo_path() -> Option<PathBuf> {
+    let current_dir = std::env::current_dir().ok()?;
+    let mut dir = current_dir.as_path();
+
+    loop {
+        let git_dir = dir.join(".git");
+        if git_dir.exists() {
+            return Some(dir.to_path_buf());
+        }
+
+        match dir.parent() {
+            Some(parent) => dir = parent,
+            None => return None,
+        }
+    }
 }
 
-/// Read audit entries from the repo-local audit log
-pub fn read_repo_audit_log(repo_root: &Path) -> Result<Vec<crate::audit::AuditEntry>> {
-    let audit_path = repo_audit_log_path(repo_root);
-
+/// Count recent operations in the audit log
+pub fn count_recent_operations(repo_root: &str) -> Result<u64> {
+    let audit_path = PathBuf::from(repo_root).join(".smartfo/audit/operations.jsonl");
+    
     if !audit_path.exists() {
-        debug!("Audit log does not exist: {}", audit_path.display());
-        return Ok(Vec::new());
+        return Ok(0);
     }
-
+    
     let content = fs::read_to_string(&audit_path)
         .with_context(|| format!("Failed to read audit log: {}", audit_path.display()))?;
-
-    let mut entries = Vec::new();
-    for line in content.lines() {
-        if line.trim().is_empty() {
-            continue;
-        }
-        let entry: crate::audit::AuditEntry = serde_json::from_str(line)
-            .with_context(|| format!("Failed to parse audit entry: {}", line))?;
-        entries.push(entry);
-    }
-
-    debug!("Read {} audit entries from {}", entries.len(), audit_path.display());
-    Ok(entries)
+    
+    let count = content.lines().filter(|line| !line.trim().is_empty()).count() as u64;
+    Ok(count)
 }
 
-/// Check if a file deletion has a corresponding audit entry
-pub fn has_audit_entry_for_deletion(
-    audit_entries: &[crate::audit::AuditEntry],
-    file_path: &str,
-) -> bool {
-    audit_entries.iter().any(|entry| {
-        entry.op == "delete" && entry.source_path == file_path
-    })
+/// Hook configuration for agent platforms
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HookConfig {
+    /// Claude Code hook configuration
+    pub claude: Option<ClaudeHookConfig>,
+    /// Codex hook configuration
+    pub codex: Option<CodexHookConfig>,
 }
 
-/// Check if a file rename has a corresponding audit entry
-pub fn has_audit_entry_for_rename(
-    audit_entries: &[crate::audit::AuditEntry],
-    old_path: &str,
-    new_path: &str,
-) -> bool {
-    audit_entries.iter().any(|entry| {
-        entry.op == "move" && entry.source_path == old_path && entry.dest_path.as_deref() == Some(new_path)
-    })
+/// Claude Code hook configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClaudeHookConfig {
+    /// Path to Claude settings file
+    pub settings_path: PathBuf,
+    /// Hook command to run
+    pub hook_command: String,
 }
 
-/// Run the client-side pre-commit hook
-pub fn run_pre_commit_hook(repo_root: &Path) -> Result<()> {
-    info!("Running pre-commit hook for repo: {}", repo_root.display());
+/// Codex hook configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CodexHookConfig {
+    /// Path to Codex hooks file
+    pub hooks_path: PathBuf,
+    /// Hook command to run
+    pub hook_command: String,
+}
 
-    // Detect staged changes
-    let changes = detect_staged_changes(repo_root)?;
-
-    // Read audit log
-    let audit_entries = read_repo_audit_log(repo_root)?;
-
-    // Check for raw deletions
-    for change in &changes {
-        match change {
-            GitChange::Deletion { path } => {
-                if !has_audit_entry_for_deletion(&audit_entries, path) {
-                    anyhow::bail!(
-                        "Raw deletion detected: {}\n\
-                         This file was deleted without using smartfo.\n\
-                         Please use 'smartfo rm' or 'srm' to delete files in a VCS-aware manner.\n\
-                         If you intentionally want to delete this file, use 'git commit --no-verify' to bypass this hook.",
-                        path
-                    );
-                }
-            }
-            GitChange::Rename { old_path, new_path } => {
-                if !has_audit_entry_for_rename(&audit_entries, old_path, new_path) {
-                    anyhow::bail!(
-                        "Raw rename detected: {} -> {}\n\
-                         This file was renamed without using smartfo.\n\
-                         Please use 'smartfo mv' or 'smv' to move files in a VCS-aware manner.\n\
-                         If you intentionally want to rename this file, use 'git commit --no-verify' to bypass this hook.",
-                        old_path, new_path
-                    );
-                }
-            }
-            _ => {
-                // Additions and modifications are fine
-            }
+/// Install agent hooks for the current platform
+pub fn install_agent_hooks() -> Result<()> {
+    info!("Installing agent hooks");
+    
+    // Detect platform
+    let platform = detect_agent_platform()?;
+    
+    match platform {
+        AgentPlatform::ClaudeCode => install_claude_hooks()?,
+        AgentPlatform::Codex => install_codex_hooks()?,
+        AgentPlatform::Unknown => {
+            anyhow::bail!("No supported agent platform detected");
         }
     }
-
-    info!("Pre-commit hook check passed");
+    
     Ok(())
 }
 
-/// Represents a change in a Git push
-#[derive(Debug, Clone)]
-pub enum PushChange {
-    /// File was deleted
-    Deletion { path: String },
-    /// File was added
-    Addition { path: String },
-    /// File was modified
-    Modification { path: String },
-    /// File was renamed (old_path -> new_path)
-    Rename { old_path: String, new_path: String },
+/// Detect the current agent platform
+pub fn detect_agent_platform() -> Result<AgentPlatform> {
+    // Check for Claude Code
+    if let Ok(_) = std::env::var("CLAUDE_SESSION") {
+        return Ok(AgentPlatform::ClaudeCode);
+    }
+    
+    // Check for Codex
+    if let Ok(_) = std::env::var("CODEX_SESSION") {
+        return Ok(AgentPlatform::Codex);
+    }
+    
+    // Check for Claude settings file
+    let home = std::env::var("HOME").context("HOME not set")?;
+    let claude_settings = PathBuf::from(home.clone()).join(".claude/settings.json");
+    if claude_settings.exists() {
+        return Ok(AgentPlatform::ClaudeCode);
+    }
+    
+    // Check for Codex hooks file
+    let codex_hooks = PathBuf::from(home).join(".codex/hooks.json");
+    if codex_hooks.exists() {
+        return Ok(AgentPlatform::Codex);
+    }
+    
+    Ok(AgentPlatform::Unknown)
 }
 
-/// Detect changes from a Git push by comparing old and new refs
-pub fn detect_push_changes(repo_root: &Path, old_ref: &str, new_ref: &str) -> Result<Vec<PushChange>> {
-    debug!("Detecting push changes: {} -> {}", old_ref, new_ref);
-
-    let mut changes = Vec::new();
-
-    // Use git diff --name-status to detect changes between refs
-    let output = std::process::Command::new("git")
-        .args(["diff", "--name-status", old_ref, new_ref])
-        .current_dir(repo_root)
-        .output()
-        .context("Failed to execute git diff")?;
-
-    if !output.status.success() {
-        anyhow::bail!("git diff failed: {}", String::from_utf8_lossy(&output.stderr));
-    }
-
-    let stdout = String::from_utf8(output.stdout)
-        .context("Failed to parse git diff output as UTF-8")?;
-
-    // Parse the output: each line is "STATUS\tPATH" or "STATUS\tOLD_PATH\tNEW_PATH"
-    for line in stdout.lines() {
-        let parts: Vec<&str> = line.split('\t').collect();
-        if parts.is_empty() {
-            continue;
-        }
-
-        let status = parts[0];
-        match status {
-            "D" => {
-                // Deleted file
-                if parts.len() >= 2 {
-                    changes.push(PushChange::Deletion {
-                        path: parts[1].to_string(),
-                    });
-                }
-            }
-            "A" => {
-                // Added file
-                if parts.len() >= 2 {
-                    changes.push(PushChange::Addition {
-                        path: parts[1].to_string(),
-                    });
-                }
-            }
-            "M" => {
-                // Modified file
-                if parts.len() >= 2 {
-                    changes.push(PushChange::Modification {
-                        path: parts[1].to_string(),
-                    });
-                }
-            }
-            "R" => {
-                // Renamed file (git uses R100 for 100% similarity)
-                if parts.len() >= 3 {
-                    changes.push(PushChange::Rename {
-                        old_path: parts[1].to_string(),
-                        new_path: parts[2].to_string(),
-                    });
-                }
-            }
-            _ => {
-                // Other statuses (T, C, etc.) - ignore for now
-                debug!("Ignoring git status: {}", status);
-            }
-        }
-    }
-
-    debug!("Detected {} push changes", changes.len());
-    Ok(changes)
+/// Agent platform type
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AgentPlatform {
+    ClaudeCode,
+    Codex,
+    Unknown,
 }
 
-/// Run the server-side pre-receive hook
-pub fn run_pre_receive_hook(repo_root: &Path) -> Result<()> {
-    info!("Running pre-receive hook for repo: {}", repo_root.display());
-
-    // Read from stdin: each line is "old_sha new_sha ref_name"
-    let stdin = std::io::stdin();
-    let mut input = String::new();
-    stdin.read_line(&mut input)
-        .context("Failed to read from stdin")?;
-
-    let parts: Vec<&str> = input.trim().split_whitespace().collect();
-    if parts.len() < 3 {
-        anyhow::bail!("Invalid pre-receive input format");
-    }
-
-    let old_ref = parts[0];
-    let new_ref = parts[1];
-    let _ref_name = parts[2];
-
-    debug!("Pre-receive: {} -> {} ({})", old_ref, new_ref, _ref_name);
-
-    // Detect changes in the push
-    let changes = detect_push_changes(repo_root, old_ref, new_ref)?;
-
-    // Read audit log
-    let audit_entries = read_repo_audit_log(repo_root)?;
-
-    // Check for raw deletions and renames
-    for change in &changes {
-        match change {
-            PushChange::Deletion { path } => {
-                if !has_audit_entry_for_deletion(&audit_entries, path) {
-                    anyhow::bail!(
-                        "Push rejected: raw deletion detected in {}\n\
-                         This file was deleted without using smartfo.\n\
-                         Please use 'smartfo rm' or 'srm' to delete files in a VCS-aware manner before pushing.",
-                        path
-                    );
+/// Install Claude Code hooks
+pub fn install_claude_hooks() -> Result<()> {
+    info!("Installing Claude Code hooks");
+    
+    let home = std::env::var("HOME").context("HOME not set")?;
+    let settings_path = PathBuf::from(home).join(".claude/settings.json");
+    
+    // Resolve smartfo binary path
+    let smartfo_path = resolve_smartfo_binary()?;
+    
+    // Read existing settings or create new
+    let mut settings: serde_json::Value = if settings_path.exists() {
+        let content = fs::read_to_string(&settings_path)
+            .with_context(|| format!("Failed to read Claude settings: {}", settings_path.display()))?;
+        serde_json::from_str(&content)
+            .with_context(|| format!("Failed to parse Claude settings: {}", settings_path.display()))?
+    } else {
+        serde_json::json!({})
+    };
+    
+    // Add session-start hook
+    if let Some(hooks) = settings.get_mut("hooks") {
+        if let Some(session_hooks) = hooks.get_mut("session-start") {
+            if let Some(hooks_array) = session_hooks.as_array_mut() {
+                let hook_command = format!("{} --session-context", smartfo_path.display());
+                if !hooks_array.iter().any(|h| h.as_str() == Some(&hook_command)) {
+                    hooks_array.push(serde_json::json!(hook_command));
+                    info!("Added session-start hook: {}", hook_command);
                 }
-            }
-            PushChange::Rename { old_path, new_path } => {
-                if !has_audit_entry_for_rename(&audit_entries, old_path, new_path) {
-                    anyhow::bail!(
-                        "Push rejected: raw rename detected: {} -> {}\n\
-                         This file was renamed without using smartfo.\n\
-                         Please use 'smartfo mv' or 'smv' to move files in a VCS-aware manner before pushing.",
-                        old_path, new_path
-                    );
-                }
-            }
-            _ => {
-                // Additions and modifications are fine
             }
         }
     }
-
-    info!("Pre-receive hook check passed");
+    
+    // Add session-end hook
+    if let Some(hooks) = settings.get_mut("hooks") {
+        if let Some(session_hooks) = hooks.get_mut("session-end") {
+            if let Some(hooks_array) = session_hooks.as_array_mut() {
+                let hook_command = format!("{} --session-context", smartfo_path.display());
+                if !hooks_array.iter().any(|h| h.as_str() == Some(&hook_command)) {
+                    hooks_array.push(serde_json::json!(hook_command));
+                    info!("Added session-end hook: {}", hook_command);
+                }
+            }
+        }
+    }
+    
+    // Write settings back
+    let settings_json = serde_json::to_string_pretty(&settings)
+        .context("Failed to serialize Claude settings")?;
+    
+    fs::write(&settings_path, settings_json)
+        .with_context(|| format!("Failed to write Claude settings: {}", settings_path.display()))?;
+    
+    info!("Claude Code hooks installed successfully");
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use tempfile::TempDir;
-    use std::fs;
-
-    #[test]
-    fn test_repo_audit_log_path() {
-        let temp_dir = TempDir::new().unwrap();
-        let repo_root = temp_dir.path();
-        let audit_path = repo_audit_log_path(repo_root);
-
-        assert_eq!(
-            audit_path,
-            repo_root.join(".smartfo/audit/operations.jsonl")
-        );
-    }
-
-    #[test]
-    fn test_has_audit_entry_for_deletion() {
-        let entries = vec![
-            crate::audit::AuditEntry::new_delete("/tmp/file1.txt".to_string(), None, None, None, None, None),
-            crate::audit::AuditEntry::new_delete("/tmp/file2.txt".to_string(), None, None, None, None, None),
-        ];
-
-        assert!(has_audit_entry_for_deletion(&entries, "/tmp/file1.txt"));
-        assert!(has_audit_entry_for_deletion(&entries, "/tmp/file2.txt"));
-        assert!(!has_audit_entry_for_deletion(&entries, "/tmp/file3.txt"));
-    }
-
-    #[test]
-    fn test_has_audit_entry_for_rename() {
-        let entries = vec![
-            crate::audit::AuditEntry::new_move("/tmp/old1.txt".to_string(), "/tmp/new1.txt".to_string(), None, None, None, None),
-            crate::audit::AuditEntry::new_move("/tmp/old2.txt".to_string(), "/tmp/new2.txt".to_string(), None, None, None, None),
-        ];
-
-        assert!(has_audit_entry_for_rename(&entries, "/tmp/old1.txt", "/tmp/new1.txt"));
-        assert!(has_audit_entry_for_rename(&entries, "/tmp/old2.txt", "/tmp/new2.txt"));
-        assert!(!has_audit_entry_for_rename(&entries, "/tmp/old1.txt", "/tmp/wrong.txt"));
-        assert!(!has_audit_entry_for_rename(&entries, "/tmp/wrong.txt", "/tmp/new1.txt"));
-    }
-
-    #[test]
-    fn test_read_repo_audit_log_nonexistent() {
-        let temp_dir = TempDir::new().unwrap();
-        let repo_root = temp_dir.path();
-
-        let entries = read_repo_audit_log(repo_root).unwrap();
-        assert!(entries.is_empty());
-    }
-
-    #[test]
-    fn test_read_repo_audit_log_with_entries() {
-        let temp_dir = TempDir::new().unwrap();
-        let repo_root = temp_dir.path();
-        let audit_path = repo_audit_log_path(repo_root);
-
-        // Create audit log with some entries
-        fs::create_dir_all(audit_path.parent().unwrap()).unwrap();
-        let entry1 = crate::audit::AuditEntry::new_delete("/tmp/file1.txt".to_string(), None, None, None, None, None);
-        let entry2 = crate::audit::AuditEntry::new_move("/tmp/old.txt".to_string(), "/tmp/new.txt".to_string(), None, None, None, None);
-
-        fs::write(&audit_path, format!("{}\n{}", entry1.to_jsonl().unwrap(), entry2.to_jsonl().unwrap())).unwrap();
-
-        let entries = read_repo_audit_log(repo_root).unwrap();
-        assert_eq!(entries.len(), 2);
-    }
-
-    #[test]
-    fn test_detect_staged_changes_no_changes() {
-        let temp_dir = TempDir::new().unwrap();
-        let repo_root = temp_dir.path();
-
-        // Initialize a git repo
-        std::process::Command::new("git")
-            .args(["init"])
-            .current_dir(repo_root)
-            .output()
-            .unwrap();
-
-        let changes = detect_staged_changes(repo_root).unwrap();
-        assert!(changes.is_empty());
-    }
-
-    #[test]
-    fn test_detect_staged_changes_with_deletion() {
-        let temp_dir = TempDir::new().unwrap();
-        let repo_root = temp_dir.path();
-
-        // Initialize a git repo
-        std::process::Command::new("git")
-            .args(["init"])
-            .current_dir(repo_root)
-            .output()
-            .unwrap();
-
-        // Create and commit a file
-        let test_file = repo_root.join("test.txt");
-        fs::write(&test_file, "content").unwrap();
-        std::process::Command::new("git")
-            .args(["add", "test.txt"])
-            .current_dir(repo_root)
-            .output()
-            .unwrap();
-        std::process::Command::new("git")
-            .args(["config", "user.email", "test@example.com"])
-            .current_dir(repo_root)
-            .output()
-            .unwrap();
-        std::process::Command::new("git")
-            .args(["config", "user.name", "Test User"])
-            .current_dir(repo_root)
-            .output()
-            .unwrap();
-        std::process::Command::new("git")
-            .args(["commit", "-m", "initial"])
-            .current_dir(repo_root)
-            .output()
-            .unwrap();
-
-        // Delete the file and stage the deletion
-        fs::remove_file(&test_file).unwrap();
-        std::process::Command::new("git")
-            .args(["add", "test.txt"])
-            .current_dir(repo_root)
-            .output()
-            .unwrap();
-
-        let changes = detect_staged_changes(repo_root).unwrap();
-        assert_eq!(changes.len(), 1);
-        match &changes[0] {
-            GitChange::Deletion { path } => assert_eq!(path, "test.txt"),
-            _ => panic!("Expected deletion"),
+/// Install Codex hooks
+pub fn install_codex_hooks() -> Result<()> {
+    info!("Installing Codex hooks");
+    
+    let home = std::env::var("HOME").context("HOME not set")?;
+    let hooks_path = PathBuf::from(home).join(".codex/hooks.json");
+    
+    // Resolve smartfo binary path
+    let smartfo_path = resolve_smartfo_binary()?;
+    
+    // Read existing hooks or create new
+    let mut hooks: serde_json::Value = if hooks_path.exists() {
+        let content = fs::read_to_string(&hooks_path)
+            .with_context(|| format!("Failed to read Codex hooks: {}", hooks_path.display()))?;
+        serde_json::from_str(&content)
+            .with_context(|| format!("Failed to parse Codex hooks: {}", hooks_path.display()))?
+    } else {
+        serde_json::json!({})
+    };
+    
+    // Add session-start hook
+    if let Some(session_hooks) = hooks.get_mut("session-start") {
+        if let Some(hooks_array) = session_hooks.as_array_mut() {
+            let hook_command = format!("{} --session-context", smartfo_path.display());
+            if !hooks_array.iter().any(|h| h.as_str() == Some(&hook_command)) {
+                hooks_array.push(serde_json::json!(hook_command));
+                info!("Added session-start hook: {}", hook_command);
+            }
         }
     }
-
-    #[test]
-    fn test_run_pre_commit_hook_with_raw_deletion() {
-        let temp_dir = TempDir::new().unwrap();
-        let repo_root = temp_dir.path();
-
-        // Initialize a git repo
-        std::process::Command::new("git")
-            .args(["init"])
-            .current_dir(repo_root)
-            .output()
-            .unwrap();
-
-        // Create and commit a file
-        let test_file = repo_root.join("test.txt");
-        fs::write(&test_file, "content").unwrap();
-        std::process::Command::new("git")
-            .args(["add", "test.txt"])
-            .current_dir(repo_root)
-            .output()
-            .unwrap();
-        std::process::Command::new("git")
-            .args(["config", "user.email", "test@example.com"])
-            .current_dir(repo_root)
-            .output()
-            .unwrap();
-        std::process::Command::new("git")
-            .args(["config", "user.name", "Test User"])
-            .current_dir(repo_root)
-            .output()
-            .unwrap();
-        std::process::Command::new("git")
-            .args(["commit", "-m", "initial"])
-            .current_dir(repo_root)
-            .output()
-            .unwrap();
-
-        // Delete the file and stage the deletion (no audit entry)
-        fs::remove_file(&test_file).unwrap();
-        std::process::Command::new("git")
-            .args(["add", "test.txt"])
-            .current_dir(repo_root)
-            .output()
-            .unwrap();
-
-        // Hook should fail due to raw deletion
-        let result = run_pre_commit_hook(repo_root);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Raw deletion detected"));
+    
+    // Add session-end hook
+    if let Some(session_hooks) = hooks.get_mut("session-end") {
+        if let Some(hooks_array) = session_hooks.as_array_mut() {
+            let hook_command = format!("{} --session-context", smartfo_path.display());
+            if !hooks_array.iter().any(|h| h.as_str() == Some(&hook_command)) {
+                hooks_array.push(serde_json::json!(hook_command));
+                info!("Added session-end hook: {}", hook_command);
+            }
+        }
     }
+    
+    // Write hooks back
+    let hooks_json = serde_json::to_string_pretty(&hooks)
+        .context("Failed to serialize Codex hooks")?;
+    
+    fs::write(&hooks_path, hooks_json)
+        .with_context(|| format!("Failed to write Codex hooks: {}", hooks_path.display()))?;
+    
+    info!("Codex hooks installed successfully");
+    Ok(())
+}
 
-    #[test]
-    fn test_run_pre_commit_hook_with_audit_entry() {
-        let temp_dir = TempDir::new().unwrap();
-        let repo_root = temp_dir.path();
-
-        // Initialize a git repo
-        std::process::Command::new("git")
-            .args(["init"])
-            .current_dir(repo_root)
-            .output()
-            .unwrap();
-
-        // Create and commit a file
-        let test_file = repo_root.join("test.txt");
-        fs::write(&test_file, "content").unwrap();
-        std::process::Command::new("git")
-            .args(["add", "test.txt"])
-            .current_dir(repo_root)
-            .output()
-            .unwrap();
-        std::process::Command::new("git")
-            .args(["config", "user.email", "test@example.com"])
-            .current_dir(repo_root)
-            .output()
-            .unwrap();
-        std::process::Command::new("git")
-            .args(["config", "user.name", "Test User"])
-            .current_dir(repo_root)
-            .output()
-            .unwrap();
-        std::process::Command::new("git")
-            .args(["commit", "-m", "initial"])
-            .current_dir(repo_root)
-            .output()
-            .unwrap();
-
-        // Create audit log with deletion entry (use relative path to match git diff output)
-        let audit_path = repo_audit_log_path(repo_root);
-        fs::create_dir_all(audit_path.parent().unwrap()).unwrap();
-        let entry = crate::audit::AuditEntry::new_delete(
-            "test.txt".to_string(),  // Use relative path
-            None,
-            None,
-            None,
-            None,
-            None,
-        );
-        fs::write(&audit_path, entry.to_jsonl().unwrap()).unwrap();
-
-        // Delete the file and stage the deletion (has audit entry)
-        fs::remove_file(&test_file).unwrap();
-        std::process::Command::new("git")
-            .args(["add", "test.txt"])
-            .current_dir(repo_root)
-            .output()
-            .unwrap();
-
-        // Hook should pass
-        let result = run_pre_commit_hook(repo_root);
-        assert!(result.is_ok());
+/// Resolve the smartfo binary path (PATH-verified with absolute fallback)
+pub fn resolve_smartfo_binary() -> Result<PathBuf> {
+    // First, try to find smartfo in PATH
+    if let Ok(path) = which::which("smartfo") {
+        debug!("Found smartfo in PATH: {}", path.display());
+        return Ok(path);
     }
+    
+    // Fallback to current executable
+    let current_exe = std::env::current_exe()
+        .context("Failed to get current executable path")?;
+    
+    debug!("Using current executable as smartfo path: {}", current_exe.display());
+    Ok(current_exe)
+}
+
+/// Cache session metadata for future context enrichment
+pub fn cache_session_metadata(context: &SessionContext) -> Result<()> {
+    let cache_dir = get_session_cache_dir()?;
+    let cache_file = cache_dir.join("session-metadata.json");
+    
+    let metadata_json = serde_json::to_string_pretty(context)
+        .context("Failed to serialize session metadata")?;
+    
+    fs::write(&cache_file, metadata_json)
+        .with_context(|| format!("Failed to write session metadata cache: {}", cache_file.display()))?;
+    
+    debug!("Session metadata cached to: {}", cache_file.display());
+    Ok(())
+}
+
+/// Get the session cache directory
+pub fn get_session_cache_dir() -> Result<PathBuf> {
+    let cache_dir = std::env::var("XDG_CACHE_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| {
+            let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+            PathBuf::from(home).join(".cache")
+        });
+    
+    let smartfo_cache = cache_dir.join("smartfo");
+    std::fs::create_dir_all(&smartfo_cache)
+        .with_context(|| format!("Failed to create cache directory: {}", smartfo_cache.display()))?;
+    
+    Ok(smartfo_cache)
+}
+
+/// Load cached session metadata
+pub fn load_session_metadata() -> Result<Option<SessionContext>> {
+    let cache_dir = get_session_cache_dir()?;
+    let cache_file = cache_dir.join("session-metadata.json");
+    
+    if !cache_file.exists() {
+        return Ok(None);
+    }
+    
+    let content = fs::read_to_string(&cache_file)
+        .with_context(|| format!("Failed to read session metadata cache: {}", cache_file.display()))?;
+    
+    let context: SessionContext = serde_json::from_str(&content)
+        .with_context(|| format!("Failed to parse session metadata cache: {}", cache_file.display()))?;
+    
+    debug!("Loaded session metadata from cache");
+    Ok(Some(context))
 }

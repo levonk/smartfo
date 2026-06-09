@@ -138,6 +138,53 @@ impl MvArgs {
         }
         (self.sources.clone(), None)
     }
+    
+    /// Validate flag combinations and required arguments
+    pub fn validate(&self) -> Result<(), String> {
+        // Check for conflicting overwrite flags
+        if self.force && self.no_clobber {
+            return Err("Cannot specify both --force and --no-clobber".to_string());
+        }
+        
+        if self.interactive && self.force {
+            return Err("Cannot specify both --interactive and --force".to_string());
+        }
+        
+        // Check for conflicting async/blocking flags
+        if self.async_mode && self.blocking {
+            return Err("Cannot specify both --async and --blocking".to_string());
+        }
+        
+        // Validate sources are provided
+        if self.sources.is_empty() {
+            return Err("Missing source file(s)".to_string());
+        }
+        
+        // Validate destination or target directory is provided
+        if self.target_directory.is_none() && self.sources.len() < 2 {
+            return Err("Missing destination file operand".to_string());
+        }
+        
+        Ok(())
+    }
+    
+    /// Get effective interactive flag (suppressed in agent mode)
+    pub fn effective_interactive(&self, agent_mode: bool) -> bool {
+        if agent_mode {
+            false // Suppress interactive prompts in agent mode
+        } else {
+            self.interactive
+        }
+    }
+    
+    /// Get effective force flag (force in agent mode to avoid prompts)
+    pub fn effective_force(&self, agent_mode: bool) -> bool {
+        if agent_mode {
+            true // Force mode in agent mode to avoid prompts
+        } else {
+            self.force
+        }
+    }
 }
 
 /// Arguments for rm mode (invoked via `rm` or `srm` symlink).
@@ -255,6 +302,69 @@ pub struct RmArgs {
     pub paths: Vec<PathBuf>,
 }
 
+impl RmArgs {
+    /// Validate flag combinations and required arguments
+    pub fn validate(&self) -> Result<(), String> {
+        // Check for conflicting interactive flags
+        if self.interactive && self.force {
+            return Err("Cannot specify both -i and --force".to_string());
+        }
+        
+        if self.interactive_once && self.force {
+            return Err("Cannot specify both -I and --force".to_string());
+        }
+        
+        if self.interactive && self.interactive_once {
+            return Err("Cannot specify both -i and -I".to_string());
+        }
+        
+        // Check for conflicting async/blocking flags
+        if self.blocking && self.force_delete {
+            // These can actually be combined, but we should document the behavior
+            // For now, allow it
+        }
+        
+        // Validate paths are provided
+        if self.paths.is_empty() {
+            return Err("Missing file operand(s)".to_string());
+        }
+        
+        // Validate recursive flag usage
+        if self.recursive && self.dir {
+            return Err("Cannot specify both -r and -d".to_string());
+        }
+        
+        Ok(())
+    }
+    
+    /// Get effective interactive flag (suppressed in agent mode)
+    pub fn effective_interactive(&self, agent_mode: bool) -> bool {
+        if agent_mode {
+            false // Suppress interactive prompts in agent mode
+        } else {
+            self.interactive
+        }
+    }
+    
+    /// Get effective interactive_once flag (suppressed in agent mode)
+    pub fn effective_interactive_once(&self, agent_mode: bool) -> bool {
+        if agent_mode {
+            false // Suppress interactive prompts in agent mode
+        } else {
+            self.interactive_once
+        }
+    }
+    
+    /// Get effective force flag (force in agent mode to avoid prompts)
+    pub fn effective_force(&self, agent_mode: bool) -> bool {
+        if agent_mode {
+            true // Force mode in agent mode to avoid prompts
+        } else {
+            self.force
+        }
+    }
+}
+
 /// Arguments for the main smartfo binary.
 #[derive(Parser, Debug)]
 #[command(
@@ -340,6 +450,14 @@ pub struct SmartfoArgs {
     #[arg(long, help = "Disable content truncation and show full output")]
     pub full: bool,
 
+    /// Output session context in TOON format
+    #[arg(long = "session-context", help = "Output session context in TOON format for agent consumption")]
+    pub session_context: bool,
+
+    /// Install agent hooks for Claude Code or Codex
+    #[arg(long = "install-agent-hooks", help = "Install agent hooks for Claude Code or Codex")]
+    pub install_agent_hooks: bool,
+
     /// Subcommands
     #[command(subcommand)]
     pub command: Option<SmartfoCommand>,
@@ -371,4 +489,10 @@ pub enum SmartfoCommand {
         #[arg(long)]
         detailed: bool,
     },
+    /// Output session context in TOON format for agent consumption
+    #[command(name = "session-context", about = "Output session context in TOON format for agent consumption. Includes current directory, git repo info, audit log path, and recent operations count.")]
+    SessionContext,
+    /// Install agent hooks for Claude Code or Codex
+    #[command(name = "install-agent-hooks", about = "Install agent hooks for Claude Code or Codex. Registers session-start and session-end hooks for ambient context injection.")]
+    InstallAgentHooks,
 }

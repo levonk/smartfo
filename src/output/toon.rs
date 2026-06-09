@@ -216,6 +216,25 @@ impl ToonEncoder {
     }
 }
 
+/// Escape a string for TOON format (public helper function)
+pub fn escape_string(s: &str) -> String {
+    let mut output = String::new();
+    for c in s.chars() {
+        match c {
+            '\\' => output.push_str("\\\\"),
+            '"' => output.push_str("\\\""),
+            '\n' => output.push_str("\\n"),
+            '\r' => output.push_str("\\r"),
+            '\t' => output.push_str("\\t"),
+            c if c <= '\u{001f}' => {
+                output.push_str(&format!("\\u{:04x}", c as u32));
+            }
+            _ => output.push(c),
+        }
+    }
+    output
+}
+
 /// Convert a serializable value to TOON format string
 pub fn to_string<T: Serialize>(value: &T) -> Result<String, ToonError> {
     let encoder = ToonEncoder::new();
