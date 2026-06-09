@@ -6,9 +6,11 @@ pub mod schema;
 pub mod truncation;
 pub mod aggregates;
 pub mod empty;
+pub mod suggestions;
 
 pub use schema::FieldFilterable;
 pub use truncation::DEFAULT_TRUNCATION_LIMIT;
+pub use suggestions::{Suggestion, SuggestionContext, SuggestionEngine, format_suggestions_as_help};
 
 use serde::Serialize;
 use std::io::Write;
@@ -52,6 +54,7 @@ pub struct OutputWriter<W: Write> {
     field_selector: Option<schema::FieldSelector>,
     truncation_enabled: bool,
     truncation_limit: usize,
+    suggestions: Option<Vec<String>>,
 }
 
 impl<W: Write> OutputWriter<W> {
@@ -63,6 +66,7 @@ impl<W: Write> OutputWriter<W> {
             field_selector: None,
             truncation_enabled: true,
             truncation_limit: DEFAULT_TRUNCATION_LIMIT,
+            suggestions: None,
         }
     }
 
@@ -74,6 +78,7 @@ impl<W: Write> OutputWriter<W> {
             field_selector: Some(field_selector),
             truncation_enabled: true,
             truncation_limit: DEFAULT_TRUNCATION_LIMIT,
+            suggestions: None,
         }
     }
 
@@ -89,9 +94,15 @@ impl<W: Write> OutputWriter<W> {
         self
     }
 
+    /// Set suggestions to include in output
+    pub fn with_suggestions(mut self, suggestions: Vec<String>) -> Self {
+        self.suggestions = Some(suggestions);
+        self
+    }
+
     /// Write data in the configured format
     pub fn write<T: Serialize + schema::FieldFilterable>(&mut self, data: &T) -> anyhow::Result<()> {
-        let output_data = if let Some(ref selector) = self.field_selector {
+        let mut output_data = if let Some(ref selector) = self.field_selector {
             // Apply field filtering
             let fields = selector.get_fields();
             let value = data.filter_fields(fields)?;
@@ -100,6 +111,16 @@ impl<W: Write> OutputWriter<W> {
             // No filtering, use full data
             serde_json::to_value(data)?
         };
+
+        // Add suggestions to output if present and format is TOON
+        if let Some(ref suggestions) = self.suggestions {
+            if self.format == OutputFormat::Toon {
+                if let Some(obj) = output_data.as_object_mut() {
+                    let help_array = serde_json::to_value(suggestions)?;
+                    obj.insert("help".to_string(), help_array);
+                }
+            }
+        }
 
         match self.format {
             OutputFormat::Toon => {

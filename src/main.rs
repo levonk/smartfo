@@ -25,6 +25,7 @@ use output::OutputFormat;
 use output::schema::{SchemaRegistry, FieldSelector};
 use output::aggregates::*;
 use output::empty::{EmptyState, check_empty, EmptyContext};
+use output::suggestions::{SuggestionContext, SuggestionEngine, format_suggestions_as_help};
 
 /// Resolve the symlink target directory based on XDG conventions and permissions.
 /// Priority: $XDG_BIN_HOME > ~/.local/bin (create if missing) > /usr/local/bin (if root)
@@ -355,6 +356,34 @@ fn run_list(all: bool, limit: Option<usize>, args: &SmartfoArgs) -> Result<()> {
     let total = if all { 100 } else { limit.unwrap_or(items.len()) };
     let aggregate = AggregateComputer::compute_list_aggregate(&items, total);
     
+    // Generate contextual suggestions
+    let in_git_repo = detect_git_repo().is_some();
+    let daemon_running = daemon::Daemon::new().and_then(|d| d.ping_daemon()).unwrap_or(false);
+    
+    // Try to get queue depth using default queue path
+    let queue_depth = if let Ok(daemon) = daemon::Daemon::new() {
+        let xdg_data_home = std::env::var("XDG_DATA_HOME")
+            .unwrap_or_else(|_| {
+                let home = std::env::var("HOME").expect("HOME not set");
+                format!("{}/.local/share", home)
+            });
+        let queue_path = std::path::PathBuf::from(xdg_data_home).join("smartfo/queue.db");
+        queue::JobQueue::new(&queue_path)
+            .and_then(|q| q.queue_depth())
+            .map(|d| d as usize)
+            .ok()
+    } else {
+        None
+    };
+    
+    let suggestion_context = SuggestionContext::new("list")
+        .with_git_repo(in_git_repo)
+        .with_daemon(daemon_running)
+        .with_queue_depth(queue_depth.unwrap_or(0));
+    
+    let suggestions = SuggestionEngine::generate(&suggestion_context);
+    let help_suggestions = format_suggestions_as_help(&suggestions);
+    
     // Create output with aggregate
     let output = serde_json::json!({
         "items": items,
@@ -369,8 +398,9 @@ fn run_list(all: bool, limit: Option<usize>, args: &SmartfoArgs) -> Result<()> {
         output
     };
     
-    // Write output
-    let mut writer = output::OutputWriter::new(std::io::stdout(), output_format);
+    // Write output with suggestions
+    let mut writer = output::OutputWriter::new(std::io::stdout(), output_format)
+        .with_suggestions(help_suggestions);
     writer.write(&output_data)?;
     
     Ok(())
@@ -412,6 +442,34 @@ fn run_status(detailed: bool, args: &SmartfoArgs) -> Result<()> {
     
     let status_aggregate = StatusAggregate::new(operations, queue, daemon);
     
+    // Generate contextual suggestions
+    let in_git_repo = detect_git_repo().is_some();
+    let daemon_running = daemon::Daemon::new().and_then(|d| d.ping_daemon()).unwrap_or(false);
+    
+    // Try to get queue depth using default queue path
+    let queue_depth = if let Ok(daemon) = daemon::Daemon::new() {
+        let xdg_data_home = std::env::var("XDG_DATA_HOME")
+            .unwrap_or_else(|_| {
+                let home = std::env::var("HOME").expect("HOME not set");
+                format!("{}/.local/share", home)
+            });
+        let queue_path = std::path::PathBuf::from(xdg_data_home).join("smartfo/queue.db");
+        queue::JobQueue::new(&queue_path)
+            .and_then(|q| q.queue_depth())
+            .map(|d| d as usize)
+            .ok()
+    } else {
+        None
+    };
+    
+    let suggestion_context = SuggestionContext::new("status")
+        .with_git_repo(in_git_repo)
+        .with_daemon(daemon_running)
+        .with_queue_depth(queue_depth.unwrap_or(0));
+    
+    let suggestions = SuggestionEngine::generate(&suggestion_context);
+    let help_suggestions = format_suggestions_as_help(&suggestions);
+    
     // Create output with aggregate
     let output = serde_json::json!({
         "status": status_aggregate,
@@ -425,8 +483,9 @@ fn run_status(detailed: bool, args: &SmartfoArgs) -> Result<()> {
         output
     };
     
-    // Write output
-    let mut writer = output::OutputWriter::new(std::io::stdout(), output_format);
+    // Write output with suggestions
+    let mut writer = output::OutputWriter::new(std::io::stdout(), output_format)
+        .with_suggestions(help_suggestions);
     writer.write(&output_data)?;
     
     Ok(())
@@ -832,16 +891,36 @@ fn run_noargs(args: &SmartfoArgs) -> Result<()> {
     let daemon_status = get_daemon_status();
     state["daemon"] = daemon_status;
     
-    // Add contextual help suggestions
-    state["help_suggestions"] = serde_json::json!({
-        "usage": "Run 'smartfo --help' for detailed usage information",
-        "list": "Run 'smartfo list' to see queued operations",
-        "status": "Run 'smartfo status' to see daemon and queue status",
-        "install": "Run 'smartfo --install' to set up symlinks and hooks"
-    });
+    // Generate contextual suggestions
+    let daemon_running = daemon::Daemon::new().and_then(|d| d.ping_daemon()).unwrap_or(false);
     
-    // Write output
-    let mut writer = output::OutputWriter::new(std::io::stdout(), output_format);
+    // Try to get queue depth using default queue path
+    let queue_depth = if let Ok(daemon) = daemon::Daemon::new() {
+        let xdg_data_home = std::env::var("XDG_DATA_HOME")
+            .unwrap_or_else(|_| {
+                let home = std::env::var("HOME").expect("HOME not set");
+                format!("{}/.local/share", home)
+            });
+        let queue_path = std::path::PathBuf::from(xdg_data_home).join("smartfo/queue.db");
+        queue::JobQueue::new(&queue_path)
+            .and_then(|q| q.queue_depth())
+            .map(|d| d as usize)
+            .ok()
+    } else {
+        None
+    };
+    
+    let suggestion_context = SuggestionContext::new("")
+        .with_git_repo(is_in_git)
+        .with_daemon(daemon_running)
+        .with_queue_depth(queue_depth.unwrap_or(0));
+    
+    let suggestions = SuggestionEngine::generate(&suggestion_context);
+    let help_suggestions = format_suggestions_as_help(&suggestions);
+    
+    // Write output with suggestions
+    let mut writer = output::OutputWriter::new(std::io::stdout(), output_format)
+        .with_suggestions(help_suggestions);
     writer.write(&state)?;
     
     Ok(())

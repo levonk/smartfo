@@ -13,6 +13,7 @@ This is a drop-in replacement for POSIX mv that:
 - Supports async operations for large files
 - Provides comprehensive audit logging
 - Supports all standard POSIX flags (-f, -i, -n, -v, etc.)
+- Includes contextual suggestions for next steps in agent mode
 
 Examples:
   mv file1 file2           # Rename file1 to file2
@@ -200,6 +201,7 @@ This is a drop-in replacement for POSIX rm that:
 - Supports async operations
 - Provides comprehensive audit logging
 - Supports all standard POSIX flags (-f, -i, -r, -v, etc.)
+- Includes contextual suggestions for next steps in agent mode
 
 Examples:
   rm file.txt             # Move file.txt to trash
@@ -485,7 +487,7 @@ pub enum SmartfoCommand {
     #[command(name = "git-hook-server")]
     GitHookServer,
     /// List operations and queue status
-    #[command(name = "list", about = "List operations and queue status with aggregate counts. Returns empty state with context when no results found.")]
+    #[command(name = "list", about = "List operations and queue status with aggregate counts. Returns empty state with context when no results found. Includes contextual suggestions for next steps in TOON output.")]
     List {
         /// Show all items including completed
         #[arg(long)]
@@ -495,7 +497,7 @@ pub enum SmartfoCommand {
         limit: Option<usize>,
     },
     /// Show daemon and queue status
-    #[command(name = "status", about = "Show daemon and queue status with aggregate information. Returns empty state with context when no status data available.")]
+    #[command(name = "status", about = "Show daemon and queue status with aggregate information. Returns empty state with context when no status data available. Includes contextual suggestions for next steps in TOON output.")]
     Status {
         /// Show detailed status
         #[arg(long)]

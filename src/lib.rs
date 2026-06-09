@@ -12,3 +12,6 @@ pub use hooks::{SessionContext, SessionMetadata, AgentPlatform, cache_session_me
 
 // Re-export skill types for testing
 pub use skill::{SkillGenerator, GeneratedSkill, SkillMetadata, CommandDoc, FlagDoc, check_skill_stale};
+
+// Re-export suggestion types for testing
+pub use output::suggestions::{Suggestion, SuggestionContext, SuggestionEngine, format_suggestions_as_help};
