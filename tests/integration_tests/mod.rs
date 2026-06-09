@@ -8,3 +8,7 @@ mod overwrite_modes;
 mod install;
 mod force_delete;
 mod trash_mode;
+mod aggregates_test;
+mod empty_states_test;
+mod content_first_test;
+mod cross_platform_test;

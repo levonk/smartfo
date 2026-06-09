@@ -7,7 +7,7 @@ prd_file: "internal-docs/feature/20260608-cli-axi/prd-20260608-cli-axi.md"
 phase: 5
 parallel_id: 2
 branch: "feature/current/cli-axi/story-05-002-contextual-disclosure"
-status: "in_progress"
+status: "done"
 assignee: ""
 reviewer: ""
 dependencies: ["01-003", "02-002"]

@@ -1,0 +1,187 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, dev, feature/** ]
+  pull_request:
+    branches: [ main, dev ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  test:
+    name: Test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        rust: [stable]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          override: true
+          components: rustfmt, clippy
+      
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Cache cargo index
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Cache cargo build
+        uses: actions/cache@v3
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Install devbox
+        run: |
+          curl -fsSL https://get.jetpack.io/devbox | bash
+          echo "$HOME/.devbox/bin" >> $GITHUB_PATH
+      
+      - name: Run cargo check
+        run: devbox run cargo check --verbose
+      
+      - name: Run cargo fmt
+        run: devbox run cargo fmt --all -- --check
+      
+      - name: Run cargo clippy
+        run: devbox run cargo clippy -- -D warnings
+      
+      - name: Run cargo test
+        run: devbox run cargo test --verbose
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      
+      - name: Install devbox
+        run: |
+          curl -fsSL https://get.jetpack.io/devbox | bash
+          echo "$HOME/.devbox/bin" >> $GITHUB_PATH
+      
+      - name: Run integration tests
+        run: devbox run cargo test --test integration_tests --verbose
+      
+      - name: Run agent mode integration tests
+        run: |
+          devbox run cargo test --test integration_tests -- --test-threads=1 \
+            mode_selection toon_format minimal_schemas content_truncation \
+            pre_computed_aggregates empty_states structured_errors \
+            session_hooks agent_skills content_first_no_args contextual_disclosure
+
+  benchmarks:
+    name: Benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      
+      - name: Install devbox
+        run: |
+          curl -fsSL https://get.jetpack.io/devbox | bash
+          echo "$HOME/.devbox/bin" >> $GITHUB_PATH
+      
+      - name: Run benchmarks
+        run: devbox run cargo bench --bench agent_mode_benchmarks -- --output-format bencher | tee benchmark-output.txt
+      
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v3
+        with:
+          name: benchmark-results
+          path: benchmark-output.txt
+
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      
+      - name: Install devbox
+        run: |
+          curl -fsSL https://get.jetpack.io/devbox | bash
+          echo "$HOME/.devbox/bin" >> $GITHUB_PATH
+      
+      - name: Install cargo-llvm-cov
+        run: devbox run cargo install cargo-llvm-cov
+      
+      - name: Generate coverage report
+        run: devbox run cargo llvm-cov --html --output-dir coverage
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/llvm-cov-report.json
+          flags: unittests
+          name: codecov-umbrella
+      
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: coverage/
+
+  build:
+    name: Build Release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      
+      - name: Install devbox
+        run: |
+          curl -fsSL https://get.jetpack.io/devbox | bash
+          echo "$HOME/.devbox/bin" >> $GITHUB_PATH
+      
+      - name: Build release
+        run: devbox run cargo build --release
+      
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: release-${{ matrix.os }}
+          path: target/release/smartfo

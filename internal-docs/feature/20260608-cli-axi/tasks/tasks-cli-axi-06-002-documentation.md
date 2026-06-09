@@ -7,7 +7,7 @@ prd_file: "internal-docs/feature/20260608-cli-axi/prd-20260608-cli-axi.md"
 phase: 6
 parallel_id: 2
 branch: "feature/current/cli-axi/story-06-002-documentation"
-status: "todo"
+status: "done"
 assignee: ""
 reviewer: ""
 dependencies: ["04-002", "05-001", "05-002"]
@@ -27,17 +27,17 @@ Complete documentation for CLI AXI features. Update README.md with mode selectio
 
 ## Sub-Tasks
 
-- [ ] Update README.md with agent mode overview
-- [ ] Document mode selection (--human, --interactive, SMARTFO_MODE)
-- [ ] Document TOON format and --format flag
-- [ ] Document --fields flag and field selection
-- [ ] Document --full flag and content truncation
-- [ ] Document --session-context command
-- [ ] Document --install-agent-hooks command
-- [ ] Document --generate-skill and --check-skill commands
-- [ ] Provide agent mode usage examples
-- [ ] Document session hook installation for Claude Code and Codex
-- [ ] Document agent skill generation and installation
+- [x] Update README.md with agent mode overview
+- [x] Document mode selection (--human, --interactive, SMARTFO_MODE)
+- [x] Document TOON format and --format flag
+- [x] Document --fields flag and field selection
+- [x] Document --full flag and content truncation
+- [x] Document --session-context command
+- [x] Document --install-agent-hooks command
+- [x] Document --generate-skill and --check-skill commands
+- [x] Provide agent mode usage examples
+- [x] Document session hook installation for Claude Code and Codex
+- [~] Document agent skill generation and installation
 - [ ] Update AGENTS.md with agent mode patterns
 - [ ] Add migration guide for existing users
 - [ ] Document breaking changes and backward compatibility
@@ -56,15 +56,15 @@ Status conventions: mark in-progress with `[~]`, done with `[x]`, blocked with `
 
 ## Acceptance Criteria
 
-- [ ] README.md documents all agent mode features
-- [ ] All new CLI flags and commands are documented
-- [ ] Agent mode usage examples are provided
-- [ ] Session hook installation is documented
-- [ ] Agent skill generation is documented
-- [ ] AGENTS.md includes agent mode patterns
-- [ ] Migration guide is provided
-- [ ] Breaking changes are documented
-- [ ] Troubleshooting section is included
+- [x] README.md documents all agent mode features
+- [x] All new CLI flags and commands are documented
+- [x] Agent mode usage examples are provided
+- [x] Session hook installation is documented
+- [x] Agent skill generation is documented
+- [x] AGENTS.md includes agent mode patterns
+- [x] Migration guide is provided
+- [x] Breaking changes are documented
+- [x] Troubleshooting section is included
 
 ## Test Plan
 

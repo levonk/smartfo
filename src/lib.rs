@@ -15,3 +15,12 @@ pub use skill::{SkillGenerator, GeneratedSkill, SkillMetadata, CommandDoc, FlagD
 
 // Re-export suggestion types for testing
 pub use output::suggestions::{Suggestion, SuggestionContext, SuggestionEngine, format_suggestions_as_help};
+
+// Re-export TOON types for testing
+pub use output::toon::{ToonEncoder, to_string, ToonError};
+
+// Re-export schema types for testing
+pub use output::schema::{Schema, Field, FieldSelector};
+
+// Re-export truncation types for testing
+pub use output::truncation::{truncate, TruncatedContent};

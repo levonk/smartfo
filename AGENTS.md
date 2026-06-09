@@ -7,6 +7,7 @@
 - **Build System**: Cargo with devbox environment management
 - **Architecture**: Single binary with `argv[0]` dispatch; self-spawning daemon for async operations
 - **Test Framework**: Cargo test with property-based tests for safety guarantees
+- **Agent Mode**: AXI-compliant agent interface with TOON output, session hooks, and installable skills
 
 ---
 
@@ -221,6 +222,105 @@ When `statfs` detects different filesystems, the worker must perform a chunked c
 - `--json` for structured operation logs
 - `--dry-run` to preview operations without executing
 - `--reason "..."` to annotate intent in the audit log
+
+## Agent Mode Patterns
+
+Smartfo implements AXI (Agent eXperience Interface) standards for AI agent integration.
+
+### Mode Detection
+
+Smartfo automatically detects agent sessions and defaults to agent-optimized output:
+
+```rust
+// Agent session detection logic
+fn is_agent_session() -> bool {
+    // Check for agent session environment variables
+    std::env::var("CLAUDE_SESSION").is_ok()
+        || std::env::var("CODEX_SESSION").is_ok()
+        || std::env::var("OPENCODE_SESSION").is_ok()
+        || !atty::is(atty::Stream::Stdout) // Non-TTY = likely agent
+}
+```
+
+### TOON Output Format
+
+When in agent mode, smartfo outputs TOON (Token-Oriented Object Notation) format:
+
+```rust
+// TOON encoding example
+operations[2]{id,type,status}: "42",move,completed "43",delete,pending
+count: 2 of 5 total
+help[1]: Run smartfo view <id> for details
+```
+
+### Field Selection
+
+Agents can request specific fields to reduce token consumption:
+
+```rust
+// Field selection implementation
+let fields = if args.fields.is_some() {
+    args.fields.unwrap().split(',').collect()
+} else {
+    vec!["id", "type", "status", "source"] // Default minimal schema
+};
+```
+
+### Content Truncation
+
+Large fields are truncated with metadata:
+
+```rust
+// Truncation pattern
+if content.len() > TRUNCATION_LIMIT {
+    format!("{}... (truncated, {} chars total)", 
+            &content[..TRUNCATION_LIMIT], 
+            content.len())
+} else {
+    content
+}
+```
+
+### Session Hooks
+
+Session hooks provide ambient context injection:
+
+```rust
+// Session context output
+fn output_session_context() -> String {
+    format!(
+        "cwd: {}\nrepo_root: {}\naudit_log: {}\noperations: {} recent\nqueue: {} pending",
+        cwd,
+        repo_root,
+        audit_log,
+        recent_count,
+        queue_size
+    )
+}
+```
+
+### Agent Skill Generation
+
+The agent skill is generated from CLI metadata:
+
+```rust
+// Skill generation template
+fn generate_skill() -> String {
+    format!(
+        r#"---
+name: smartfo
+description: {}
+---
+
+# Smartfo Agent Skill
+
+## Mode Selection
+[...]
+"#,
+        DESCRIPTION
+    )
+}
+```
 
 ---
 
