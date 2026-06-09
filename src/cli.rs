@@ -495,4 +495,18 @@ pub enum SmartfoCommand {
     /// Install agent hooks for Claude Code or Codex
     #[command(name = "install-agent-hooks", about = "Install agent hooks for Claude Code or Codex. Registers session-start and session-end hooks for ambient context injection.")]
     InstallAgentHooks,
+    /// Generate agent skill from CLI metadata
+    #[command(name = "generate-skill", about = "Generate agent skill (SKILL.md) from CLI metadata. Outputs static skill content with trigger-shaped frontmatter and non-interactive examples.")]
+    GenerateSkill {
+        /// Output file path (default: stdout)
+        #[arg(long, value_name = "PATH")]
+        output: Option<std::path::PathBuf>,
+    },
+    /// Check if generated skill is stale
+    #[command(name = "check-skill", about = "Check if generated skill is stale compared to current version. Exits with error if skill needs regeneration.")]
+    CheckSkill {
+        /// Skill file path to check (default: SKILL.md)
+        #[arg(long, value_name = "PATH")]
+        skill_file: Option<std::path::PathBuf>,
+    },
 }

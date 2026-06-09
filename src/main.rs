@@ -19,6 +19,7 @@ mod hooks;
 mod install;
 mod output;
 mod error;
+mod skill;
 use cli::{MvArgs, RmArgs, SmartfoArgs, SmartfoCommand};
 use output::OutputFormat;
 use output::schema::{SchemaRegistry, FieldSelector};
@@ -695,6 +696,8 @@ fn main() -> Result<()> {
                 println!("  status                   Show daemon and queue status (with aggregate information)");
                 println!("  session-context          Output session context in TOON format for agent consumption");
                 println!("  install-agent-hooks      Install agent hooks for Claude Code or Codex");
+                println!("  generate-skill           Generate agent skill (SKILL.md) from CLI metadata");
+                println!("  check-skill              Check if generated skill is stale");
                 return Ok(());
             }
 
@@ -714,6 +717,8 @@ fn main() -> Result<()> {
                     SmartfoCommand::Status { detailed } => run_status(*detailed, &args),
                     SmartfoCommand::SessionContext => run_session_context(),
                     SmartfoCommand::InstallAgentHooks => run_install_agent_hooks(),
+                    SmartfoCommand::GenerateSkill { output } => run_generate_skill(output),
+                    SmartfoCommand::CheckSkill { skill_file } => run_check_skill(skill_file),
                 }
             } else if args.install {
                 run_install(&args)
@@ -730,6 +735,56 @@ fn main() -> Result<()> {
             }
         }
     }
+}
+
+/// Generate agent skill from CLI metadata
+fn run_generate_skill(output: &Option<std::path::PathBuf>) -> Result<()> {
+    info!("generate-skill command: output={:?}", output);
+    
+    let mut generator = skill::SkillGenerator::new();
+    let skill = generator.generate_with_defaults()
+        .context("Failed to generate skill")?;
+    
+    let markdown = skill.to_markdown();
+    
+    match output {
+        Some(path) => {
+            std::fs::write(path, &markdown)
+                .context(format!("Failed to write skill to {}", path.display()))?;
+            info!("Generated skill written to: {}", path.display());
+        }
+        None => {
+            println!("{}", markdown);
+        }
+    }
+    
+    Ok(())
+}
+
+/// Check if generated skill is stale
+fn run_check_skill(skill_file: &Option<std::path::PathBuf>) -> Result<()> {
+    info!("check-skill command: skill_file={:?}", skill_file);
+    
+    let skill_path = skill_file.as_ref()
+        .map(|p| p.as_path())
+        .unwrap_or(std::path::Path::new("SKILL.md"));
+    
+    if !skill_path.exists() {
+        anyhow::bail!("Skill file not found: {}", skill_path.display());
+    }
+    
+    let content = std::fs::read_to_string(skill_path)
+        .context(format!("Failed to read skill file: {}", skill_path.display()))?;
+    
+    let is_stale = skill::check_skill_stale(&content)
+        .context("Failed to check skill staleness")?;
+    
+    if is_stale {
+        anyhow::bail!("Skill is stale. Run 'smartfo generate-skill' to regenerate.");
+    }
+    
+    info!("Skill is up to date");
+    Ok(())
 }
 
 /// Custom exit code handling
