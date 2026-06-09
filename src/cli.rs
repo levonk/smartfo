@@ -386,7 +386,19 @@ Installation:
 Usage:
   mv file1 file2            # Use via mv symlink
   rm file.txt               # Use via rm symlink
-  smartfo --install         # Install or update",
+  smartfo --install         # Install or update
+  smartfo                   # Show content-first state summary (context-aware)
+  smartfo --help            # Show detailed usage information
+
+No-Args Behavior:
+  When invoked without arguments, smartfo shows a content-first state summary
+  instead of a usage manual. The output is context-aware and includes:
+  - Current directory and git repository status
+  - Operations queue summary (if in git repository)
+  - Daemon status (if running)
+  - Contextual help suggestions
+
+  Use --help flag for detailed usage information.",
     disable_version_flag = true
 )]
 pub struct SmartfoArgs {

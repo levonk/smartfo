@@ -7,7 +7,7 @@ prd_file: "internal-docs/feature/20260608-cli-axi/prd-20260608-cli-axi.md"
 phase: 5
 parallel_id: 1
 branch: "feature/current/cli-axi/story-05-001-content-first"
-status: "todo"
+status: "in_progress"
 assignee: ""
 reviewer: ""
 dependencies: ["01-003", "02-002"]
@@ -27,35 +27,35 @@ Implement content-first no-args behavior that shows most relevant live state ins
 
 ## Sub-Tasks
 
-- [ ] Redesign no-args invocation to show state summary
-- [ ] Implement directory/context-aware content display
-- [ ] Show operations summary when in git repository
-- [ ] Show daemon status when daemon is running
-- [ ] Include contextual help suggestions in no-args output
-- [ ] Move detailed help to --help flag (unchanged)
-- [ ] Apply content-first to both agent and human modes
-- [ ] Add no-args tests for different contexts
-- [ ] Update CLI help text to document no-args behavior
-- [ ] Ensure no-args output is TOON-formatted in agent mode
+- [x] Redesign no-args invocation to show state summary
+- [x] Implement directory/context-aware content display
+- [x] Show operations summary when in git repository
+- [x] Show daemon status when daemon is running
+- [x] Include contextual help suggestions in no-args output
+- [x] Move detailed help to --help flag (unchanged)
+- [x] Apply content-first to both agent and human modes
+- [x] Add no-args tests for different contexts
+- [x] Update CLI help text to document no-args behavior
+- [x] Ensure no-args output is TOON-formatted in agent mode
 
 Status conventions: mark in-progress with `[~]`, done with `[x]`, blocked with `[!]`.
 
 ## Relevant Files
 
-- `src/main.rs` — No-args behavior logic
-- `src/cli.rs` — Context detection and content display
-- `tests/noargs_test.rs` (new) — No-args tests
+- `src/main.rs` — No-args behavior logic, run_noargs(), get_queue_summary(), get_daemon_status()
+- `src/cli.rs` — Context detection and content display, updated help text
+- `tests/noargs_test.rs` (new) — No-args tests for different contexts
 
 ## Acceptance Criteria
 
-- [ ] No-args shows live state, not usage manual
-- [ ] Content is context-aware (directory, daemon status)
-- [ ] Operations summary shown in git repository
-- [ ] Daemon status shown when running
-- [ ] Contextual help suggestions included
-- [ ] --help flag shows detailed help
-- [ ] Works in both agent and human modes
-- [ ] Agent mode uses TOON format
+- [x] No-args shows live state, not usage manual
+- [x] Content is context-aware (directory, daemon status)
+- [x] Operations summary shown in git repository
+- [x] Daemon status shown when running
+- [x] Contextual help suggestions included
+- [x] --help flag shows detailed help
+- [x] Works in both agent and human modes
+- [x] Agent mode uses TOON format
 
 ## Test Plan
 

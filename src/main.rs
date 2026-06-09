@@ -727,11 +727,8 @@ fn main() -> Result<()> {
             } else if args.install_agent_hooks {
                 run_install_agent_hooks()
             } else {
-                // No subcommand or install flag: print help
-                use clap::CommandFactory;
-                SmartfoArgs::command().print_help()?;
-                println!();
-                Ok(())
+                // No subcommand or install flag: show content-first state summary
+                run_noargs(&args)
             }
         }
     }
@@ -785,6 +782,133 @@ fn run_check_skill(skill_file: &Option<std::path::PathBuf>) -> Result<()> {
     
     info!("Skill is up to date");
     Ok(())
+}
+
+/// Run no-args invocation: show content-first state summary
+fn run_noargs(args: &SmartfoArgs) -> Result<()> {
+    info!("no-args invocation: showing content-first state summary");
+    
+    // Determine output format
+    let output_format = determine_output_format(
+        args.toon,
+        &args.format,
+        args.agent,
+        args.human,
+    );
+    
+    // Detect context
+    let current_dir = std::env::current_dir()?;
+    let git_repo = detect_git_repo();
+    let is_in_git = git_repo.is_some();
+    
+    // Build context-aware state summary
+    let mut state = serde_json::json!({
+        "context": {
+            "current_directory": current_dir.display().to_string(),
+            "in_git_repository": is_in_git,
+        }
+    });
+    
+    // Add git repository info if in git
+    if let Some(repo_root) = git_repo {
+        state["context"]["git_repository_root"] = serde_json::Value::String(repo_root.display().to_string());
+        
+        // Try to get operations summary from queue
+        let queue_result = get_queue_summary();
+        match queue_result {
+            Ok(summary) => {
+                state["operations"] = summary;
+            }
+            Err(e) => {
+                state["operations"] = serde_json::json!({
+                    "error": format!("Failed to get queue summary: {}", e),
+                    "use_list": "Run 'smartfo list' to see queued operations"
+                });
+            }
+        }
+    }
+    
+    // Add daemon status
+    let daemon_status = get_daemon_status();
+    state["daemon"] = daemon_status;
+    
+    // Add contextual help suggestions
+    state["help_suggestions"] = serde_json::json!({
+        "usage": "Run 'smartfo --help' for detailed usage information",
+        "list": "Run 'smartfo list' to see queued operations",
+        "status": "Run 'smartfo status' to see daemon and queue status",
+        "install": "Run 'smartfo --install' to set up symlinks and hooks"
+    });
+    
+    // Write output
+    let mut writer = output::OutputWriter::new(std::io::stdout(), output_format);
+    writer.write(&state)?;
+    
+    Ok(())
+}
+
+/// Get queue summary for operations
+fn get_queue_summary() -> Result<serde_json::Value> {
+    // Try to get queue depth using default queue path
+    let queue_path = std::path::PathBuf::from("/tmp/smartfo-queue.db");
+    
+    if !queue_path.exists() {
+        return Ok(serde_json::json!({
+            "queue_exists": false,
+            "message": "No operation queue found"
+        }));
+    }
+    
+    let queue = queue::JobQueue::new(&queue_path)?;
+    let depth = queue.queue_depth()?;
+    
+    Ok(serde_json::json!({
+        "queue_exists": true,
+        "queue_depth": depth,
+        "queued_operations": depth,
+        "use_list": format!("Run 'smartfo list' to see {} queued operation(s)", depth)
+    }))
+}
+
+/// Get daemon status
+fn get_daemon_status() -> serde_json::Value {
+    let daemon = daemon::Daemon::new();
+    
+    match daemon {
+        Ok(d) => {
+            // Check if daemon is running by pinging it
+            match d.ping_daemon() {
+                Ok(true) => {
+                    serde_json::json!({
+                        "status": "running",
+                        "message": "Daemon is active and accepting connections",
+                        "use_status": "Run 'smartfo status' for detailed daemon status"
+                    })
+                }
+                Ok(false) => {
+                    serde_json::json!({
+                        "status": "not_running",
+                        "message": "Daemon is not currently running",
+                        "use_status": "Run 'smartfo status' for detailed daemon status"
+                    })
+                }
+                Err(e) => {
+                    serde_json::json!({
+                        "status": "unknown",
+                        "error": format!("Failed to check daemon status: {}", e),
+                        "use_status": "Run 'smartfo status' for detailed daemon status"
+                    })
+                }
+            }
+        }
+        Err(e) => {
+            serde_json::json!({
+                "status": "error",
+                "error": format!("Failed to initialize daemon: {}", e),
+                "use_status": "Run 'smartfo status' for detailed daemon status"
+            })
+        }
+    }
 }
 
 /// Custom exit code handling
