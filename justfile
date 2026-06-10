@@ -37,7 +37,7 @@ nix-build:
 nix-develop:
     nix develop
 
-nix-run:
+nix-run *args:
     nix run . -- {{args}}
 
 nix-install:
@@ -47,7 +47,7 @@ nix-install:
 nix-install-with-hooks:
     # Build, install to profile, and set up symlinks
     nix profile install .
-    smartfo --install
+    ~/.nix-profile/bin/smartfo --install
 
 nix-deploy:
     # Deploy to flake registry or custom cache
