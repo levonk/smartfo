@@ -87,10 +87,10 @@ pub fn init_logging(
         registry.with(layer).init();
         Some(guard)
     } else {
-        // Console logging only
+        // Console logging only - explicitly use stderr for output discipline
         let layer = match format {
-            LogFormat::Json => fmt::layer().json().boxed(),
-            LogFormat::Pretty => fmt::layer().pretty().boxed(),
+            LogFormat::Json => fmt::layer().json().with_writer(io::stderr).boxed(),
+            LogFormat::Pretty => fmt::layer().pretty().with_writer(io::stderr).boxed(),
         };
         
         registry.with(layer).init();

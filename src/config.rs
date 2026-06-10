@@ -391,6 +391,9 @@ pub struct LoggingConfig {
     /// Whether to use JSON formatting
     #[serde(default = "default_log_json")]
     pub json: bool,
+    /// Color output: "auto", "always", "never"
+    #[serde(default = "default_log_color")]
+    pub color: String,
 }
 
 fn default_log_level() -> String {
@@ -401,13 +404,66 @@ fn default_log_json() -> bool {
     false
 }
 
+fn default_log_color() -> String {
+    "auto".to_string()
+}
+
 impl Default for LoggingConfig {
     fn default() -> Self {
         Self {
             level: default_log_level(),
             file: None,
             json: default_log_json(),
+            color: default_log_color(),
         }
+    }
+}
+
+/// Color output mode
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ColorMode {
+    Auto,
+    Always,
+    Never,
+}
+
+impl ColorMode {
+    /// Parse color mode from string
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s.to_lowercase().as_str() {
+            "auto" => Some(ColorMode::Auto),
+            "always" => Some(ColorMode::Always),
+            "never" => Some(ColorMode::Never),
+            _ => None,
+        }
+    }
+
+    /// Determine if colors should be enabled based on mode and TTY detection
+    pub fn should_color(&self) -> bool {
+        match self {
+            ColorMode::Auto => atty::is(atty::Stream::Stderr),
+            ColorMode::Always => true,
+            ColorMode::Never => false,
+        }
+    }
+
+    /// Determine color mode based on precedence chain
+    /// Precedence: NO_COLOR env var > CLI flag > config > default (auto)
+    pub fn determine(cli_color: Option<&str>, config_color: &str) -> Self {
+        // NO_COLOR environment variable takes highest precedence
+        if std::env::var("NO_COLOR").is_ok() {
+            return ColorMode::Never;
+        }
+
+        // CLI flag takes precedence over config
+        if let Some(cli) = cli_color {
+            if let Some(parsed) = Self::from_str(cli) {
+                return parsed;
+            }
+        }
+
+        // Config setting
+        Self::from_str(config_color).unwrap_or(ColorMode::Auto)
     }
 }
 
@@ -667,6 +723,11 @@ fn merge_configs(base: Config, file: Config) -> Config {
             },
             file: file.logging.file.or(base.logging.file),
             json: file.logging.json,
+            color: if file.logging.color != default_log_color() {
+                file.logging.color
+            } else {
+                base.logging.color
+            },
         },
         paths: PathsConfig {
             trash_root: file.paths.trash_root.or(base.paths.trash_root),

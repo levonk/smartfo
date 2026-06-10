@@ -70,6 +70,14 @@ path = "tests/toon_benchmark.rs"
 name = "hooks_test"
 path = "tests/hooks_test.rs"
 
+[[test]]
+name = "globbing_tests"
+path = "tests/globbing_tests.rs"
+
+[[test]]
+name = "output_discipline_test"
+path = "tests/output_discipline_test.rs"
+
 [[bench]]
 name = "agent_mode_benchmarks"
 harness = false

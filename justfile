@@ -42,11 +42,11 @@ nix-run *args:
 
 nix-install:
     # Build and install to Nix profile
-    nix profile install .
+    nix profile add .
 
 nix-install-with-hooks:
     # Build, install to profile, and set up symlinks
-    nix profile install .
+    nix profile add .
     ~/.nix-profile/bin/smartfo --install
 
 nix-deploy:

@@ -7,7 +7,7 @@ prd_file: "internal-docs/feature/20260607-cli-standards/prd-cli-standards-compli
 phase: 1
 parallel_id: 4
 branch: "feature/current/cli-standards-compliance/story-01-004-input-globbing"
-status: "todo"
+status: "done"
 assignee: ""
 reviewer: ""
 dependencies: []
@@ -27,34 +27,35 @@ Implement recursive globbing support (`**/*`) and stdin input handling for file 
 
 ## Sub-Tasks
 
-- [ ] Add glob pattern support to clap argument parsers for file arguments
-- [ ] Implement recursive `**/*` globbing pattern expansion
-- [ ] Add stdin input support via `-` argument for file operations
-- [ ] Add piped input support for operations that accept file lists
-- [ ] Implement file/stdin interchangeability logic in argument processing
-- [ ] Ensure globbing works correctly with VCS-aware move operations
-- [ ] Ensure globbing works correctly with VCS-aware remove operations
-- [ ] Add unit tests for recursive globbing patterns
-- [ ] Add unit tests for stdin input handling
-- [ ] Add unit tests for piped input handling
-- [ ] Add unit tests for VCS-aware operations with globbed paths
+- [x] Add glob pattern support to clap argument parsers for file arguments
+- [x] Implement recursive `**/*` globbing pattern expansion
+- [x] Add stdin input support via `-` argument for file operations
+- [x] Add piped input support for operations that accept file lists
+- [x] Implement file/stdin interchangeability logic in argument processing
+- [x] Ensure globbing works correctly with VCS-aware move operations
+- [x] Ensure globbing works correctly with VCS-aware remove operations
+- [x] Add unit tests for recursive globbing patterns
+- [x] Add unit tests for stdin input handling
+- [x] Add unit tests for piped input handling
+- [x] Add unit tests for VCS-aware operations with globbed paths
 
 ## Relevant Files
 
 - `src/cli.rs` — Add globbing and stdin support to argument parsing
-- `src/mv.rs` — Ensure globbing works with VCS-aware moves
-- `src/rm.rs` — Ensure globbing works with VCS-aware removes
+- `src/globbing.rs` — New module for glob pattern expansion and stdin handling
+- `src/main.rs` — Integrate globbing into mv and rm command handlers
+- `src/lib.rs` — Export globbing module for testing
 - `tests/globbing_tests.rs` — Add tests for globbing functionality
 
 ## Acceptance Criteria
 
-- [ ] Recursive `**/*` globbing patterns are supported
-- [ ] Stdin input via `-` argument works for file operations
-- [ ] Piped input works for operations that accept file lists
-- [ ] Files and stdin can be processed interchangeably
-- [ ] Globbing works correctly with VCS-aware move operations
-- [ ] Globbing works correctly with VCS-aware remove operations
-- [ ] All tests pass
+- [x] Recursive `**/*` globbing patterns are supported
+- [x] Stdin input via `-` argument works for file operations
+- [x] Piped input works for operations that accept file lists
+- [x] Files and stdin can be processed interchangeably
+- [x] Globbing works correctly with VCS-aware move operations
+- [x] Globbing works correctly with VCS-aware remove operations
+- [x] All tests pass
 
 ## Test Plan
 

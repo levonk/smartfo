@@ -1,5 +1,7 @@
 use clap::Parser;
 use std::path::PathBuf;
+use anyhow::Context;
+use crate::globbing::{expand_globs, is_stdin_piped, read_stdin_paths, process_input_args};
 
 /// Arguments for mv mode (invoked via `mv` or `smv` symlink).
 #[derive(Parser, Debug, Clone)]
@@ -14,12 +16,17 @@ This is a drop-in replacement for POSIX mv that:
 - Provides comprehensive audit logging
 - Supports all standard POSIX flags (-f, -i, -n, -v, etc.)
 - Includes contextual suggestions for next steps in agent mode
+- Supports glob patterns (*.txt, **/*.rs) for batch operations
+- Supports stdin input via `-` argument or piped input
 
 Examples:
   mv file1 file2           # Rename file1 to file2
   mv file1 dir/            # Move file1 into dir/
   mv -i file1 file2        # Prompt before overwrite
-  mv --async large.bin /mnt/backup/  # Async move for large file",
+  mv --async large.bin /mnt/backup/  # Async move for large file
+  mv *.txt /backup/        # Move all .txt files using glob pattern
+  mv **/*.rs src/          # Move all .rs files recursively
+  echo -e 'file1.txt\\nfile2.txt' | mv - /dest/  # Read paths from stdin",
     disable_version_flag = true
 )]
 pub struct MvArgs {
@@ -87,6 +94,10 @@ pub struct MvArgs {
     #[arg(long)]
     pub json: bool,
 
+    /// Color output: auto, always, never
+    #[arg(long, value_name = "WHEN")]
+    pub color: Option<String>,
+
     /// Preview operations without executing
     #[arg(long)]
     pub dry_run: bool,
@@ -119,7 +130,8 @@ pub struct MvArgs {
     #[arg(long, help = "Disable content truncation and show full output")]
     pub full: bool,
 
-    /// Source file(s) to move
+    /// Source file(s) to move (supports glob patterns like *.txt, **/*.rs)
+    /// Use `-` to read paths from stdin
     #[arg(value_name = "SOURCE")]
     pub sources: Vec<PathBuf>,
 }
@@ -128,16 +140,49 @@ impl MvArgs {
     /// Returns the destination path and source paths.
     /// When `-t DIRECTORY` is used, all positional args are sources and dest is the directory.
     /// Otherwise, the last positional arg is the destination and the rest are sources.
-    pub fn resolve_paths(&self) -> (Vec<PathBuf>, Option<PathBuf>) {
+    /// Expands glob patterns and handles stdin input.
+    pub fn resolve_paths(&self) -> anyhow::Result<(Vec<PathBuf>, Option<PathBuf>)> {
+        // Check for stdin flag (`-` argument)
+        let stdin_flag = self.sources.iter().any(|p| p.to_string_lossy() == "-");
+        
+        // Process input arguments (glob expansion and stdin handling)
+        let processed_sources = if stdin_flag {
+            // Remove the `-` argument and read from stdin
+            let sources_without_stdin: Vec<PathBuf> = self.sources
+                .iter()
+                .filter(|p| p.to_string_lossy() != "-")
+                .cloned()
+                .collect();
+            
+            if is_stdin_piped() || !sources_without_stdin.is_empty() {
+                process_input_args(&sources_without_stdin, true)
+                    .context("Failed to process input")?
+            } else {
+                // Only `-` flag, read from stdin
+                read_stdin_paths()
+                    .context("Failed to read from stdin")?
+            }
+        } else if is_stdin_piped() {
+            // stdin is piped but no explicit `-` flag
+            read_stdin_paths()
+                .context("Failed to read from stdin")?
+        } else {
+            // Expand glob patterns in file arguments
+            expand_globs(&self.sources)
+                .context("Failed to expand glob patterns")?
+        };
+        
         if let Some(ref dir) = self.target_directory {
-            return (self.sources.clone(), Some(dir.clone()));
+            return Ok((processed_sources, Some(dir.clone())));
         }
-        if self.sources.len() >= 2 {
-            let dest = self.sources.last().cloned();
-            let sources = self.sources[..self.sources.len() - 1].to_vec();
-            return (sources, dest);
+        
+        if processed_sources.len() >= 2 {
+            let dest = processed_sources.last().cloned();
+            let sources = processed_sources[..processed_sources.len() - 1].to_vec();
+            return Ok((sources, dest));
         }
-        (self.sources.clone(), None)
+        
+        Ok((processed_sources, None))
     }
     
     /// Validate flag combinations and required arguments
@@ -156,13 +201,15 @@ impl MvArgs {
             return Err("Cannot specify both --async and --blocking".to_string());
         }
         
-        // Validate sources are provided
-        if self.sources.is_empty() {
+        // Validate sources are provided (before glob expansion)
+        if self.sources.is_empty() && !is_stdin_piped() {
             return Err("Missing source file(s)".to_string());
         }
         
         // Validate destination or target directory is provided
-        if self.target_directory.is_none() && self.sources.len() < 2 {
+        // Note: We can't fully validate this until after glob expansion
+        // because the number of sources might change
+        if self.target_directory.is_none() && self.sources.len() < 2 && !is_stdin_piped() {
             return Err("Missing destination file operand".to_string());
         }
         
@@ -202,12 +249,17 @@ This is a drop-in replacement for POSIX rm that:
 - Provides comprehensive audit logging
 - Supports all standard POSIX flags (-f, -i, -r, -v, etc.)
 - Includes contextual suggestions for next steps in agent mode
+- Supports glob patterns (*.txt, **/*.rs) for batch operations
+- Supports stdin input via `-` argument or piped input
 
 Examples:
   rm file.txt             # Move file.txt to trash
   rm -rf dir/             # Recursively remove directory
   rm --force-delete file  # Bypass trash and delete directly
-  rm --async large.bin     # Async deletion for large file",
+  rm --async large.bin     # Async deletion for large file
+  rm *.log                # Remove all .log files using glob pattern
+  rm **/*.tmp             # Remove all .tmp files recursively
+  echo -e 'file1.txt\\nfile2.txt' | rm -  # Read paths from stdin",
     disable_version_flag = true
 )]
 pub struct RmArgs {
@@ -267,6 +319,10 @@ pub struct RmArgs {
     #[arg(long)]
     pub json: bool,
 
+    /// Color output: auto, always, never
+    #[arg(long, value_name = "WHEN")]
+    pub color: Option<String>,
+
     /// Preview operations without executing
     #[arg(long)]
     pub dry_run: bool,
@@ -299,12 +355,48 @@ pub struct RmArgs {
     #[arg(long, help = "Disable content truncation and show full output")]
     pub full: bool,
 
-    /// File(s) or directories to remove
+    /// File(s) or directories to remove (supports glob patterns like *.txt, **/*.rs)
+    /// Use `-` to read paths from stdin
     #[arg(value_name = "FILE")]
     pub paths: Vec<PathBuf>,
 }
 
 impl RmArgs {
+    /// Process paths with glob expansion and stdin handling
+    pub fn resolve_paths(&self) -> anyhow::Result<Vec<PathBuf>> {
+        // Check for stdin flag (`-` argument)
+        let stdin_flag = self.paths.iter().any(|p| p.to_string_lossy() == "-");
+        
+        // Process input arguments (glob expansion and stdin handling)
+        let processed_paths = if stdin_flag {
+            // Remove the `-` argument and read from stdin
+            let paths_without_stdin: Vec<PathBuf> = self.paths
+                .iter()
+                .filter(|p| p.to_string_lossy() != "-")
+                .cloned()
+                .collect();
+            
+            if is_stdin_piped() || !paths_without_stdin.is_empty() {
+                process_input_args(&paths_without_stdin, true)
+                    .context("Failed to process input")?
+            } else {
+                // Only `-` flag, read from stdin
+                read_stdin_paths()
+                    .context("Failed to read from stdin")?
+            }
+        } else if is_stdin_piped() {
+            // stdin is piped but no explicit `-` flag
+            read_stdin_paths()
+                .context("Failed to read from stdin")?
+        } else {
+            // Expand glob patterns in file arguments
+            expand_globs(&self.paths)
+                .context("Failed to expand glob patterns")?
+        };
+        
+        Ok(processed_paths)
+    }
+    
     /// Validate flag combinations and required arguments
     pub fn validate(&self) -> Result<(), String> {
         // Check for conflicting interactive flags
@@ -326,8 +418,8 @@ impl RmArgs {
             // For now, allow it
         }
         
-        // Validate paths are provided
-        if self.paths.is_empty() {
+        // Validate paths are provided (before glob expansion)
+        if self.paths.is_empty() && !is_stdin_piped() {
             return Err("Missing file operand(s)".to_string());
         }
         
@@ -416,6 +508,10 @@ pub struct SmartfoArgs {
     #[arg(long)]
     pub no_hooks: bool,
 
+    /// Overwrite existing hook files when installing
+    #[arg(long = "force-hooks")]
+    pub force_hooks: bool,
+
     /// Overwrite existing files when installing
     #[arg(long)]
     pub force: bool,
@@ -471,6 +567,14 @@ pub struct SmartfoArgs {
     /// Install agent hooks for Claude Code or Codex
     #[arg(long = "install-agent-hooks", help = "Install agent hooks for Claude Code or Codex")]
     pub install_agent_hooks: bool,
+
+    /// Output operation metadata as JSON
+    #[arg(long, help = "Output operation metadata as JSON")]
+    pub json: bool,
+
+    /// Color output: auto, always, never
+    #[arg(long, value_name = "WHEN", help = "Color output: auto, always, never")]
+    pub color: Option<String>,
 
     /// Subcommands
     #[command(subcommand)]

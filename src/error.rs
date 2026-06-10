@@ -187,12 +187,12 @@ impl SmartfoError {
         }
     }
     
-    /// Write structured error to stdout
+    /// Write structured error to stderr (output discipline)
     pub fn write_structured(&self) -> Result<()> {
         let structured = self.to_structured();
         let output = serde_json::to_string_pretty(&structured)
             .map_err(|e| SmartfoError::Other(format!("Failed to serialize error: {}", e)))?;
-        println!("{}", output);
+        eprintln!("{}", output);
         Ok(())
     }
 }

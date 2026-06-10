@@ -3,6 +3,10 @@ pub mod config;
 pub mod output;
 pub mod hooks;
 pub mod skill;
+pub mod globbing;
+
+// Re-export ColorMode for testing
+pub use config::ColorMode;
 
 // Re-export aggregate types for testing
 pub use output::aggregates::{ListAggregate, OperationAggregate, QueueAggregate, DaemonAggregate, StatusAggregate, AggregateComputer};

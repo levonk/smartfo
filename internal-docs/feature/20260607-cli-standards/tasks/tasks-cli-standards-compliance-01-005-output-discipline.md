@@ -7,7 +7,7 @@ prd_file: "internal-docs/feature/20260607-cli-standards/prd-cli-standards-compli
 phase: 1
 parallel_id: 5
 branch: "feature/current/cli-standards-compliance/story-01-005-output-discipline"
-status: "todo"
+status: "in_progress"
 assignee: ""
 reviewer: ""
 dependencies: []
@@ -27,25 +27,25 @@ Implement output discipline as specified in ADR #6: ensure results go to stdout,
 
 ## Sub-Tasks
 
-- [ ] Audit all output to ensure results go to stdout
-- [ ] Audit all logging to ensure logs go to stderr
-- [ ] Audit all progress indicators to ensure they go to stderr
-- [ ] Audit all error messages to ensure they go to stderr
-- [ ] Add --json flag to clap parsers for all modes
-- [ ] Implement JSON output mode for operation results
-- [ ] Implement structured JSON serialization for all result types
-- [ ] Add --color=auto|always|never flag to clap parsers for all modes
-- [ ] Implement smart TTY detection for auto mode color control
-- [ ] Add color setting to config schema with modes: auto|always|never
-- [ ] Implement color config file loading and application
-- [ ] Add NO_COLOR environment variable detection
-- [ ] Implement NO_COLOR precedence over all other color settings
-- [ ] Add unit tests for output discipline (results to stdout, logs to stderr)
-- [ ] Add unit tests for JSON output mode
-- [ ] Add unit tests for --color flag with all modes
-- [ ] Add unit tests for smart TTY detection in auto mode
-- [ ] Add unit tests for color config file setting
-- [ ] Add unit tests for NO_COLOR environment variable precedence
+- [x] Audit all output to ensure results go to stdout
+- [x] Audit all logging to ensure logs go to stderr
+- [x] Audit all progress indicators to ensure they go to stderr
+- [x] Audit all error messages to ensure they go to stderr
+- [x] Add --json flag to clap parsers for all modes
+- [x] Implement JSON output mode for operation results
+- [x] Implement structured JSON serialization for all result types
+- [x] Add --color=auto|always|never flag to clap parsers for all modes
+- [x] Implement smart TTY detection for auto mode color control
+- [x] Add color setting to config schema with modes: auto|always|never
+- [x] Implement color config file loading and application
+- [x] Add NO_COLOR environment variable detection
+- [x] Implement NO_COLOR precedence over all other color settings
+- [x] Add unit tests for output discipline (results to stdout, logs to stderr)
+- [x] Add unit tests for JSON output mode
+- [x] Add unit tests for --color flag with all modes
+- [x] Add unit tests for smart TTY detection in auto mode
+- [x] Add unit tests for color config file setting
+- [x] Add unit tests for NO_COLOR environment variable precedence
 
 ## Relevant Files
 
@@ -56,15 +56,15 @@ Implement output discipline as specified in ADR #6: ensure results go to stdout,
 
 ## Acceptance Criteria
 
-- [ ] All results go to stdout
-- [ ] All logs go to stderr
-- [ ] All progress indicators go to stderr
-- [ ] All error messages go to stderr
-- [ ] --json flag produces machine-readable JSON output
-- [ ] --color=auto|always|never flag works correctly with smart TTY detection
-- [ ] Color config file setting (auto|always|never) is respected
-- [ ] NO_COLOR environment variable takes precedence over all other color settings
-- [ ] All tests pass
+- [x] All results go to stdout
+- [x] All logs go to stderr
+- [x] All progress indicators go to stderr
+- [x] All error messages go to stderr
+- [x] --json flag produces machine-readable JSON output
+- [x] --color=auto|always|never flag works correctly with smart TTY detection
+- [x] Color config file setting (auto|always|never) is respected
+- [x] NO_COLOR environment variable takes precedence over all other color settings
+- [x] All tests pass
 
 ## Test Plan
 

@@ -20,6 +20,7 @@ mod install;
 mod output;
 mod error;
 mod skill;
+mod globbing;
 use cli::{MvArgs, RmArgs, SmartfoArgs, SmartfoCommand};
 use output::OutputFormat;
 use output::schema::{SchemaRegistry, FieldSelector};
@@ -132,7 +133,7 @@ fn determine_field_selector(
     }
 }
 
-fn init_logging(json: bool, verbose: u8, quiet: bool) -> Result<()> {
+fn init_logging(json: bool, verbose: u8, quiet: bool, color: Option<&str>) -> Result<()> {
     let log_level = match verbose {
         0 => "info",
         1 => "debug",
@@ -150,6 +151,10 @@ fn init_logging(json: bool, verbose: u8, quiet: bool) -> Result<()> {
 
     let subscriber = tracing_subscriber::registry().with(env_filter);
 
+    // Determine color mode
+    let color_mode = config::ColorMode::determine(color, "auto");
+    let use_ansi = color_mode.should_color();
+
     if json {
         let json_layer = fmt::layer()
             .with_writer(std::io::stderr)
@@ -160,7 +165,7 @@ fn init_logging(json: bool, verbose: u8, quiet: bool) -> Result<()> {
     } else {
         let console_layer = fmt::layer()
             .with_writer(std::io::stderr)
-            .with_ansi(std::env::var("NO_COLOR").is_err())
+            .with_ansi(use_ansi)
             .with_target(true)
             .with_level(true);
         subscriber.with(console_layer).init();
@@ -182,6 +187,11 @@ fn run_mv(args: MvArgs) -> Result<()> {
         info!("--usage flag triggered for mv mode");
         println!("Usage: mv [OPTION]... SOURCE... DEST");
         println!("Move (rename) SOURCE to DEST, or multiple SOURCE(s) to DIRECTORY.");
+        println!();
+        println!("Glob Patterns:");
+        println!("  *.txt                   Match all .txt files in current directory");
+        println!("  **/*.rs                 Match all .rs files recursively");
+        println!("  -                       Read paths from stdin (one per line)");
         println!();
         println!("Options:");
         println!("  -f, --force              Do not prompt before overwriting");
@@ -215,13 +225,15 @@ fn run_mv(args: MvArgs) -> Result<()> {
     }
 
     if args.dry_run {
-        let (sources, dest) = args.resolve_paths();
+        let (sources, dest) = args.resolve_paths()
+            .context("Failed to resolve paths")?;
         info!("dry-run: mv {:?} -> {:?}", sources, dest);
         return Ok(());
     }
 
     // TODO: Implement VCS-aware move logic (story 03-001)
-    let (sources, dest) = args.resolve_paths();
+    let (sources, dest) = args.resolve_paths()
+        .context("Failed to resolve paths")?;
     if sources.is_empty() {
         anyhow::bail!("missing file operand");
     }
@@ -247,6 +259,11 @@ fn run_rm(args: RmArgs) -> Result<()> {
         info!("--usage flag triggered for rm mode");
         println!("Usage: rm [OPTION]... FILE...");
         println!("Remove (unlink) the FILE(s).");
+        println!();
+        println!("Glob Patterns:");
+        println!("  *.log                   Match all .log files in current directory");
+        println!("  **/*.tmp                Match all .tmp files recursively");
+        println!("  -                       Read paths from stdin (one per line)");
         println!();
         println!("Options:");
         println!("  -f, --force              Ignore non-existent files, never prompt");
@@ -278,28 +295,33 @@ fn run_rm(args: RmArgs) -> Result<()> {
     }
 
     if args.dry_run {
-        info!("dry-run: rm {:?}", args.paths);
+        let paths = args.resolve_paths()
+            .context("Failed to resolve paths")?;
+        info!("dry-run: rm {:?}", paths);
         return Ok(());
     }
 
-    if args.paths.is_empty() {
+    let paths = args.resolve_paths()
+        .context("Failed to resolve paths")?;
+    
+    if paths.is_empty() {
         anyhow::bail!("missing operand");
     }
 
     // Handle --plain mode (exact POSIX behavior, no smart features)
     if args.plain {
-        return run_rm_plain(&args);
+        return run_rm_plain(&args, &paths);
     }
 
     // Smart rm mode with VCS awareness and trash
     // TODO: Implement full smart rm logic (story 03-002)
-    info!("rm mode: paths={:?}", args.paths);
+    info!("rm mode: paths={:?}", paths);
     Ok(())
 }
 
 /// Run rm in plain POSIX mode (bypass all smart features)
-fn run_rm_plain(args: &RmArgs) -> Result<()> {
-    for path in &args.paths {
+fn run_rm_plain(args: &RmArgs, paths: &[PathBuf]) -> Result<()> {
+    for path in paths {
         if args.recursive || args.dir {
             // Remove directory recursively
             if path.is_dir() {
@@ -811,21 +833,21 @@ fn main() -> Result<()> {
     match mode.as_str() {
         "mv" | "smv" => {
             let args = MvArgs::parse();
-            init_logging(args.json, if args.verbose { 1 } else { 0 }, false)?;
+            init_logging(args.json, if args.verbose { 1 } else { 0 }, false, args.color.as_deref())?;
             let output_format = determine_output_format(args.toon, &args.format, args.agent, args.human);
             info!("Output format: {:?}", output_format);
             run_mv(args)
         }
         "rm" | "srm" => {
             let args = RmArgs::parse();
-            init_logging(args.json, 0, false)?;
+            init_logging(args.json, 0, false, args.color.as_deref())?;
             let output_format = determine_output_format(args.toon, &args.format, args.agent, args.human);
             info!("Output format: {:?}", output_format);
             run_rm(args)
         }
         "smartfo" | _ => {
             let args = SmartfoArgs::parse();
-            init_logging(false, 0, false)?;
+            init_logging(args.json, 0, false, args.color.as_deref())?;
             let output_format = determine_output_format(args.toon, &args.format, args.agent, args.human);
             info!("Output format: {:?}", output_format);
 
