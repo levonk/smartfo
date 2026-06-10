@@ -67,7 +67,7 @@ impl Installer {
     }
 
     /// Install smartfo: create symlinks, generate completions, initialize config
-    pub fn install(&self) -> Result<()> {
+    pub fn install(&self, force: bool) -> Result<()> {
         info!("Starting smartfo installation");
 
         // Create directories
@@ -75,6 +75,11 @@ impl Installer {
 
         // Create symlinks
         self.create_symlinks()?;
+
+        // Check for shell aliases (unless force flag is set)
+        if !force {
+            self.check_and_warn_aliases()?;
+        }
 
         // Generate shell completions
         self.generate_completions()?;
@@ -139,6 +144,140 @@ impl Installer {
             debug!("Created symlink: {}", link_path.display());
         }
         Ok(())
+    }
+
+    /// Check for shell aliases that might conflict with smartfo symlinks
+    fn check_and_warn_aliases(&self) -> Result<()> {
+        let target_commands = ["mv", "rm", "smv", "srm"];
+        let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/bash".to_string());
+        let shell_path = PathBuf::from(&shell);
+        let shell_name = shell_path
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("bash");
+
+        let mut found_aliases = Vec::new();
+
+        // Check shell configuration files for persistent aliases
+        let config_files = match shell_name {
+            "bash" => vec![
+                PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| ".".to_string()))
+                    .join(".bashrc"),
+                PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| ".".to_string()))
+                    .join(".bash_profile"),
+                PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| ".".to_string()))
+                    .join(".profile"),
+            ],
+            "zsh" => vec![
+                PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| ".".to_string()))
+                    .join(".zshrc"),
+                PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| ".".to_string()))
+                    .join(".zprofile"),
+            ],
+            "fish" => vec![
+                PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| ".".to_string()))
+                    .join(".config")
+                    .join("fish")
+                    .join("config.fish"),
+            ],
+            _ => {
+                debug!("Unknown shell {}, skipping alias check", shell_name);
+                return Ok(());
+            }
+        };
+
+        // Check each config file for aliases
+        for config_file in &config_files {
+            if let Ok(content) = fs::read_to_string(config_file) {
+                for cmd in &target_commands {
+                    if shell_name == "fish" {
+                        if self.check_fish_alias_in_output(&content, cmd) {
+                            if !found_aliases.contains(&cmd.to_string()) {
+                                found_aliases.push(cmd.to_string());
+                            }
+                        }
+                    } else {
+                        if self.check_alias_in_output(&content, cmd) {
+                            if !found_aliases.contains(&cmd.to_string()) {
+                                found_aliases.push(cmd.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if !found_aliases.is_empty() {
+            warn!("Detected shell aliases that may conflict with smartfo:");
+            for alias in &found_aliases {
+                warn!("  - {}", alias);
+            }
+            println!();
+            println!("Warning: to remove existing aliases, run:");
+            for alias in &found_aliases {
+                match shell_name {
+                    "bash" | "zsh" => println!("  unalias {}", alias),
+                    "fish" => println!("  functions -e {}", alias),
+                    _ => {}
+                }
+            }
+            println!();
+            println!("To remove persistent aliases, edit your shell configuration file:");
+            match shell_name {
+                "bash" => println!("  ~/.bashrc, ~/.bash_profile, or ~/.profile"),
+                "zsh" => println!("  ~/.zshrc or ~/.zprofile"),
+                "fish" => println!("  ~/.config/fish/config.fish"),
+                _ => {}
+            }
+            println!();
+            println!("Use --force to bypass this warning.");
+        }
+
+        Ok(())
+    }
+
+    /// Check if a bash/zsh alias exists for a command
+    fn check_alias_in_output(&self, output: &str, cmd: &str) -> bool {
+        // Look for patterns like "alias mv='...'" or "alias mv=..."
+        let patterns = [
+            format!("alias {}='", cmd),
+            format!("alias {}=\"", cmd),
+            format!("alias {}=", cmd),
+        ];
+
+        for pattern in patterns {
+            if output.contains(&pattern) {
+                // Check if the alias points to smartfo itself
+                if output.contains("smartfo") || output.contains(&format!("smartfo {}", cmd)) {
+                    debug!("Alias {} points to smartfo, skipping warning", cmd);
+                    return false;
+                }
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Check if a fish alias exists for a command
+    fn check_fish_alias_in_output(&self, output: &str, cmd: &str) -> bool {
+        // Fish uses different syntax: "alias mv '...'" or "alias mv ..."
+        let patterns = [
+            format!("alias {} '", cmd),
+            format!("alias {} \"", cmd),
+            format!("alias {} ", cmd),
+        ];
+
+        for pattern in patterns {
+            if output.contains(&pattern) {
+                // Check if the alias points to smartfo itself
+                if output.contains("smartfo") || output.contains(&format!("smartfo {}", cmd)) {
+                    debug!("Alias {} points to smartfo, skipping warning", cmd);
+                    return false;
+                }
+                return true;
+            }
+        }
+        false
     }
 
     fn generate_completions(&self) -> Result<()> {
