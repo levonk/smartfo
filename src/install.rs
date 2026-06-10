@@ -180,10 +180,7 @@ impl Installer {
                     .join("fish")
                     .join("config.fish"),
             ],
-            _ => {
-                debug!("Unknown shell {}, skipping alias check", shell_name);
-                return Ok(());
-            }
+            _ => vec![],
         };
 
         // Check each config file for aliases
@@ -229,6 +226,9 @@ impl Installer {
                 "fish" => println!("  ~/.config/fish/config.fish"),
                 _ => {}
             }
+            println!();
+            println!("Note: If you have temporary aliases in your current shell session,");
+            println!("run 'type mv rm smv srm' to check for active aliases and remove them manually.");
             println!();
             println!("Use --force to bypass this warning.");
         }

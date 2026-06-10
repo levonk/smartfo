@@ -40,9 +40,9 @@ When `--install` is called, smartfo should check for existing shell aliases that
 - Ignore aliases that point to smartfo itself (no warning needed)
 
 ## Acceptance Criteria
-- [ ] Alias detection works for bash, zsh, and fish
-- [ ] Warning messages are displayed for detected aliases
-- [ ] Installation continues despite alias warnings
-- [ ] `--force` flag bypasses alias warnings
-- [ ] Aliases pointing to smartfo are not flagged
-- [ ] Documentation is updated to describe alias warnings
+- [x] Alias detection works for bash, zsh, and fish
+- [x] Warning messages are displayed for detected aliases
+- [x] Installation continues despite alias warnings
+- [x] `--force` flag bypasses alias warnings
+- [x] Aliases pointing to smartfo are not flagged
+- [x] Documentation is updated to describe alias warnings
