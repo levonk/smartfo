@@ -22,7 +22,10 @@ mod error;
 mod skill;
 mod globbing;
 mod exit;
+mod dry_run;
 use cli::{MvArgs, RmArgs, SmartfoArgs, SmartfoCommand};
+use vcs::detect_vcs;
+use vcs::is_tracked;
 use output::OutputFormat;
 use output::schema::{SchemaRegistry, FieldSelector};
 use output::aggregates::*;
@@ -210,6 +213,57 @@ fn run_mv(args: MvArgs) -> Result<()> {
         let (sources, dest) = args.resolve_paths()
             .context("Failed to resolve paths")?;
         info!("dry-run: mv {:?} -> {:?}", sources, dest);
+        
+        // Show what would be done
+        println!("Dry-run mode: No changes will be made");
+        println!();
+        
+        if let Some(ref dest_dir) = dest {
+            if sources.len() > 1 {
+                // Multiple sources, dest is a directory
+                for source in &sources {
+                    let dest_path = dest_dir.join(source.file_name().unwrap_or(source.as_os_str()));
+                    println!("Would move: {} -> {}", source.display(), dest_path.display());
+                    
+                    // Check if source is in a VCS repo
+                    if let Ok(Some(vcs_info)) = vcs::detect_vcs(source) {
+                        if let Ok(tracked) = vcs::is_tracked(&vcs_info, source) {
+                            if tracked {
+                                println!("  (VCS-native move would be used: {:?})", vcs_info.vcs_type());
+                            }
+                        }
+                    }
+                }
+            } else {
+                // Single source, dest is the target file/directory
+                println!("Would move: {} -> {}", sources[0].display(), dest_dir.display());
+                
+                // Check if source is in a VCS repo
+                if let Ok(Some(vcs_info)) = vcs::detect_vcs(&sources[0]) {
+                    if let Ok(tracked) = vcs::is_tracked(&vcs_info, &sources[0]) {
+                        if tracked {
+                            println!("  (VCS-native move would be used: {:?})", vcs_info.vcs_type());
+                        }
+                    }
+                }
+            }
+        } else if let Some(ref target_dir) = args.target_directory {
+            // -t flag was used
+            for source in &sources {
+                let dest_path = target_dir.join(source.file_name().unwrap_or(source.as_os_str()));
+                println!("Would move: {} -> {}", source.display(), dest_path.display());
+                
+                // Check if source is in a VCS repo
+                if let Ok(Some(vcs_info)) = vcs::detect_vcs(source) {
+                    if let Ok(tracked) = vcs::is_tracked(&vcs_info, source) {
+                        if tracked {
+                            println!("  (VCS-native move would be used: {:?})", vcs_info.vcs_type());
+                        }
+                    }
+                }
+            }
+        }
+        
         return Ok(());
     }
 
@@ -280,6 +334,40 @@ fn run_rm(args: RmArgs) -> Result<()> {
         let paths = args.resolve_paths()
             .context("Failed to resolve paths")?;
         info!("dry-run: rm {:?}", paths);
+        
+        // Show what would be done
+        println!("Dry-run mode: No changes will be made");
+        println!();
+        
+        for path in &paths {
+            println!("Would remove: {}", path.display());
+            
+            // Check if path is in a VCS repo
+            if let Ok(Some(vcs_info)) = vcs::detect_vcs(path) {
+                if let Ok(tracked) = vcs::is_tracked(&vcs_info, path) {
+                    if tracked {
+                        println!("  (VCS-aware removal would be used: {:?})", vcs_info.vcs_type());
+                    }
+                }
+            }
+            
+            // Check if path is a directory
+            if path.is_dir() {
+                if args.recursive || args.dir {
+                    println!("  (Directory would be removed recursively)");
+                } else {
+                    println!("  (Would fail: -r or -d required for directory)");
+                }
+            }
+            
+            // Check if --force-delete is set
+            if args.force_delete {
+                println!("  (Would bypass trash and delete directly)");
+            } else {
+                println!("  (Would move to trash)");
+            }
+        }
+        
         return Ok(());
     }
 

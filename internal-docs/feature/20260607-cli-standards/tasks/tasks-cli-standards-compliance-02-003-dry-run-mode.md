@@ -7,7 +7,7 @@ prd_file: "internal-docs/feature/20260607-cli-standards/prd-cli-standards-compli
 phase: 2
 parallel_id: 3
 branch: "feature/current/cli-standards-compliance/story-02-003-dry-run-mode"
-status: "todo"
+status: "in_progress"
 assignee: ""
 reviewer: ""
 dependencies: []
@@ -27,20 +27,20 @@ Implement dry-run mode as specified in ADR #10. Add --dry-run flag to preview ch
 
 ## Sub-Tasks
 
-- [ ] Add --dry-run flag to clap parsers in cli.rs for mv and rm modes
-- [ ] Implement dry-run context struct to track dry-run state
-- [ ] Modify mv.rs to check dry-run flag before executing file operations
-- [ ] Modify rm.rs to check dry-run flag before enqueuing trash operations
-- [ ] Modify vcs.rs to check dry-run flag before executing VCS commands
-- [ ] Modify daemon.rs to check dry-run flag before enqueueing jobs
-- [ ] Implement dry-run output showing what would be done
-- [ ] Display VCS commands that would be executed in dry-run mode
-- [ ] Display file moves that would occur in dry-run mode
-- [ ] Display file deletes that would occur in dry-run mode
-- [ ] Display daemon operations that would be queued in dry-run mode
-- [ ] Ensure no file system changes occur in dry-run mode
-- [ ] Ensure no VCS commands execute in dry-run mode
-- [ ] Ensure no daemon jobs are enqueued in dry-run mode
+- [x] Add --dry-run flag to clap parsers in cli.rs for mv and rm modes
+- [x] Implement dry-run context struct to track dry-run state
+- [x] Modify mv.rs to check dry-run flag before executing file operations
+- [x] Modify rm.rs to check dry-run flag before enqueuing trash operations
+- [x] Modify vcs.rs to check dry-run flag before executing VCS commands
+- [x] Modify daemon.rs to check dry-run flag before enqueueing jobs
+- [x] Implement dry-run output showing what would be done
+- [x] Display VCS commands that would be executed in dry-run mode
+- [x] Display file moves that would occur in dry-run mode
+- [x] Display file deletes that would occur in dry-run mode
+- [x] Display daemon operations that would be queued in dry-run mode
+- [x] Ensure no file system changes occur in dry-run mode
+- [x] Ensure no VCS commands execute in dry-run mode
+- [x] Ensure no daemon jobs are enqueued in dry-run mode
 - [ ] Add unit tests for dry-run mode in mv operations
 - [ ] Add unit tests for dry-run mode in rm operations
 - [ ] Add unit tests for dry-run mode with VCS operations

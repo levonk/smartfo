@@ -7,6 +7,7 @@ pub mod globbing;
 pub mod logging;
 pub mod exit;
 pub mod error;
+pub mod dry_run;
 
 // Re-export ColorMode for testing
 pub use config::ColorMode;
