@@ -6,8 +6,8 @@
 | 01-002 | Config Initialization & System Config | feature/current/cli-standards-compliance/story-01-002-config-initialization | None | Parallel-safe: true | config.rs | [x] Done |
 | 01-003 | Install/Uninstall Enhancement | feature/current/cli-standards-compliance/story-01-003-install-uninstall | None | Parallel-safe: true | main.rs, install.rs (new) | [x] Done |
 | 01-004 | Input & Globbing Support | feature/current/cli-standards-compliance/story-01-004-input-globbing | None | Parallel-safe: true | cli.rs | [x] Done |
-| 01-005 | Output Discipline & JSON Mode | feature/current/cli-standards-compliance/story-01-005-output-discipline | None | Parallel-safe: true | logging.rs, cli.rs | [~] In-Progress |
-| 01-006 | Developer UX Standard Compliance | feature/current/cli-standards-compliance/story-01-006-developer-ux-standard | None | Parallel-safe: true | root, docs | [ ] Todo |
+| 01-005 | Output Discipline & JSON Mode | feature/current/cli-standards-compliance/story-01-005-output-discipline | None | Parallel-safe: true | logging.rs, cli.rs | [x] Done |
+| 01-006 | Developer UX Standard Compliance | feature/current/cli-standards-compliance/story-01-006-developer-ux-standard | None | Parallel-safe: true | root, docs | [~] In-Progress |
 | 02-001 | Logging Modes Implementation | feature/current/cli-standards-compliance/story-02-001-logging-modes | 01-005 | Parallel-safe: true | logging.rs | [ ] Todo |
 | 02-002 | Signals & Exit Codes | feature/current/cli-standards-compliance/story-02-002-signals-exit-codes | None | Parallel-safe: true | main.rs | [ ] Todo |
 | 02-003 | Dry-Run Mode | feature/current/cli-standards-compliance/story-02-003-dry-run-mode | None | Parallel-safe: true | mv.rs, rm.rs | [ ] Todo |

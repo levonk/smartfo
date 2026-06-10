@@ -7,7 +7,7 @@ prd_file: "internal-docs/feature/20260607-cli-standards/prd-cli-standards-compli
 phase: 1
 parallel_id: 5
 branch: "feature/current/cli-standards-compliance/story-01-005-output-discipline"
-status: "in_progress"
+status: "done"
 assignee: ""
 reviewer: ""
 dependencies: []

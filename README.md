@@ -696,6 +696,146 @@ smartfo status
 # If daemon is not running, it will auto-spawn on next async operation
 ```
 
+## Development
+
+This project uses several Developer UX tools to provide a consistent development environment.
+
+### Development Environment Setup
+
+#### Using direnv (Recommended)
+
+The project includes a `.envrc` file for automatic environment setup with direnv:
+
+```bash
+# Install direnv if not already installed
+brew install direnv  # macOS
+# or
+sudo apt install direnv  # Linux
+
+# Hook direnv into your shell
+echo 'eval "$(direnv hook bash)"' >> ~/.bashrc
+# or for zsh
+echo 'eval "$(direnv hook zsh)"' >> ~/.zshrc
+
+# Allow the project's .envrc
+cd /path/to/smartfo
+direnv allow
+```
+
+The `.envrc` file automatically:
+- Ensures Nix is available
+- Installs and configures devbox
+- Sets up smartfo-specific environment variables
+- Adds project paths to PATH
+
+#### Using devbox
+
+The project uses devbox for reproducible development environments:
+
+```bash
+# Start devbox shell
+devbox shell
+
+# Or use direnv (recommended) - it automatically loads devbox
+cd /path/to/smartfo
+direnv allow
+```
+
+The `devbox.json` configuration includes:
+- Rust toolchain (rustc, cargo, rust-analyzer)
+- Development tools (clippy, rustfmt, cargo-watch)
+- Testing tools (cargo-tarpaulin, cargo-audit)
+- SQLite for local development
+- Just command runner
+
+#### Using justfile
+
+The project provides a justfile with common development tasks:
+
+```bash
+# List all available commands
+just --list
+
+# Build the project
+just build
+
+# Run tests
+just test
+
+# Run linting
+just lint
+
+# Type checking
+just typecheck
+
+# Clean build artifacts
+just clean
+
+# Development mode
+just dev
+
+# Release build
+just release
+
+# Install locally
+just install
+
+# Health check
+just doctor
+```
+
+### Environment Variables
+
+The development environment sets these environment variables automatically:
+
+- `SMARTFO_PROJECT_ROOT`: Project root directory
+- `SMARTFO_CONFIG_DIR`: Configuration directory (default: `~/.config/smartfo`)
+- `SMARTFO_DATA_DIR`: Data directory (default: `~/.local/share/smartfo`)
+- `SMARTFO_CACHE_DIR`: Cache directory (default: `~/.cache/smartfo`)
+- `SMARTFO_TRASH_ROOT`: Trash directory (default: `~/.local/share/smartfo/trash`)
+- `SMARTFO_AUDIT_LOG`: Audit log path (default: `~/.local/share/smartfo/audit/operations.jsonl`)
+- `RUST_LOG`: Log level (default: `info`)
+- `RUST_BACKTRACE`: Rust backtrace (default: `1`)
+- `DATABASE_URL`: SQLite database path (default: `sqlite:./smartfo.db`)
+
+You can override these in your shell or in the `.envrc` file.
+
+### Container Development
+
+For container-based development, the project includes Docker and docker-compose configurations:
+
+```bash
+# Build the container
+docker-compose build
+
+# Run commands in the container
+docker-compose run cli smartfo --help
+
+# For interactive development
+docker-compose run cli bash
+```
+
+### Nix Support
+
+The project includes Nix flake support for reproducible builds:
+
+```bash
+# Enter Nix development shell
+nix develop
+
+# Build with Nix
+nix build
+
+# Run with Nix
+nix run . -- --help
+
+# Install to Nix profile
+nix profile install .
+
+# Install with hooks setup
+just nix-install-with-hooks
+```
+
 ## License
 
 [Specify your license here]
