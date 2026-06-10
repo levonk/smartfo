@@ -78,6 +78,10 @@ path = "tests/globbing_tests.rs"
 name = "output_discipline_test"
 path = "tests/output_discipline_test.rs"
 
+[[test]]
+name = "logging_tests"
+path = "tests/logging_tests.rs"
+
 [[bench]]
 name = "agent_mode_benchmarks"
 harness = false

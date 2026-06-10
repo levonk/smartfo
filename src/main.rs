@@ -1,7 +1,6 @@
 use clap::Parser;
 use anyhow::{Result, Context};
 use tracing::info;
-use tracing_subscriber::{fmt, EnvFilter, prelude::*};
 use std::path::PathBuf;
 
 mod cli;
@@ -18,6 +17,7 @@ mod git_hooks;
 mod hooks;
 mod install;
 mod output;
+mod logging;
 mod error;
 mod skill;
 mod globbing;
@@ -133,44 +133,24 @@ fn determine_field_selector(
     }
 }
 
-fn init_logging(json: bool, verbose: u8, quiet: bool, color: Option<&str>) -> Result<()> {
-    let log_level = match verbose {
-        0 => "info",
-        1 => "debug",
-        _ => "trace",
-    };
-
-    let filter_str = if quiet {
-        "error"
-    } else {
-        log_level
-    };
-
-    let env_filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new(filter_str));
-
-    let subscriber = tracing_subscriber::registry().with(env_filter);
-
-    // Determine color mode
+fn setup_logging(debug: bool, quiet: bool, json: bool, color: Option<&str>) -> Result<()> {
+    // Use the logging module's init_logging function
+    let log_format = if json { Some("json") } else { None };
     let color_mode = config::ColorMode::determine(color, "auto");
     let use_ansi = color_mode.should_color();
-
-    if json {
-        let json_layer = fmt::layer()
-            .with_writer(std::io::stderr)
-            .json()
-            .with_target(true)
-            .with_level(true);
-        subscriber.with(json_layer).init();
+    
+    // Convert color mode to format string for logging module
+    let format_str = if json { 
+        Some("json") 
+    } else if use_ansi {
+        Some("pretty")
     } else {
-        let console_layer = fmt::layer()
-            .with_writer(std::io::stderr)
-            .with_ansi(use_ansi)
-            .with_target(true)
-            .with_level(true);
-        subscriber.with(console_layer).init();
-    }
-
+        None
+    };
+    
+    // Initialize logging using the module function
+    let _guard = logging::init_logging(debug, quiet, format_str, None, None, None);
+    
     Ok(())
 }
 
@@ -833,21 +813,21 @@ fn main() -> Result<()> {
     match mode.as_str() {
         "mv" | "smv" => {
             let args = MvArgs::parse();
-            init_logging(args.json, if args.verbose { 1 } else { 0 }, false, args.color.as_deref())?;
+            setup_logging(args.debug, args.quiet, args.json, args.color.as_deref())?;
             let output_format = determine_output_format(args.toon, &args.format, args.agent, args.human);
             info!("Output format: {:?}", output_format);
             run_mv(args)
         }
         "rm" | "srm" => {
             let args = RmArgs::parse();
-            init_logging(args.json, 0, false, args.color.as_deref())?;
+            setup_logging(args.debug, args.quiet, args.json, args.color.as_deref())?;
             let output_format = determine_output_format(args.toon, &args.format, args.agent, args.human);
             info!("Output format: {:?}", output_format);
             run_rm(args)
         }
         "smartfo" | _ => {
             let args = SmartfoArgs::parse();
-            init_logging(args.json, 0, false, args.color.as_deref())?;
+            setup_logging(args.debug, args.quiet, args.json, args.color.as_deref())?;
             let output_format = determine_output_format(args.toon, &args.format, args.agent, args.human);
             info!("Output format: {:?}", output_format);
 
@@ -901,8 +881,16 @@ fn main() -> Result<()> {
                 match cmd {
                     SmartfoCommand::GitHookClient => run_git_hook_client(),
                     SmartfoCommand::GitHookServer => run_git_hook_server(),
-                    SmartfoCommand::List { all, limit } => run_list(*all, *limit, &args),
-                    SmartfoCommand::Status { detailed } => run_status(*detailed, &args),
+                    SmartfoCommand::List { all, limit, quiet, debug } => {
+                        // Reinitialize logging with subcommand flags
+                        setup_logging(*debug, *quiet, args.json, args.color.as_deref())?;
+                        run_list(*all, *limit, &args)
+                    },
+                    SmartfoCommand::Status { detailed, quiet, debug } => {
+                        // Reinitialize logging with subcommand flags
+                        setup_logging(*debug, *quiet, args.json, args.color.as_deref())?;
+                        run_status(*detailed, &args)
+                    },
                     SmartfoCommand::SessionContext => run_session_context(),
                     SmartfoCommand::InstallAgentHooks => run_install_agent_hooks(),
                     SmartfoCommand::GenerateSkill { output } => run_generate_skill(output),

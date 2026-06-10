@@ -130,6 +130,14 @@ pub struct MvArgs {
     #[arg(long, help = "Disable content truncation and show full output")]
     pub full: bool,
 
+    /// Decrease logging verbosity (suppress non-essential output)
+    #[arg(short = 'q', long, help = "Decrease logging verbosity (suppress non-essential output)")]
+    pub quiet: bool,
+
+    /// Enable debug logging
+    #[arg(long, help = "Enable debug logging")]
+    pub debug: bool,
+
     /// Source file(s) to move (supports glob patterns like *.txt, **/*.rs)
     /// Use `-` to read paths from stdin
     #[arg(value_name = "SOURCE")]
@@ -355,6 +363,14 @@ pub struct RmArgs {
     #[arg(long, help = "Disable content truncation and show full output")]
     pub full: bool,
 
+    /// Decrease logging verbosity (suppress non-essential output)
+    #[arg(short = 'q', long, help = "Decrease logging verbosity (suppress non-essential output)")]
+    pub quiet: bool,
+
+    /// Enable debug logging
+    #[arg(long, help = "Enable debug logging")]
+    pub debug: bool,
+
     /// File(s) or directories to remove (supports glob patterns like *.txt, **/*.rs)
     /// Use `-` to read paths from stdin
     #[arg(value_name = "FILE")]
@@ -576,6 +592,14 @@ pub struct SmartfoArgs {
     #[arg(long, value_name = "WHEN", help = "Color output: auto, always, never")]
     pub color: Option<String>,
 
+    /// Decrease logging verbosity (suppress non-essential output)
+    #[arg(short = 'q', long, help = "Decrease logging verbosity (suppress non-essential output)")]
+    pub quiet: bool,
+
+    /// Enable debug logging
+    #[arg(long, help = "Enable debug logging")]
+    pub debug: bool,
+
     /// Subcommands
     #[command(subcommand)]
     pub command: Option<SmartfoCommand>,
@@ -599,6 +623,12 @@ pub enum SmartfoCommand {
         /// Limit number of items to show
         #[arg(long, value_name = "N")]
         limit: Option<usize>,
+        /// Decrease logging verbosity (suppress non-essential output)
+        #[arg(short = 'q', long, help = "Decrease logging verbosity (suppress non-essential output)")]
+        quiet: bool,
+        /// Enable debug logging
+        #[arg(long, help = "Enable debug logging")]
+        debug: bool,
     },
     /// Show daemon and queue status
     #[command(name = "status", about = "Show daemon and queue status with aggregate information. Returns empty state with context when no status data available. Includes contextual suggestions for next steps in TOON output.")]
@@ -606,6 +636,12 @@ pub enum SmartfoCommand {
         /// Show detailed status
         #[arg(long)]
         detailed: bool,
+        /// Decrease logging verbosity (suppress non-essential output)
+        #[arg(short = 'q', long, help = "Decrease logging verbosity (suppress non-essential output)")]
+        quiet: bool,
+        /// Enable debug logging
+        #[arg(long, help = "Enable debug logging")]
+        debug: bool,
     },
     /// Output session context in TOON format for agent consumption
     #[command(name = "session-context", about = "Output session context in TOON format for agent consumption. Includes current directory, git repo info, audit log path, and recent operations count.")]

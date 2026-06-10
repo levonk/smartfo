@@ -4,6 +4,7 @@ pub mod output;
 pub mod hooks;
 pub mod skill;
 pub mod globbing;
+pub mod logging;
 
 // Re-export ColorMode for testing
 pub use config::ColorMode;
@@ -28,3 +29,6 @@ pub use output::schema::{Schema, Field, FieldSelector};
 
 // Re-export truncation types for testing
 pub use output::truncation::{truncate, TruncatedContent};
+
+// Re-export logging types for testing
+pub use logging::{LogLevel, LogFormat, init_logging};

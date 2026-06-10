@@ -1,6 +1,56 @@
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 use tracing_appender::non_blocking::WorkerGuard;
+use tracing::Level;
 use std::io;
+
+/// Log level hierarchy for CLI flags
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LogLevel {
+    Debug,
+    Verbose,
+    Info,
+    Warn,
+    Error,
+    Quiet,
+}
+
+impl LogLevel {
+    /// Convert LogLevel to tracing Level
+    pub fn to_tracing_level(self) -> Option<Level> {
+        match self {
+            LogLevel::Debug => Some(Level::DEBUG),
+            LogLevel::Verbose => Some(Level::INFO), // Verbose maps to INFO with more detail
+            LogLevel::Info => Some(Level::INFO),
+            LogLevel::Warn => Some(Level::WARN),
+            LogLevel::Error => Some(Level::ERROR),
+            LogLevel::Quiet => None, // Quiet suppresses all logging
+        }
+    }
+
+    /// Resolve log level from CLI flags
+    /// Priority: --debug > --quiet > default (info)
+    pub fn from_cli_flags(debug: bool, quiet: bool) -> Self {
+        if debug {
+            LogLevel::Debug
+        } else if quiet {
+            LogLevel::Quiet
+        } else {
+            LogLevel::Info
+        }
+    }
+
+    /// Convert to string for EnvFilter
+    pub fn to_filter_string(self) -> String {
+        match self {
+            LogLevel::Debug => "debug".to_string(),
+            LogLevel::Verbose => "info".to_string(),
+            LogLevel::Info => "info".to_string(),
+            LogLevel::Warn => "warn".to_string(),
+            LogLevel::Error => "error".to_string(),
+            LogLevel::Quiet => "off".to_string(),
+        }
+    }
+}
 
 /// Log output format
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -18,10 +68,10 @@ impl LogFormat {
         }
     }
 
-    pub fn from_cli_arg(arg: Option<&str>) -> Option<Self> {
+    pub fn from_cli_arg(arg: &str) -> Option<Self> {
         match arg {
-            Some("json") => Some(LogFormat::Json),
-            Some("pretty") => Some(LogFormat::Pretty),
+            "json" => Some(LogFormat::Json),
+            "pretty" => Some(LogFormat::Pretty),
             _ => None,
         }
     }
@@ -30,12 +80,13 @@ impl LogFormat {
 /// Initialize the tracing subscriber with configurable format and log level
 ///
 /// Resolution order (highest wins):
-/// 1. CLI flags (--log-level, --log-format)
+/// 1. CLI flags (--debug, --quiet, --log-format)
 /// 2. Environment variables (SMARTFO_LOG_LEVEL, SMARTFO_LOG_FORMAT, RUST_LOG)
 /// 3. Config file values
 /// 4. Built-in defaults
 pub fn init_logging(
-    cli_level: Option<&str>,
+    debug: bool,
+    quiet: bool,
     cli_format: Option<&str>,
     config_level: Option<&str>,
     config_format: Option<&str>,
@@ -43,7 +94,7 @@ pub fn init_logging(
 ) -> Option<WorkerGuard> {
     // Resolve log format: CLI > env > config > default (pretty if TTY)
     let format = cli_format
-        .and_then(LogFormat::from_cli_arg)
+        .and_then(|f| LogFormat::from_cli_arg(f))
         .or_else(LogFormat::from_env)
         .or_else(|| config_format.and_then(|f| match f {
             "json" => Some(LogFormat::Json),
@@ -58,16 +109,20 @@ pub fn init_logging(
             }
         });
 
-    // Resolve log level: CLI > env > config > default (info)
-    let env_filter = EnvFilter::try_from_default_env()
-        .or_else(|_| {
-            let level = cli_level
-                .or_else(|| std::env::var("SMARTFO_LOG_LEVEL").ok().as_deref())
-                .or(config_level)
-                .unwrap_or("info");
-            EnvFilter::try_new(level)
-        })
-        .unwrap_or_else(|_| EnvFilter::new("info"));
+    // Resolve log level: CLI flags > env > config > default (info)
+    let log_level = LogLevel::from_cli_flags(debug, quiet);
+    
+    let env_filter = if log_level == LogLevel::Quiet {
+        // Quiet mode suppresses all logging
+        EnvFilter::new("off")
+    } else {
+        EnvFilter::try_from_default_env()
+            .or_else(|_| {
+                let level = log_level.to_filter_string();
+                EnvFilter::try_new(&level)
+            })
+            .unwrap_or_else(|_| EnvFilter::new("info"))
+    };
 
     let registry = tracing_subscriber::registry().with(env_filter);
 

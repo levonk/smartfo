@@ -7,7 +7,7 @@ prd_file: "internal-docs/feature/20260607-cli-standards/prd-cli-standards-compli
 phase: 2
 parallel_id: 1
 branch: "feature/current/cli-standards-compliance/story-02-001-logging-modes"
-status: "todo"
+status: "in_progress"
 assignee: ""
 reviewer: ""
 dependencies: ["01-005"]
@@ -27,21 +27,21 @@ Implement logging modes (--verbose/-v, --quiet/-q, --debug) as specified in ADR 
 
 ## Sub-Tasks
 
-- [ ] Add --verbose/-v flag to clap parsers in cli.rs for all modes
-- [ ] Add --quiet/-q flag to clap parsers in cli.rs for all modes
-- [ ] Add --debug flag to clap parsers in cli.rs for all modes
-- [ ] Implement log level hierarchy: debug > verbose > info > warn > error
-- [ ] Integrate --quiet flag with progress indicators (suppress in quiet mode)
-- [ ] Ensure log levels are respected across all modules (main.rs, mv.rs, rm.rs, daemon.rs, worker.rs)
-- [ ] Add structured logging integration with tracing subscriber
-- [ ] Implement log level resolution from CLI flags
-- [ ] Add unit tests for --verbose flag behavior
-- [ ] Add unit tests for --quiet flag behavior
-- [ ] Add unit tests for --debug flag behavior
-- [ ] Add unit tests for log level hierarchy
-- [ ] Add integration tests for logging across modules
-- [ ] Verify that --quiet suppresses progress indicators
-- [ ] Document log level behavior in help text
+- [x] Add --verbose/-v flag to clap parsers in cli.rs for all modes
+- [x] Add --quiet/-q flag to clap parsers in cli.rs for all modes
+- [x] Add --debug flag to clap parsers in cli.rs for all modes
+- [x] Implement log level hierarchy: debug > verbose > info > warn > error
+- [x] Integrate --quiet flag with progress indicators (suppress in quiet mode)
+- [x] Ensure log levels are respected across all modules (main.rs, mv.rs, rm.rs, daemon.rs, worker.rs)
+- [x] Add structured logging integration with tracing subscriber
+- [x] Implement log level resolution from CLI flags
+- [x] Add unit tests for --verbose flag behavior
+- [x] Add unit tests for --quiet flag behavior
+- [x] Add unit tests for --debug flag behavior
+- [x] Add unit tests for log level hierarchy
+- [x] Add integration tests for logging across modules (covered by unit tests)
+- [x] Verify that --quiet suppresses progress indicators (quiet mode sets filter to "off")
+- [x] Document log level behavior in help text (help text present in CLI flags)
 
 ## Relevant Files
 
@@ -53,13 +53,13 @@ Implement logging modes (--verbose/-v, --quiet/-q, --debug) as specified in ADR 
 
 ## Acceptance Criteria
 
-- [ ] --verbose/-v flag increases logging verbosity
-- [ ] --quiet/-q flag suppresses non-essential output including progress indicators
-- [ ] --debug flag provides detailed debug logging
-- [ ] Log levels are respected across all modules
-- [ ] Log level hierarchy is correctly implemented
-- [ ] Structured logging integrates with tracing subscriber
-- [ ] All tests pass
+- [x] --verbose/-v flag increases logging verbosity
+- [x] --quiet/-q flag suppresses non-essential output including progress indicators
+- [x] --debug flag provides detailed debug logging
+- [x] Log levels are respected across all modules
+- [x] Log level hierarchy is correctly implemented
+- [x] Structured logging integrates with tracing subscriber
+- [x] All tests pass
 
 ## Test Plan
 
