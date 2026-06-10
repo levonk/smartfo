@@ -5,6 +5,8 @@ pub mod hooks;
 pub mod skill;
 pub mod globbing;
 pub mod logging;
+pub mod exit;
+pub mod error;
 
 // Re-export ColorMode for testing
 pub use config::ColorMode;
@@ -32,3 +34,9 @@ pub use output::truncation::{truncate, TruncatedContent};
 
 // Re-export logging types for testing
 pub use logging::{LogLevel, LogFormat, init_logging};
+
+// Re-export exit code types for testing
+pub use exit::{ExitCode, SignalHandler, error_category_to_exit_code, ErrorCategory};
+
+// Re-export error types for testing
+pub use error::{SmartfoError, Result};

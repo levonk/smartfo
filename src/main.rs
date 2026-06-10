@@ -21,12 +21,14 @@ mod logging;
 mod error;
 mod skill;
 mod globbing;
+mod exit;
 use cli::{MvArgs, RmArgs, SmartfoArgs, SmartfoCommand};
 use output::OutputFormat;
 use output::schema::{SchemaRegistry, FieldSelector};
 use output::aggregates::*;
 use output::empty::{EmptyState, check_empty, EmptyContext};
 use output::suggestions::{SuggestionContext, SuggestionEngine, format_suggestions_as_help};
+use exit::{ExitCode, SignalHandler, error_category_to_exit_code, ErrorCategory};
 
 /// Resolve the symlink target directory based on XDG conventions and permissions.
 /// Priority: $XDG_BIN_HOME > ~/.local/bin (create if missing) > /usr/local/bin (if root)
@@ -807,107 +809,185 @@ fn run_install_agent_hooks() -> Result<()> {
     Ok(())
 }
 
-fn main() -> Result<()> {
-    let mode = detect_mode();
+fn run_main() -> Result<i32> {
+    // Setup signal handler for graceful shutdown
+    let signal_handler = SignalHandler::new();
+    if let Err(e) = signal_handler.setup_handlers() {
+        eprintln!("Warning: Failed to setup signal handlers: {}", e);
+    }
 
-    match mode.as_str() {
+    let mode = detect_mode();
+    let result = match mode.as_str() {
         "mv" | "smv" => {
             let args = MvArgs::parse();
-            setup_logging(args.debug, args.quiet, args.json, args.color.as_deref())?;
-            let output_format = determine_output_format(args.toon, &args.format, args.agent, args.human);
-            info!("Output format: {:?}", output_format);
-            run_mv(args)
+            if let Err(e) = setup_logging(args.debug, args.quiet, args.json, args.color.as_deref()) {
+                Err(e)
+            } else {
+                let output_format = determine_output_format(args.toon, &args.format, args.agent, args.human);
+                info!("Output format: {:?}", output_format);
+                run_mv(args)
+            }
         }
         "rm" | "srm" => {
             let args = RmArgs::parse();
-            setup_logging(args.debug, args.quiet, args.json, args.color.as_deref())?;
-            let output_format = determine_output_format(args.toon, &args.format, args.agent, args.human);
-            info!("Output format: {:?}", output_format);
-            run_rm(args)
+            if let Err(e) = setup_logging(args.debug, args.quiet, args.json, args.color.as_deref()) {
+                Err(e)
+            } else {
+                let output_format = determine_output_format(args.toon, &args.format, args.agent, args.human);
+                info!("Output format: {:?}", output_format);
+                run_rm(args)
+            }
         }
         "smartfo" | _ => {
             let args = SmartfoArgs::parse();
-            setup_logging(args.debug, args.quiet, args.json, args.color.as_deref())?;
-            let output_format = determine_output_format(args.toon, &args.format, args.agent, args.human);
-            info!("Output format: {:?}", output_format);
-
-            // Handle --version flag at root level
-            if args.version {
-                info!("--version flag triggered for smartfo");
-                println!("smartfo {}", env!("CARGO_PKG_VERSION"));
-                return Ok(());
-            }
-
-            // Handle --usage flag at root level
-            if args.usage {
-                info!("--usage flag triggered for smartfo");
-                println!("Usage: smartfo [OPTIONS]");
-                println!();
-                println!("Options:");
-                println!("      --install             Install symlinks and Git hooks");
-                println!("      --hooks=TYPE          Hook types to install: client, server, or client,server");
-                println!("      --no-hooks            Skip hook installation");
-                println!("      --force               Overwrite existing files when installing");
-                println!("      --init-config         Initialize or recreate default config file");
-                println!("      --toon               Output in TOON format (token-efficient for agents)");
-                println!("      --format=FORMAT      Output format: toon, json, or human");
-                println!("      --session-context     Output session context in TOON format for agent consumption");
-                println!("      --install-agent-hooks Install agent hooks for Claude Code or Codex");
-                println!("      --usage              Show brief usage message");
-                println!("  -h, --help               Show this help message");
-                println!("  -V, --version            Print version information");
-                println!();
-                println!("Subcommands:");
-                println!("  git-hook-client          Run client-side pre-commit hook");
-                println!("  git-hook-server          Run server-side pre-receive hook");
-                println!("  list                     List operations and queue status (with aggregate counts)");
-                println!("  status                   Show daemon and queue status (with aggregate information)");
-                println!("  session-context          Output session context in TOON format for agent consumption");
-                println!("  install-agent-hooks      Install agent hooks for Claude Code or Codex");
-                println!("  generate-skill           Generate agent skill (SKILL.md) from CLI metadata");
-                println!("  check-skill              Check if generated skill is stale");
-                return Ok(());
-            }
-
-            // Handle --init-config flag
-            if args.init_config {
-                info!("--init-config flag triggered");
-                let config_path = config::create_default_config()?;
-                println!("Created default config file at: {}", config_path.display());
-                return Ok(());
-            }
-
-            if let Some(cmd) = &args.command {
-                match cmd {
-                    SmartfoCommand::GitHookClient => run_git_hook_client(),
-                    SmartfoCommand::GitHookServer => run_git_hook_server(),
-                    SmartfoCommand::List { all, limit, quiet, debug } => {
-                        // Reinitialize logging with subcommand flags
-                        setup_logging(*debug, *quiet, args.json, args.color.as_deref())?;
-                        run_list(*all, *limit, &args)
-                    },
-                    SmartfoCommand::Status { detailed, quiet, debug } => {
-                        // Reinitialize logging with subcommand flags
-                        setup_logging(*debug, *quiet, args.json, args.color.as_deref())?;
-                        run_status(*detailed, &args)
-                    },
-                    SmartfoCommand::SessionContext => run_session_context(),
-                    SmartfoCommand::InstallAgentHooks => run_install_agent_hooks(),
-                    SmartfoCommand::GenerateSkill { output } => run_generate_skill(output),
-                    SmartfoCommand::CheckSkill { skill_file } => run_check_skill(skill_file),
-                }
-            } else if args.install {
-                run_install(&args)
-            } else if args.session_context {
-                run_session_context()
-            } else if args.install_agent_hooks {
-                run_install_agent_hooks()
+            if let Err(e) = setup_logging(args.debug, args.quiet, args.json, args.color.as_deref()) {
+                Err(e)
             } else {
-                // No subcommand or install flag: show content-first state summary
-                run_noargs(&args)
+                let output_format = determine_output_format(args.toon, &args.format, args.agent, args.human);
+                info!("Output format: {:?}", output_format);
+
+                // Handle --version flag at root level
+                if args.version {
+                    info!("--version flag triggered for smartfo");
+                    println!("smartfo {}", env!("CARGO_PKG_VERSION"));
+                    return Ok(0);
+                }
+
+                // Handle --usage flag at root level
+                if args.usage {
+                    info!("--usage flag triggered for smartfo");
+                    println!("Usage: smartfo [OPTIONS]");
+                    println!();
+                    println!("Options:");
+                    println!("      --install             Install symlinks and Git hooks");
+                    println!("      --hooks=TYPE          Hook types to install: client, server, or client,server");
+                    println!("      --no-hooks            Skip hook installation");
+                    println!("      --force               Overwrite existing files when installing");
+                    println!("      --init-config         Initialize or recreate default config file");
+                    println!("      --toon               Output in TOON format (token-efficient for agents)");
+                    println!("      --format=FORMAT      Output format: toon, json, or human");
+                    println!("      --session-context     Output session context in TOON format for agent consumption");
+                    println!("      --install-agent-hooks Install agent hooks for Claude Code or Codex");
+                    println!("      --usage              Show brief usage message");
+                    println!("  -h, --help               Show this help message");
+                    println!("  -V, --version            Print version information");
+                    println!();
+                    println!("Subcommands:");
+                    println!("  git-hook-client          Run client-side pre-commit hook");
+                    println!("  git-hook-server          Run server-side pre-receive hook");
+                    println!("  list                     List operations and queue status (with aggregate counts)");
+                    println!("  status                   Show daemon and queue status (with aggregate information)");
+                    println!("  session-context          Output session context in TOON format for agent consumption");
+                    println!("  install-agent-hooks      Install agent hooks for Claude Code or Codex");
+                    println!("  generate-skill           Generate agent skill (SKILL.md) from CLI metadata");
+                    println!("  check-skill              Check if generated skill is stale");
+                    return Ok(0);
+                }
+
+                // Handle --init-config flag
+                if args.init_config {
+                    info!("--init-config flag triggered");
+                    let config_path = config::create_default_config()?;
+                    println!("Created default config file at: {}", config_path.display());
+                    return Ok(0);
+                }
+
+                if let Some(cmd) = &args.command {
+                    match cmd {
+                        SmartfoCommand::GitHookClient => run_git_hook_client(),
+                        SmartfoCommand::GitHookServer => run_git_hook_server(),
+                        SmartfoCommand::List { all, limit, quiet, debug } => {
+                            // Reinitialize logging with subcommand flags
+                            setup_logging(*debug, *quiet, args.json, args.color.as_deref())?;
+                            run_list(*all, *limit, &args)
+                        },
+                        SmartfoCommand::Status { detailed, quiet, debug } => {
+                            // Reinitialize logging with subcommand flags
+                            setup_logging(*debug, *quiet, args.json, args.color.as_deref())?;
+                            run_status(*detailed, &args)
+                        },
+                        SmartfoCommand::SessionContext => run_session_context(),
+                        SmartfoCommand::InstallAgentHooks => run_install_agent_hooks(),
+                        SmartfoCommand::GenerateSkill { output } => run_generate_skill(output),
+                        SmartfoCommand::CheckSkill { skill_file } => run_check_skill(skill_file),
+                    }
+                } else if args.install {
+                    run_install(&args)
+                } else if args.session_context {
+                    run_session_context()
+                } else if args.install_agent_hooks {
+                    run_install_agent_hooks()
+                } else {
+                    // No subcommand or install flag: show content-first state summary
+                    run_noargs(&args)
+                }
             }
         }
-    }
+    };
+
+    // Handle result and convert to appropriate exit code
+    let exit_code = match result {
+        Ok(()) => {
+            if signal_handler.was_sigint_received() {
+                // SIGINT was received during successful operation
+                info!("SIGINT received, exiting with code 130");
+                130
+            } else {
+                // Successful operation
+                tracing::debug!("Operation completed successfully, exit code 0");
+                0
+            }
+        }
+        Err(e) => {
+            // Error occurred
+            if signal_handler.was_sigint_received() {
+                // SIGINT was received during error
+                info!("SIGINT received during error, exiting with code 130");
+                130
+            } else {
+                // Convert error to appropriate exit code
+                let exit_code_enum = if let Some(smartfo_err) = e.downcast_ref::<error::SmartfoError>() {
+                    // Map SmartfoError to ErrorCategory
+                    let category = match smartfo_err {
+                        error::SmartfoError::InvalidArgs(_) => ErrorCategory::InvalidArgs,
+                        error::SmartfoError::Config(_) => ErrorCategory::Config,
+                        error::SmartfoError::PermissionDenied(_) => ErrorCategory::PermissionDenied,
+                        error::SmartfoError::Vcs(_) => ErrorCategory::Vcs,
+                        error::SmartfoError::Io(io_err) => {
+                            match io_err.kind() {
+                                std::io::ErrorKind::NotFound => ErrorCategory::IoNotFound,
+                                std::io::ErrorKind::PermissionDenied => ErrorCategory::IoPermissionDenied,
+                                _ => ErrorCategory::IoOther,
+                            }
+                        }
+                        _ => ErrorCategory::Other,
+                    };
+                    error_category_to_exit_code(category)
+                } else {
+                    ExitCode::GenericError
+                };
+                
+                let code = exit_code_enum.as_i32();
+                tracing::debug!("Operation failed with exit code: {} ({})", code, exit_code_enum.description());
+                
+                // Print error message
+                eprintln!("Error: {}", e);
+                
+                code
+            }
+        }
+    };
+
+    Ok(exit_code)
+}
+
+// Entry point that calls run_main and exits with the appropriate code
+fn main() {
+    let exit_code = run_main().unwrap_or_else(|e| {
+        eprintln!("Fatal error: {}", e);
+        1
+    });
+    std::process::exit(exit_code);
 }
 
 /// Generate agent skill from CLI metadata

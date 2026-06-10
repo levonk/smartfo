@@ -82,6 +82,10 @@ path = "tests/output_discipline_test.rs"
 name = "logging_tests"
 path = "tests/logging_tests.rs"
 
+[[test]]
+name = "signal_tests"
+path = "tests/signal_tests.rs"
+
 [[bench]]
 name = "agent_mode_benchmarks"
 harness = false
