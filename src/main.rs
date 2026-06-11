@@ -1,4 +1,5 @@
 use clap::Parser;
+use clap::CommandFactory;
 use anyhow::{Result, Context};
 use tracing::info;
 use std::path::PathBuf;
@@ -25,6 +26,7 @@ mod exit;
 mod dry_run;
 mod confirmation;
 mod progress;
+mod completions;
 use cli::{MvArgs, RmArgs, SmartfoArgs, SmartfoCommand};
 use vcs::detect_vcs;
 use vcs::is_tracked;
@@ -951,6 +953,80 @@ fn run_install_agent_hooks() -> Result<()> {
     Ok(())
 }
 
+fn run_generate_completion(shell: Option<&str>) -> Result<i32> {
+    use clap_complete::Shell;
+
+    // If no shell specified, auto-detect available shells
+    let shells_to_generate = if let Some(shell) = shell {
+        vec![shell.to_lowercase()]
+    } else {
+        detect_available_shells()
+    };
+
+    let mode = detect_mode();
+
+    for shell_name in shells_to_generate {
+        let shell_enum = match shell_name.as_str() {
+            "bash" => Shell::Bash,
+            "zsh" => Shell::Zsh,
+            "fish" => Shell::Fish,
+            _ => {
+                eprintln!("ERROR: Unsupported shell '{}'. Supported shells: bash, zsh, fish", shell_name);
+                continue;
+            }
+        };
+
+        // Generate completion for smartfo mode based on argv[0]
+        let mut buf = Vec::new();
+
+        match mode.as_str() {
+            "mv" | "smv" => {
+                let mut cmd = cli::MvArgs::command();
+                clap_complete::generate(shell_enum, &mut cmd, "mv", &mut buf);
+            }
+            "rm" | "srm" => {
+                let mut cmd = cli::RmArgs::command();
+                clap_complete::generate(shell_enum, &mut cmd, "rm", &mut buf);
+            }
+            "smartfo" | _ => {
+                let mut cmd = cli::SmartfoArgs::command();
+                clap_complete::generate(shell_enum, &mut cmd, "smartfo", &mut buf);
+            }
+        }
+
+        println!("{}", String::from_utf8(buf).context("Completion script is not valid UTF-8")?);
+    }
+
+    Ok(0)
+}
+
+/// Detect available shells on the system
+fn detect_available_shells() -> Vec<String> {
+    let mut available = Vec::new();
+
+    // Check for bash
+    if std::path::Path::new("/bin/bash").exists() || which::which("bash").is_ok() {
+        available.push("bash".to_string());
+    }
+
+    // Check for zsh
+    if std::path::Path::new("/bin/zsh").exists() || which::which("zsh").is_ok() {
+        available.push("zsh".to_string());
+    }
+
+    // Check for fish
+    if which::which("fish").is_ok() {
+        available.push("fish".to_string());
+    }
+
+    // If no shells detected, default to all three
+    if available.is_empty() {
+        available = vec!["bash".to_string(), "zsh".to_string(), "fish".to_string()];
+    }
+
+    available
+}
+
 fn run_main() -> Result<i32> {
     // Setup signal handler for graceful shutdown
     let signal_handler = SignalHandler::new();
@@ -1006,6 +1082,7 @@ fn run_main() -> Result<i32> {
                     println!("      --no-hooks            Skip hook installation");
                     println!("      --force               Overwrite existing files when installing");
                     println!("      --init-config         Initialize or recreate default config file");
+                    println!("      --generate-completion=SHELL  Generate shell completion script (bash, zsh, fish)");
                     println!("      --toon               Output in TOON format (token-efficient for agents)");
                     println!("      --format=FORMAT      Output format: toon, json, or human");
                     println!("      --session-context     Output session context in TOON format for agent consumption");
@@ -1034,6 +1111,14 @@ fn run_main() -> Result<i32> {
                     let config_path = config::create_default_config()?;
                     println!("Created default config file at: {}", config_path.display());
                     return Ok(0);
+                }
+
+                // Handle --generate-completion flag
+                if args.generate_completion.is_some() {
+                    let shell = args.generate_completion.as_deref()
+                        .filter(|s| !s.is_empty() && *s != "auto");
+                    info!("--generate-completion flag triggered for shell: {:?}", shell);
+                    return run_generate_completion(shell);
                 }
 
                 if let Some(cmd) = &args.command {

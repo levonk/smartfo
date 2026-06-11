@@ -7,7 +7,7 @@ prd_file: "internal-docs/feature/20260607-cli-standards/prd-cli-standards-compli
 phase: 3
 parallel_id: 4
 branch: "feature/current/cli-standards-compliance/story-03-004-shell-completion"
-status: "todo"
+status: "in_progress"
 assignee: ""
 reviewer: ""
 dependencies: ["01-001"]
@@ -27,23 +27,23 @@ Implement shell completion generation as specified in ADR #17. Generate shell co
 
 ## Sub-Tasks
 
-- [ ] Create new src/completions.rs module
-- [ ] Add clap completion generation dependencies if needed
-- [ ] Implement bash completion generation for all modes
-- [ ] Implement zsh completion generation for all modes
-- [ ] Implement fish completion generation for all modes
-- [ ] Ensure completions match current command structure (argv[0] dispatch)
-- [ ] Add completions for mv mode flags and arguments
-- [ ] Add completions for rm mode flags and arguments
-- [ ] Add completions for smartfo mode flags and subcommands
-- [ ] Add completions for config keys where applicable
-- [ ] Add completions for config values where applicable
-- [ ] Add completions for file paths with globbing support
-- [ ] Implement --generate-completion <shell> flag to generate completion scripts
-- [ ] Integrate completion installation with --install flag
-- [ ] Add unit tests for bash completion generation
-- [ ] Add unit tests for zsh completion generation
-- [ ] Add unit tests for fish completion generation
+- [x] Create new src/completions.rs module
+- [x] Add clap completion generation dependencies if needed
+- [x] Implement bash completion generation for all modes
+- [x] Implement zsh completion generation for all modes
+- [x] Implement fish completion generation for all modes
+- [x] Ensure completions match current command structure (argv[0] dispatch)
+- [x] Add completions for mv mode flags and arguments
+- [x] Add completions for rm mode flags and arguments
+- [x] Add completions for smartfo mode flags and subcommands
+- [x] Add completions for config keys where applicable
+- [x] Add completions for config values where applicable
+- [x] Add completions for file paths with globbing support
+- [x] Implement --generate-completion <shell> flag to generate completion scripts
+- [x] Integrate completion installation with --install flag
+- [x] Add unit tests for bash completion generation
+- [x] Add unit tests for zsh completion generation
+- [x] Add unit tests for fish completion generation
 - [ ] Add integration tests for completion installation
 
 ## Relevant Files
@@ -56,12 +56,12 @@ Implement shell completion generation as specified in ADR #17. Generate shell co
 
 ## Acceptance Criteria
 
-- [ ] Shell completion scripts are generated for bash, zsh, and fish
-- [ ] Completions match current command structure
-- [ ] Completions are available for all modes (mv, rm, smartfo)
-- [ ] Completions include config keys and values where applicable
-- [ ] --generate-completion <shell> flag generates completion scripts
-- [ ] Completions are installed via --install flag
+- [x] Shell completion scripts are generated for bash, zsh, and fish
+- [x] Completions match current command structure
+- [x] Completions are available for all modes (mv, rm, smartfo)
+- [x] Completions include config keys and values where applicable
+- [x] --generate-completion <shell> flag generates completion scripts
+- [x] Completions are installed via --install flag
 - [ ] All tests pass
 
 ## Test Plan

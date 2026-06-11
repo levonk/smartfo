@@ -624,6 +624,10 @@ pub struct SmartfoArgs {
     #[arg(long, help = "Force synchronous in-process operation (disable auto-spawning)")]
     pub no_daemon: bool,
 
+    /// Generate shell completion script for the specified shell (auto-detects if not specified)
+    #[arg(long, value_name = "SHELL", num_args = 0..=1, default_missing_value = "auto", help = "Generate shell completion script for bash, zsh, or fish (auto-detects if not specified)")]
+    pub generate_completion: Option<String>,
+
     /// Subcommands
     #[command(subcommand)]
     pub command: Option<SmartfoCommand>,

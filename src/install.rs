@@ -308,21 +308,21 @@ impl Installer {
     fn generate_bash_completion(&self) -> Result<String> {
         let mut cmd = crate::cli::SmartfoArgs::command();
         let mut buf = Vec::new();
-        clap_complete::generate(clap_complete::shells::Bash, &mut cmd, "smartfo", &mut buf);
+        crate::completions::generate_bash_completion(&mut cmd, &mut buf);
         Ok(String::from_utf8(buf).context("Bash completion is not valid UTF-8")?)
     }
 
     fn generate_zsh_completion(&self) -> Result<String> {
         let mut cmd = crate::cli::SmartfoArgs::command();
         let mut buf = Vec::new();
-        clap_complete::generate(clap_complete::shells::Zsh, &mut cmd, "smartfo", &mut buf);
+        crate::completions::generate_zsh_completion(&mut cmd, &mut buf);
         Ok(String::from_utf8(buf).context("Zsh completion is not valid UTF-8")?)
     }
 
     fn generate_fish_completion(&self) -> Result<String> {
         let mut cmd = crate::cli::SmartfoArgs::command();
         let mut buf = Vec::new();
-        clap_complete::generate(clap_complete::shells::Fish, &mut cmd, "smartfo", &mut buf);
+        crate::completions::generate_fish_completion(&mut cmd, &mut buf);
         Ok(String::from_utf8(buf).context("Fish completion is not valid UTF-8")?)
     }
 
@@ -624,17 +624,17 @@ mod tests {
     #[test]
     fn test_completion_generation() {
         let installer = Installer::new().unwrap();
-        
+
         // Test bash completion generation
         let bash_completion = installer.generate_bash_completion().unwrap();
         assert!(!bash_completion.is_empty());
         assert!(bash_completion.contains("smartfo"));
-        
+
         // Test zsh completion generation
         let zsh_completion = installer.generate_zsh_completion().unwrap();
         assert!(!zsh_completion.is_empty());
         assert!(zsh_completion.contains("smartfo"));
-        
+
         // Test fish completion generation
         let fish_completion = installer.generate_fish_completion().unwrap();
         assert!(!fish_completion.is_empty());
@@ -655,7 +655,7 @@ mod tests {
     fn test_config_initialization() {
         let temp_dir = TempDir::new().unwrap();
         let config_dir = temp_dir.path().join("smartfo");
-        
+
         // Create a test installer with custom config dir
         let installer = Installer {
             bin_dir: temp_dir.path().join("bin"),
@@ -667,7 +667,7 @@ mod tests {
                 fish: temp_dir.path().join("fish"),
             },
         };
-        
+
         // Test config initialization when config doesn't exist
         let result = installer.initialize_config();
         // This will try to use the actual config module, which may fail in tests
@@ -680,7 +680,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let bin_dir = temp_dir.path().join("bin");
         fs::create_dir_all(&bin_dir).unwrap();
-        
+
         let installer = Installer {
             bin_dir: bin_dir.clone(),
             config_dir: temp_dir.path().join("config"),
@@ -691,16 +691,16 @@ mod tests {
                 fish: temp_dir.path().join("fish"),
             },
         };
-        
+
         // Create a dummy target file
         let target = temp_dir.path().join("target");
         fs::write(&target, "dummy").unwrap();
-        
+
         // Create dummy symlinks
         let symlink = bin_dir.join("mv");
         std::os::unix::fs::symlink(&target, &symlink).unwrap();
         assert!(symlink.exists());
-        
+
         // Test symlink removal
         installer.remove_symlinks().unwrap();
         assert!(!symlink.exists());
@@ -712,11 +712,11 @@ mod tests {
         let bash_dir = temp_dir.path().join("bash");
         let zsh_dir = temp_dir.path().join("zsh");
         let fish_dir = temp_dir.path().join("fish");
-        
+
         fs::create_dir_all(&bash_dir).unwrap();
         fs::create_dir_all(&zsh_dir).unwrap();
         fs::create_dir_all(&fish_dir).unwrap();
-        
+
         let installer = Installer {
             bin_dir: temp_dir.path().join("bin"),
             config_dir: temp_dir.path().join("config"),
@@ -727,12 +727,12 @@ mod tests {
                 fish: fish_dir.clone(),
             },
         };
-        
+
         // Create dummy completion files
         fs::write(bash_dir.join("smartfo"), "bash completion").unwrap();
         fs::write(zsh_dir.join("_smartfo"), "zsh completion").unwrap();
         fs::write(fish_dir.join("smartfo.fish"), "fish completion").unwrap();
-        
+
         // Test completion removal
         installer.remove_completions().unwrap();
         assert!(!bash_dir.join("smartfo").exists());
@@ -746,7 +746,7 @@ mod tests {
         let man_dir = temp_dir.path().join("share").join("man");
         let man1_dir = man_dir.join("man1");
         fs::create_dir_all(&man1_dir).unwrap();
-        
+
         let installer = Installer {
             bin_dir: temp_dir.path().join("bin"),
             config_dir: temp_dir.path().join("config"),
@@ -757,12 +757,12 @@ mod tests {
                 fish: temp_dir.path().join("fish"),
             },
         };
-        
+
         // Create dummy man page
         let man_page = man1_dir.join("smartfo.1");
         fs::write(&man_page, "man page content").unwrap();
         assert!(man_page.exists());
-        
+
         // Test man page removal
         installer.remove_man_pages().unwrap();
         assert!(!man_page.exists());
@@ -774,7 +774,7 @@ mod tests {
         let config_dir = temp_dir.path().join("smartfo");
         fs::create_dir_all(&config_dir).unwrap();
         fs::write(config_dir.join("config.toml"), "test config").unwrap();
-        
+
         let installer = Installer {
             bin_dir: temp_dir.path().join("bin"),
             config_dir: config_dir.clone(),
@@ -785,7 +785,7 @@ mod tests {
                 fish: temp_dir.path().join("fish"),
             },
         };
-        
+
         // Test force config removal
         installer.remove_config().unwrap();
         assert!(!config_dir.exists());

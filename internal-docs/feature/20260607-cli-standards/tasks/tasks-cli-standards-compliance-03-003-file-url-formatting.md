@@ -7,7 +7,7 @@ prd_file: "internal-docs/feature/20260607-cli-standards/prd-cli-standards-compli
 phase: 3
 parallel_id: 3
 branch: "feature/current/cli-standards-compliance/story-03-003-file-url-formatting"
-status: "in_progress"
+status: "done"
 assignee: ""
 reviewer: ""
 dependencies: []

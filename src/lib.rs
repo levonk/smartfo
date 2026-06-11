@@ -13,6 +13,7 @@ pub mod progress;
 pub mod worker;
 pub mod queue;
 pub mod trash;
+pub mod completions;
 
 // Re-export ColorMode for testing
 pub use config::ColorMode;
