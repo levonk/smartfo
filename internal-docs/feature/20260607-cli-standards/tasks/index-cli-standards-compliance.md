@@ -10,7 +10,7 @@
 | 01-006 | Developer UX Standard Compliance | feature/current/cli-standards-compliance/story-01-006-developer-ux-standard | None | Parallel-safe: true | root, docs | [x] Done |
 | 02-001 | Logging Modes Implementation | feature/current/cli-standards-compliance/story-02-001-logging-modes | 01-005 | Parallel-safe: true | logging.rs | [x] Done |
 | 02-002 | Signals & Exit Codes | feature/current/cli-standards-compliance/story-02-002-signals-exit-codes | None | Parallel-safe: true | main.rs | [x] Done |
-| 02-003 | Dry-Run Mode | feature/current/cli-standards-compliance/story-02-003-dry-run-mode | None | Parallel-safe: true | mv.rs, rm.rs | [~] In-Progress |
+| 02-003 | Dry-Run Mode | feature/current/cli-standards-compliance/story-02-003-dry-run-mode | None | Parallel-safe: true | mv.rs, rm.rs | [x] Done |
 | 02-004 | Confirmation Prompts | feature/current/cli-standards-compliance/story-02-004-confirmation-prompts | None | Parallel-safe: true | mv.rs, rm.rs | [ ] Todo |
 | 02-005 | Progress Indicators | feature/current/cli-standards-compliance/story-02-005-progress-indicators | 02-001 | Parallel-safe: true | worker.rs, indicatif integration | [ ] Todo |
 | 03-001 | Daemon Enhancements | feature/current/cli-standards-compliance/story-03-001-daemon-enhancements | 02-002 | Parallel-safe: true | daemon.rs, queue.rs | [ ] Todo |

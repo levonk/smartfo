@@ -7,7 +7,7 @@ prd_file: "internal-docs/feature/20260607-cli-standards/prd-cli-standards-compli
 phase: 2
 parallel_id: 3
 branch: "feature/current/cli-standards-compliance/story-02-003-dry-run-mode"
-status: "in_progress"
+status: "done"
 assignee: ""
 reviewer: ""
 dependencies: []
@@ -41,11 +41,11 @@ Implement dry-run mode as specified in ADR #10. Add --dry-run flag to preview ch
 - [x] Ensure no file system changes occur in dry-run mode
 - [x] Ensure no VCS commands execute in dry-run mode
 - [x] Ensure no daemon jobs are enqueued in dry-run mode
-- [ ] Add unit tests for dry-run mode in mv operations
-- [ ] Add unit tests for dry-run mode in rm operations
-- [ ] Add unit tests for dry-run mode with VCS operations
-- [ ] Add unit tests for dry-run mode with daemon operations
-- [ ] Verify no side effects in dry-run mode with integration tests
+- [x] Add unit tests for dry-run mode in mv operations
+- [x] Add unit tests for dry-run mode in rm operations
+- [x] Add unit tests for dry-run mode with VCS operations
+- [x] Add unit tests for dry-run mode with daemon operations
+- [x] Verify no side effects in dry-run mode with integration tests
 
 ## Relevant Files
 
@@ -58,16 +58,16 @@ Implement dry-run mode as specified in ADR #10. Add --dry-run flag to preview ch
 
 ## Acceptance Criteria
 
-- [ ] --dry-run flag is available for mv and rm modes
-- [ ] Dry-run mode displays exactly what would be done for each operation
-- [ ] VCS commands that would be executed are displayed
-- [ ] File moves that would occur are displayed
-- [ ] File deletes that would occur are displayed
-- [ ] Daemon operations that would be queued are displayed
-- [ ] No file system changes occur in dry-run mode
-- [ ] No VCS commands execute in dry-run mode
-- [ ] No daemon jobs are enqueued in dry-run mode
-- [ ] All tests pass
+- [x] --dry-run flag is available for mv and rm modes
+- [x] Dry-run mode displays exactly what would be done for each operation
+- [x] VCS commands that would be executed are displayed
+- [x] File moves that would occur are displayed
+- [x] File deletes that would occur are displayed
+- [x] Daemon operations that would be queued are displayed
+- [x] No file system changes occur in dry-run mode
+- [x] No VCS commands execute in dry-run mode
+- [x] No daemon jobs are enqueued in dry-run mode
+- [x] All tests pass
 
 ## Test Plan
 
