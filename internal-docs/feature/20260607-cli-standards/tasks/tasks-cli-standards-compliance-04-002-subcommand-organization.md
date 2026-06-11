@@ -25,23 +25,109 @@ updated_at: "2026-06-07"
 
 Implement subcommand organization as specified in ADR #20. Maintain hierarchical command structure, group related commands under logical subcommands, ensure consistency in command naming patterns, and document command hierarchy in help output. This ensures the argv[0] dispatch model (mv/rm/smartfo) works seamlessly with any new subcommands.
 
+## Current Command Hierarchy
+
+### argv[0] Dispatch Model (Primary Entry Points)
+```
+smartfo (binary)
+├── mv (symlink) → MvArgs
+├── smv (symlink) → MvArgs (debug variant)
+├── rm (symlink) → RmArgs
+├── srm (symlink) → RmArgs (debug variant)
+└── smartfo (direct) → SmartfoArgs + SmartfoCommand subcommands
+```
+
+### SmartfoCommand Subcommands (Current Flat Structure)
+```
+SmartfoCommand (enum)
+├── git-hook-client
+├── git-hook-server
+├── list
+├── status
+├── session-context
+├── install-agent-hooks
+├── generate-skill
+├── check-skill
+├── list-jobs
+└── cancel-job
+```
+
+### SmartfoArgs Top-Level Flags
+- `--install`, `--uninstall`, `--init-config` (installation/management)
+- `--hooks`, `--no-hooks`, `--force-hooks` (hook configuration)
+- `--version`, `--usage`, `--man` (information)
+- `--human`, `--agent`, `--toon`, `--format`, `--fields` (output format)
+- `--json`, `--color`, `--quiet`, `--debug` (logging)
+- `--daemon`, `--no-daemon` (daemon control)
+- `--no-pager` (output control)
+- `--generate-completion` (completions)
+- `--session-context`, `--install-agent-hooks` (agent integration)
+
+## Proposed Subcommand Grouping
+
+### Logical Groupings Identified
+
+1. **Git Hooks Group** → `git` subcommand
+   - `git hook-client` (was `git-hook-client`)
+   - `git hook-server` (was `git-hook-server`)
+
+2. **Job Management Group** → `job` subcommand
+   - `job list` (was `list-jobs`)
+   - `job cancel <id>` (was `cancel-job`)
+
+3. **Agent Integration Group** → `agent` subcommand
+   - `agent session-context` (was `session-context`)
+   - `agent install-hooks` (was `install-agent-hooks`)
+   - `agent generate-skill` (was `generate-skill`)
+   - `agent check-skill` (was `check-skill`)
+
+4. **Information/Query Group** → `info` subcommand
+   - `info list` (was `list`)
+   - `info status` (was `status`)
+
+### Proposed New Hierarchy
+```
+SmartfoCommand (enum)
+├── git
+│   ├── hook-client
+│   └── hook-server
+├── job
+│   ├── list
+│   └── cancel <id>
+├── agent
+│   ├── session-context
+│   ├── install-hooks
+│   ├── generate-skill
+│   └── check-skill
+└── info
+    ├── list
+    └── status
+```
+
+### Benefits of This Grouping
+- **Logical organization**: Related commands are grouped together
+- **Discoverability**: Users can explore subcommands with `smartfo <group> --help`
+- **Namespace clarity**: Avoids command name collisions (e.g., `list` vs `list-jobs`)
+- **Future extensibility**: Easy to add new commands to each group
+- **Maintains argv[0] dispatch**: mv/rm/smartfo entry points unchanged
+
 ## Sub-Tasks
 
-- [ ] Audit current command structure for consistency
-- [ ] Document existing command hierarchy
-- [ ] Identify opportunities for logical subcommand grouping
-- [ ] Group related commands under logical subcommands (e.g., config commands, job commands)
-- [ ] Ensure command naming patterns are consistent
-- [ ] Document command hierarchy in help output
-- [ ] Add subcommand help for each logical group
-- [ ] Ensure argv[0] dispatch (mv/rm/smartfo) remains the primary entry point
-- [ ] Add smartfo subcommands for operations not covered by mv/rm modes
-- [ ] Ensure subcommand help is accessible via --help
-- [ ] Ensure subcommand help shows hierarchy
-- [ ] Add unit tests for subcommand structure
-- [ ] Add unit tests for command naming consistency
-- [ ] Add integration tests for subcommand help output
-- [ ] Verify argv[0] dispatch still works correctly
+- [x] Audit current command structure for consistency
+- [x] Document existing command hierarchy
+- [x] Identify opportunities for logical subcommand grouping
+- [x] Group related commands under logical subcommands (e.g., config commands, job commands)
+- [x] Ensure command naming patterns are consistent
+- [x] Document command hierarchy in help output
+- [x] Add subcommand help for each logical group
+- [x] Ensure argv[0] dispatch (mv/rm/smartfo) remains the primary entry point
+- [x] Add smartfo subcommands for operations not covered by mv/rm modes
+- [x] Ensure subcommand help is accessible via --help
+- [x] Ensure subcommand help shows hierarchy
+- [x] Add unit tests for subcommand structure
+- [x] Add unit tests for command naming consistency
+- [x] Add integration tests for subcommand help output
+- [x] Verify argv[0] dispatch still works correctly
 
 ## Relevant Files
 
@@ -51,14 +137,14 @@ Implement subcommand organization as specified in ADR #20. Maintain hierarchical
 
 ## Acceptance Criteria
 
-- [ ] Command structure is hierarchical and logical
-- [ ] Related commands are grouped under logical subcommands
-- [ ] Command naming patterns are consistent
-- [ ] Command hierarchy is documented in help output
-- [ ] argv[0] dispatch (mv/rm/smartfo) works seamlessly with subcommands
-- [ ] Subcommand help is accessible via --help
-- [ ] Subcommand help shows command hierarchy
-- [ ] All tests pass
+- [x] Command structure is hierarchical and logical
+- [x] Related commands are grouped under logical subcommands
+- [x] Command naming patterns are consistent
+- [x] Command hierarchy is documented in help output
+- [x] argv[0] dispatch (mv/rm/smartfo) works seamlessly with subcommands
+- [x] Subcommand help is accessible via --help
+- [x] Subcommand help shows command hierarchy
+- [x] All tests pass
 
 ## Test Plan
 

@@ -656,12 +656,90 @@ pub struct SmartfoArgs {
 /// Subcommands for the smartfo binary.
 #[derive(Parser, Debug)]
 pub enum SmartfoCommand {
+    /// Git hook commands
+    #[command(subcommand)]
+    Git(GitCommand),
+    /// Job management commands
+    #[command(subcommand)]
+    Job(JobCommand),
+    /// Agent integration commands
+    #[command(subcommand)]
+    Agent(AgentCommand),
+    /// Information and query commands
+    #[command(subcommand)]
+    Info(InfoCommand),
+}
+
+/// Git hook subcommands
+#[derive(Parser, Debug)]
+pub enum GitCommand {
     /// Client-side pre-commit hook
-    #[command(name = "git-hook-client")]
-    GitHookClient,
+    #[command(name = "hook-client", about = "Run client-side pre-commit hook to block raw deletions and renames")]
+    HookClient,
     /// Server-side pre-receive hook
-    #[command(name = "git-hook-server")]
-    GitHookServer,
+    #[command(name = "hook-server", about = "Run server-side pre-receive hook to block raw deletions and renames")]
+    HookServer,
+}
+
+/// Job management subcommands
+#[derive(Parser, Debug)]
+pub enum JobCommand {
+    /// List background jobs with optional filtering
+    #[command(name = "list", about = "List background jobs with optional job ID filtering")]
+    List {
+        /// Optional job IDs to filter (comma-separated)
+        #[arg(long, value_name = "IDS")]
+        ids: Option<String>,
+        /// Decrease logging verbosity (suppress non-essential output)
+        #[arg(short = 'q', long, help = "Decrease logging verbosity (suppress non-essential output)")]
+        quiet: bool,
+        /// Enable debug logging
+        #[arg(long, help = "Enable debug logging")]
+        debug: bool,
+    },
+    /// Cancel a specific background job
+    #[command(name = "cancel", about = "Cancel a specific background job by ID")]
+    Cancel {
+        /// Job ID to cancel
+        #[arg(value_name = "ID")]
+        job_id: String,
+        /// Decrease logging verbosity (suppress non-essential output)
+        #[arg(short = 'q', long, help = "Decrease logging verbosity (suppress non-essential output)")]
+        quiet: bool,
+        /// Enable debug logging
+        #[arg(long, help = "Enable debug logging")]
+        debug: bool,
+    },
+}
+
+/// Agent integration subcommands
+#[derive(Parser, Debug)]
+pub enum AgentCommand {
+    /// Output session context in TOON format for agent consumption
+    #[command(name = "session-context", about = "Output session context in TOON format for agent consumption. Includes current directory, git repo info, audit log path, and recent operations count.")]
+    SessionContext,
+    /// Install agent hooks for Claude Code or Codex
+    #[command(name = "install-hooks", about = "Install agent hooks for Claude Code or Codex. Registers session-start and session-end hooks for ambient context injection.")]
+    InstallHooks,
+    /// Generate agent skill from CLI metadata
+    #[command(name = "generate-skill", about = "Generate agent skill (SKILL.md) from CLI metadata. Outputs static skill content with trigger-shaped frontmatter and non-interactive examples.")]
+    GenerateSkill {
+        /// Output file path (default: stdout)
+        #[arg(long, value_name = "PATH")]
+        output: Option<std::path::PathBuf>,
+    },
+    /// Check if generated skill is stale
+    #[command(name = "check-skill", about = "Check if generated skill is stale compared to current version. Exits with error if skill needs regeneration.")]
+    CheckSkill {
+        /// Skill file path to check (default: SKILL.md)
+        #[arg(long, value_name = "PATH")]
+        skill_file: Option<std::path::PathBuf>,
+    },
+}
+
+/// Information and query subcommands
+#[derive(Parser, Debug)]
+pub enum InfoCommand {
     /// List operations and queue status
     #[command(name = "list", about = "List operations and queue status with aggregate counts. Returns empty state with context when no results found. Includes contextual suggestions for next steps in TOON output.")]
     List {
@@ -684,52 +762,6 @@ pub enum SmartfoCommand {
         /// Show detailed status
         #[arg(long)]
         detailed: bool,
-        /// Decrease logging verbosity (suppress non-essential output)
-        #[arg(short = 'q', long, help = "Decrease logging verbosity (suppress non-essential output)")]
-        quiet: bool,
-        /// Enable debug logging
-        #[arg(long, help = "Enable debug logging")]
-        debug: bool,
-    },
-    /// Output session context in TOON format for agent consumption
-    #[command(name = "session-context", about = "Output session context in TOON format for agent consumption. Includes current directory, git repo info, audit log path, and recent operations count.")]
-    SessionContext,
-    /// Install agent hooks for Claude Code or Codex
-    #[command(name = "install-agent-hooks", about = "Install agent hooks for Claude Code or Codex. Registers session-start and session-end hooks for ambient context injection.")]
-    InstallAgentHooks,
-    /// Generate agent skill from CLI metadata
-    #[command(name = "generate-skill", about = "Generate agent skill (SKILL.md) from CLI metadata. Outputs static skill content with trigger-shaped frontmatter and non-interactive examples.")]
-    GenerateSkill {
-        /// Output file path (default: stdout)
-        #[arg(long, value_name = "PATH")]
-        output: Option<std::path::PathBuf>,
-    },
-    /// Check if generated skill is stale
-    #[command(name = "check-skill", about = "Check if generated skill is stale compared to current version. Exits with error if skill needs regeneration.")]
-    CheckSkill {
-        /// Skill file path to check (default: SKILL.md)
-        #[arg(long, value_name = "PATH")]
-        skill_file: Option<std::path::PathBuf>,
-    },
-    /// List background jobs with optional filtering
-    #[command(name = "list-jobs", about = "List background jobs with optional job ID filtering")]
-    ListJobs {
-        /// Optional job IDs to filter (comma-separated)
-        #[arg(long, value_name = "IDS")]
-        ids: Option<String>,
-        /// Decrease logging verbosity (suppress non-essential output)
-        #[arg(short = 'q', long, help = "Decrease logging verbosity (suppress non-essential output)")]
-        quiet: bool,
-        /// Enable debug logging
-        #[arg(long, help = "Enable debug logging")]
-        debug: bool,
-    },
-    /// Cancel a specific background job
-    #[command(name = "cancel-job", about = "Cancel a specific background job by ID")]
-    CancelJob {
-        /// Job ID to cancel
-        #[arg(value_name = "ID")]
-        job_id: String,
         /// Decrease logging verbosity (suppress non-essential output)
         #[arg(short = 'q', long, help = "Decrease logging verbosity (suppress non-essential output)")]
         quiet: bool,

@@ -111,7 +111,7 @@ pub fn init_logging(
 
     // Resolve log level: CLI flags > env > config > default (info)
     let log_level = LogLevel::from_cli_flags(debug, quiet);
-    
+
     let env_filter = if log_level == LogLevel::Quiet {
         // Quiet mode suppresses all logging
         EnvFilter::new("off")
@@ -133,12 +133,12 @@ pub fn init_logging(
             std::path::Path::new(path).file_name().unwrap_or(std::ffi::OsStr::new("smartfo.log")),
         );
         let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
-        
+
         let layer = match format {
             LogFormat::Json => fmt::layer().json().with_writer(non_blocking).boxed(),
             LogFormat::Pretty => fmt::layer().pretty().with_writer(non_blocking).boxed(),
         };
-        
+
         registry.with(layer).init();
         Some(guard)
     } else {
@@ -147,7 +147,7 @@ pub fn init_logging(
             LogFormat::Json => fmt::layer().json().with_writer(io::stderr).boxed(),
             LogFormat::Pretty => fmt::layer().pretty().with_writer(io::stderr).boxed(),
         };
-        
+
         registry.with(layer).init();
         None
     };
@@ -158,4 +158,32 @@ pub fn init_logging(
 /// Check if JSON output is requested (for machine-readable logs)
 pub fn is_json_format() -> bool {
     LogFormat::from_env() == Some(LogFormat::Json)
+}
+
+/// Try to initialize logging, but don't panic if already initialized
+/// This is useful for subcommands that may be called after logging is already set up
+pub fn try_init_logging(
+    debug: bool,
+    quiet: bool,
+    cli_format: Option<&str>,
+    config_level: Option<&str>,
+    config_format: Option<&str>,
+    log_file: Option<&str>,
+) -> Option<WorkerGuard> {
+    // Use a static flag to track if logging has been initialized
+    use std::sync::atomic::{AtomicBool, Ordering};
+    static LOGGING_INITIALIZED: AtomicBool = AtomicBool::new(false);
+
+    // Check if logging is already initialized
+    if LOGGING_INITIALIZED.load(Ordering::SeqCst) {
+        return None;
+    }
+
+    // Initialize logging normally
+    let guard = init_logging(debug, quiet, cli_format, config_level, config_format, log_file);
+
+    // Mark as initialized
+    LOGGING_INITIALIZED.store(true, Ordering::SeqCst);
+
+    guard
 }

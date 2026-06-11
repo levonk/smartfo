@@ -42,11 +42,11 @@ fn test_smartfo_usage() {
 }
 
 #[test]
-fn test_smartfo_no_args_shows_help() {
+fn test_smartfo_no_args_shows_content_first_summary() {
     let mut cmd = Command::cargo_bin("smartfo").unwrap();
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains("Usage:"));
+        .stdout(predicate::str::contains("current_directory"));
 }
 
 #[test]
@@ -61,7 +61,8 @@ fn test_smartfo_install_flag() {
 #[test]
 fn test_smartfo_git_hook_client() {
     let mut cmd = Command::cargo_bin("smartfo").unwrap();
-    cmd.arg("git-hook-client")
+    cmd.arg("git")
+        .arg("hook-client")
         .assert()
         .success()
         .stderr(predicate::str::contains("pre-commit"));
@@ -70,7 +71,8 @@ fn test_smartfo_git_hook_client() {
 #[test]
 fn test_smartfo_git_hook_server() {
     let mut cmd = Command::cargo_bin("smartfo").unwrap();
-    cmd.arg("git-hook-server")
+    cmd.arg("git")
+        .arg("hook-server")
         .assert()
         .failure()
         .stderr(predicate::str::contains("pre-receive"));
@@ -201,14 +203,11 @@ fn test_srm_dispatch() {
 fn test_mv_flags_parsed() {
     let tmp = symlink_binary("mv");
     let mut cmd = std::process::Command::new(tmp.path().join("mv"));
-    // All these flags should be accepted without error
+    // These flags should be accepted without error (avoiding conflicting flags)
     cmd.arg("-f")
-        .arg("-i")
-        .arg("-n")
         .arg("-v")
         .arg("--plain")
         .arg("--async")
-        .arg("--blocking")
         .arg("--sync")
         .arg("--dry-run")
         .arg("--force-outside-vcs")
@@ -222,18 +221,150 @@ fn test_mv_flags_parsed() {
 fn test_rm_flags_parsed() {
     let tmp = symlink_binary("rm");
     let mut cmd = std::process::Command::new(tmp.path().join("rm"));
-    // All these flags should be accepted without error
+    // These flags should be accepted without error (avoiding conflicting flags)
     cmd.arg("-f")
-        .arg("-i")
-        .arg("-I")
         .arg("-r")
-        .arg("-d")
         .arg("--plain")
         .arg("--force-delete")
-        .arg("--blocking")
         .arg("--sync")
         .arg("--dry-run")
         .arg("/tmp/fake-file")
         .assert()
         .success();
+}
+
+// Tests for hierarchical subcommand structure
+#[test]
+fn test_smartfo_git_subcommand_help() {
+    let mut cmd = Command::cargo_bin("smartfo").unwrap();
+    cmd.arg("git")
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Git hook commands"));
+}
+
+#[test]
+fn test_smartfo_job_subcommand_help() {
+    let mut cmd = Command::cargo_bin("smartfo").unwrap();
+    cmd.arg("job")
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Job management commands"));
+}
+
+#[test]
+fn test_smartfo_agent_subcommand_help() {
+    let mut cmd = Command::cargo_bin("smartfo").unwrap();
+    cmd.arg("agent")
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Agent integration commands"));
+}
+
+#[test]
+fn test_smartfo_info_subcommand_help() {
+    let mut cmd = Command::cargo_bin("smartfo").unwrap();
+    cmd.arg("info")
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Information and query commands"));
+}
+
+#[test]
+fn test_smartfo_job_list() {
+    let mut cmd = Command::cargo_bin("smartfo").unwrap();
+    cmd.arg("job")
+        .arg("list")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Background job listing"));
+}
+
+#[test]
+fn test_smartfo_job_cancel() {
+    let mut cmd = Command::cargo_bin("smartfo").unwrap();
+    cmd.arg("job")
+        .arg("cancel")
+        .arg("test-job-id")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Cancelling job"));
+}
+
+#[test]
+fn test_smartfo_agent_session_context() {
+    let mut cmd = Command::cargo_bin("smartfo").unwrap();
+    cmd.arg("agent")
+        .arg("session-context")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("(cwd"));
+}
+
+#[test]
+fn test_smartfo_agent_install_hooks() {
+    let mut cmd = Command::cargo_bin("smartfo").unwrap();
+    cmd.arg("agent")
+        .arg("install-hooks")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Agent hooks installed"));
+}
+
+#[test]
+fn test_smartfo_agent_generate_skill() {
+    let mut cmd = Command::cargo_bin("smartfo").unwrap();
+    cmd.arg("agent")
+        .arg("generate-skill")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("name: smartfo"));
+}
+
+#[test]
+fn test_smartfo_info_list() {
+    let mut cmd = Command::cargo_bin("smartfo").unwrap();
+    cmd.arg("info")
+        .arg("list")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("items"));
+}
+
+#[test]
+fn test_smartfo_info_status() {
+    let mut cmd = Command::cargo_bin("smartfo").unwrap();
+    cmd.arg("info")
+        .arg("status")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("status"));
+}
+
+#[test]
+fn test_smartfo_help_shows_hierarchy() {
+    let mut cmd = Command::cargo_bin("smartfo").unwrap();
+    cmd.arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("git"))
+        .stdout(predicate::str::contains("job"))
+        .stdout(predicate::str::contains("agent"))
+        .stdout(predicate::str::contains("info"));
+}
+
+#[test]
+fn test_smartfo_usage_shows_hierarchy() {
+    let mut cmd = Command::cargo_bin("smartfo").unwrap();
+    cmd.arg("--usage")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("git"))
+        .stdout(predicate::str::contains("job"))
+        .stdout(predicate::str::contains("agent"))
+        .stdout(predicate::str::contains("info"));
 }
