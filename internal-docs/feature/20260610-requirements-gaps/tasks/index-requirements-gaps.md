@@ -9,7 +9,7 @@ This task index addresses the compliance gaps identified in the smartfo requirem
 ### Phase 01: Test Infrastructure
 | Story ID | Story Title | Status | Branch | Dependencies | Parallel-safe | Modules |
 | -------- | ----------- | ------ | ------ | ------------ | ------------- | ------- |
-| 01-001 | Test framework enhancements | [~] In-Progress | feature/current/requirements-gaps/story-01-001-test-framework-enhancements | None | Parallel-safe: true | tests, framework |
+| 01-001 | Test framework enhancements | [x] Done | feature/current/requirements-gaps/story-01-001-test-framework-enhancements | None | Parallel-safe: true | tests, framework |
 | 01-002 | Cross-platform test harness setup | [ ] Todo | feature/current/requirements-gaps/story-01-002-cross-platform-test-harness | None | Parallel-safe: true | tests, platform |
 | 01-003 | Property test extensions | [ ] Todo | feature/current/requirements-gaps/story-01-003-property-test-extensions | None | Parallel-safe: true | tests, property |
 
