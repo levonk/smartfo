@@ -564,6 +564,10 @@ pub struct SmartfoArgs {
     #[arg(long = "init-config")]
     pub init_config: bool,
 
+    /// Validate configuration file without loading
+    #[arg(long = "validate-config")]
+    pub validate_config: bool,
+
     /// Uninstall smartfo (remove symlinks, completions, man pages)
     #[arg(long)]
     pub uninstall: bool,

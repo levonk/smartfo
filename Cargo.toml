@@ -96,6 +96,10 @@ path = "tests/dry_run_tests.rs"
 name = "pager_tests"
 path = "tests/pager_tests.rs"
 
+[[test]]
+name = "config_validation_tests"
+path = "tests/config_validation_tests.rs"
+
 [[bench]]
 name = "agent_mode_benchmarks"
 harness = false

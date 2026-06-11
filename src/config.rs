@@ -1,6 +1,329 @@
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::path::PathBuf;
+use std::fmt;
+
+/// Configuration validation error with line number and suggestions.
+#[derive(Debug, Clone)]
+pub struct ConfigValidationError {
+    /// The config file path where the error occurred
+    pub file_path: Option<PathBuf>,
+    /// Line number in the config file (0 if unknown)
+    pub line: usize,
+    /// The section where the error occurred (e.g., "trash", "vcs")
+    pub section: String,
+    /// The specific key that failed validation
+    pub key: String,
+    /// The error message
+    pub message: String,
+    /// Suggested fix for the error
+    pub suggestion: String,
+}
+
+impl fmt::Display for ConfigValidationError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let location = if let Some(path) = &self.file_path {
+            format!("{}:{}", path.display(), self.line)
+        } else {
+            format!("line {}", self.line)
+        };
+        write!(
+            f,
+            "Config error at [{}]: {}.{}. {}",
+            location, self.section, self.key, self.message
+        )
+    }
+}
+
+impl std::error::Error for ConfigValidationError {}
+
+/// Result type for config validation operations.
+pub type ValidationResult<T> = Result<T, ConfigValidationError>;
+
+/// Validate a config file and return detailed errors if validation fails.
+pub fn validate_config_file(path: &std::path::Path) -> ValidationResult<Config> {
+    let content = std::fs::read_to_string(path)
+        .map_err(|e| ConfigValidationError {
+            file_path: Some(path.to_path_buf()),
+            line: 0,
+            section: "file".to_string(),
+            key: "read".to_string(),
+            message: format!("Failed to read config file: {}", e),
+            suggestion: "Check that the file exists and is readable.".to_string(),
+        })?;
+
+    // Parse TOML to check syntax
+    let _toml_value: toml::Value = toml::from_str(&content).map_err(|e| {
+        ConfigValidationError {
+            file_path: Some(path.to_path_buf()),
+            line: 0,
+            section: "toml".to_string(),
+            key: "parse".to_string(),
+            message: format!("Invalid TOML syntax: {}", e),
+            suggestion: "Check for syntax errors like missing quotes, unclosed brackets, or invalid characters.".to_string(),
+        }
+    })?;
+
+    // Deserialize to Config to check structure
+    let config: Config = toml::from_str(&content).map_err(|e| {
+        ConfigValidationError {
+            file_path: Some(path.to_path_buf()),
+            line: 0,
+            section: "structure".to_string(),
+            key: "deserialize".to_string(),
+            message: format!("Invalid config structure: {}", e),
+            suggestion: "Check that all section names and keys are correct.".to_string(),
+        }
+    })?;
+
+    // Perform semantic validation
+    validate_config_semantics(&config, path)?;
+
+    Ok(config)
+}
+
+/// Validate the semantic correctness of config values.
+fn validate_config_semantics(config: &Config, path: &std::path::Path) -> ValidationResult<()> {
+    // Validate schema version
+    validate_schema_version(&config.schema_version)?;
+
+    // Validate VCS config
+    validate_vcs_config(&config.vcs)?;
+
+    // Validate trash config
+    validate_trash_config(&config.trash)?;
+
+    // Validate concurrency config
+    validate_concurrency_config(&config.concurrency)?;
+
+    // Validate behavior config
+    validate_behavior_config(&config.behavior)?;
+
+    // Validate logging config
+    validate_logging_config(&config.logging)?;
+
+    // Validate paths config
+    validate_paths_config(&config.paths, path)?;
+
+    Ok(())
+}
+
+/// Validate config schema version.
+fn validate_schema_version(version: &str) -> ValidationResult<()> {
+    // Parse version as integer
+    let version_num: u32 = version.parse().map_err(|_| ConfigValidationError {
+        file_path: None,
+        line: 0,
+        section: "config".to_string(),
+        key: "schema_version".to_string(),
+        message: format!("Invalid schema version '{}', must be a positive integer", version),
+        suggestion: "Set schema_version to a positive integer (e.g., 1).".to_string(),
+    })?;
+
+    // Check if version is supported
+    if version_num == 0 || version_num > 1 {
+        return Err(ConfigValidationError {
+            file_path: None,
+            line: 0,
+            section: "config".to_string(),
+            key: "schema_version".to_string(),
+            message: format!("Unsupported schema version '{}', supported versions: 1", version),
+            suggestion: "Update schema_version to 1 or check for a newer smartfo version.".to_string(),
+        });
+    }
+
+    Ok(())
+}
+
+/// Validate VCS configuration.
+fn validate_vcs_config(vcs: &VcsConfig) -> ValidationResult<()> {
+    // Validate preference is in supported list
+    if !vcs.supported.contains(&vcs.preference) {
+        return Err(ConfigValidationError {
+            file_path: None,
+            line: 0,
+            section: "vcs".to_string(),
+            key: "preference".to_string(),
+            message: format!("VCS preference '{}' is not in supported list", vcs.preference),
+            suggestion: format!("Set preference to one of: {:?}", vcs.supported),
+        });
+    }
+
+    // Validate fallback VCS are all in supported list
+    for fallback in &vcs.fallback {
+        if !vcs.supported.contains(fallback) {
+            return Err(ConfigValidationError {
+                file_path: None,
+                line: 0,
+                section: "vcs".to_string(),
+                key: "fallback".to_string(),
+                message: format!("Fallback VCS '{}' is not in supported list", fallback),
+                suggestion: format!("Remove '{}' from fallback or add it to supported list", fallback),
+            });
+        }
+    }
+
+    Ok(())
+}
+
+/// Validate trash configuration.
+fn validate_trash_config(trash: &TrashConfig) -> ValidationResult<()> {
+    // Validate mode is either "versioned" or "simple"
+    if trash.mode != "versioned" && trash.mode != "simple" {
+        return Err(ConfigValidationError {
+            file_path: None,
+            line: 0,
+            section: "trash".to_string(),
+            key: "mode".to_string(),
+            message: format!("Invalid trash mode '{}', must be 'versioned' or 'simple'", trash.mode),
+            suggestion: "Set mode to either 'versioned' or 'simple'.".to_string(),
+        });
+    }
+
+    // Validate min_free_space_percent is between 0 and 100
+    if trash.min_free_space_percent > 100 {
+        return Err(ConfigValidationError {
+            file_path: None,
+            line: 0,
+            section: "trash".to_string(),
+            key: "min_free_space_percent".to_string(),
+            message: format!("min_free_space_percent {} is out of range (0-100)", trash.min_free_space_percent),
+            suggestion: "Set min_free_space_percent to a value between 0 and 100.".to_string(),
+        });
+    }
+
+    // Validate on_trash_full is either "refuse" or "delete"
+    if trash.on_trash_full != "refuse" && trash.on_trash_full != "delete" {
+        return Err(ConfigValidationError {
+            file_path: None,
+            line: 0,
+            section: "trash".to_string(),
+            key: "on_trash_full".to_string(),
+            message: format!("Invalid on_trash_full '{}', must be 'refuse' or 'delete'", trash.on_trash_full),
+            suggestion: "Set on_trash_full to either 'refuse' or 'delete'.".to_string(),
+        });
+    }
+
+    Ok(())
+}
+
+/// Validate concurrency configuration.
+fn validate_concurrency_config(concurrency: &ConcurrencyConfig) -> ValidationResult<()> {
+    // Validate max_concurrent_jobs is at least 1
+    if concurrency.max_concurrent_jobs == 0 {
+        return Err(ConfigValidationError {
+            file_path: None,
+            line: 0,
+            section: "concurrency".to_string(),
+            key: "max_concurrent_jobs".to_string(),
+            message: "max_concurrent_jobs must be at least 1".to_string(),
+            suggestion: "Set max_concurrent_jobs to a positive integer (recommended: 4).".to_string(),
+        });
+    }
+
+    // Validate network_concurrency is at least 1
+    if concurrency.network_concurrency == 0 {
+        return Err(ConfigValidationError {
+            file_path: None,
+            line: 0,
+            section: "concurrency".to_string(),
+            key: "network_concurrency".to_string(),
+            message: "network_concurrency must be at least 1".to_string(),
+            suggestion: "Set network_concurrency to a positive integer (recommended: 2).".to_string(),
+        });
+    }
+
+    Ok(())
+}
+
+/// Validate behavior configuration.
+fn validate_behavior_config(behavior: &BehaviorConfig) -> ValidationResult<()> {
+    // Validate async_threshold_mb is reasonable
+    if behavior.async_threshold_mb > 10000 {
+        return Err(ConfigValidationError {
+            file_path: None,
+            line: 0,
+            section: "behavior".to_string(),
+            key: "async_threshold_mb".to_string(),
+            message: format!("async_threshold_mb {} is very large (>10GB)", behavior.async_threshold_mb),
+            suggestion: "Consider a smaller threshold (recommended: 100 MB).".to_string(),
+        });
+    }
+
+    // Validate truncation_limit is reasonable
+    if behavior.truncation_limit == 0 {
+        return Err(ConfigValidationError {
+            file_path: None,
+            line: 0,
+            section: "behavior".to_string(),
+            key: "truncation_limit".to_string(),
+            message: "truncation_limit must be at least 1".to_string(),
+            suggestion: "Set truncation_limit to a positive integer (recommended: 1000).".to_string(),
+        });
+    }
+
+    Ok(())
+}
+
+/// Validate logging configuration.
+fn validate_logging_config(logging: &LoggingConfig) -> ValidationResult<()> {
+    // Validate log level
+    let valid_levels = ["trace", "debug", "info", "warn", "error"];
+    if !valid_levels.contains(&logging.level.as_str()) {
+        return Err(ConfigValidationError {
+            file_path: None,
+            line: 0,
+            section: "logging".to_string(),
+            key: "level".to_string(),
+            message: format!("Invalid log level '{}', must be one of: {:?}", logging.level, valid_levels),
+            suggestion: "Set level to one of: trace, debug, info, warn, error.".to_string(),
+        });
+    }
+
+    // Validate color mode
+    let valid_colors = ["auto", "always", "never"];
+    if !valid_colors.contains(&logging.color.as_str()) {
+        return Err(ConfigValidationError {
+            file_path: None,
+            line: 0,
+            section: "logging".to_string(),
+            key: "color".to_string(),
+            message: format!("Invalid color mode '{}', must be one of: {:?}", logging.color, valid_colors),
+            suggestion: "Set color to one of: auto, always, never.".to_string(),
+        });
+    }
+
+    Ok(())
+}
+
+/// Validate paths configuration.
+fn validate_paths_config(paths: &PathsConfig, config_path: &std::path::Path) -> ValidationResult<()> {
+    // Validate audit_log path is not empty
+    if paths.audit_log.as_os_str().is_empty() {
+        return Err(ConfigValidationError {
+            file_path: Some(config_path.to_path_buf()),
+            line: 0,
+            section: "paths".to_string(),
+            key: "audit_log".to_string(),
+            message: "audit_log path cannot be empty".to_string(),
+            suggestion: "Provide a valid file path for the audit log.".to_string(),
+        });
+    }
+
+    // Validate cache_dir path is not empty
+    if paths.cache_dir.as_os_str().is_empty() {
+        return Err(ConfigValidationError {
+            file_path: Some(config_path.to_path_buf()),
+            line: 0,
+            section: "paths".to_string(),
+            key: "cache_dir".to_string(),
+            message: "cache_dir path cannot be empty".to_string(),
+            suggestion: "Provide a valid directory path for the cache.".to_string(),
+        });
+    }
+
+    Ok(())
+}
 
 /// Return the system config file path based on the current platform.
 pub fn system_config_path() -> Option<PathBuf> {
@@ -8,19 +331,19 @@ pub fn system_config_path() -> Option<PathBuf> {
     {
         Some(PathBuf::from("/etc/smartfo/config.toml"))
     }
-    
+
     #[cfg(target_os = "macos")]
     {
         Some(PathBuf::from("/Library/Application Support/smartfo/config.toml"))
     }
-    
+
     #[cfg(target_os = "windows")]
     {
         env::var("ProgramData")
             .ok()
             .map(|p| PathBuf::from(p).join("smartfo").join("config.toml"))
     }
-    
+
     #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
     {
         None
@@ -31,26 +354,29 @@ pub fn system_config_path() -> Option<PathBuf> {
 pub fn project_config_path() -> Option<PathBuf> {
     // Check if we're in a Git repository
     let mut current_dir = std::env::current_dir().ok()?;
-    
+
     loop {
         let git_dir = current_dir.join(".git");
         if git_dir.exists() {
             // Found a Git repository, return project config path
             return Some(current_dir.join(".config").join("smartfo").join("config.toml"));
         }
-        
+
         // Move up to parent directory
         if !current_dir.pop() {
             break;
         }
     }
-    
+
     None
 }
 
 /// Top-level smartfo configuration.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct Config {
+    /// Config schema version (for migration support)
+    #[serde(default = "default_schema_version")]
+    pub schema_version: String,
     #[serde(default)]
     pub vcs: VcsConfig,
     #[serde(default)]
@@ -63,6 +389,10 @@ pub struct Config {
     pub logging: LoggingConfig,
     #[serde(default)]
     pub paths: PathsConfig,
+}
+
+fn default_schema_version() -> String {
+    "1".to_string()
 }
 
 /// VCS detection and preference settings.
@@ -564,12 +894,28 @@ pub fn expand_env_vars(input: &str) -> String {
     result
 }
 
-/// Load config from a TOML file with environment variable expansion.
+/// Load config from a TOML file with environment variable expansion and validation.
 pub fn load_config_file(path: &std::path::Path) -> anyhow::Result<Config> {
     let content = std::fs::read_to_string(path)?;
     let expanded = expand_env_vars(&content);
     let config: Config = toml::from_str(&expanded)?;
     Ok(config)
+}
+
+/// Load config from a TOML file with validation and graceful fallback on errors.
+/// Returns Ok(config) if valid, Ok(None) if invalid (caller should use defaults),
+/// or Err if there's a critical error (e.g., file not found).
+pub fn load_config_file_with_validation(path: &std::path::Path) -> anyhow::Result<Option<Config>> {
+    match validate_config_file(path) {
+        Ok(config) => Ok(Some(config)),
+        Err(e) => {
+            // Log the validation error but don't crash
+            eprintln!("Config validation warning: {}", e);
+            eprintln!("Suggestion: {}", e.suggestion);
+            eprintln!("Falling back to default configuration.");
+            Ok(None)
+        }
+    }
 }
 
 /// Resolve the effective config with the full precedence hierarchy:
@@ -585,21 +931,24 @@ pub fn resolve_config(config_path: Option<&std::path::Path>) -> anyhow::Result<C
 
     // Layer 5: System config
     if let Some(system_path) = system_config_path().filter(|p| p.exists()) {
-        let system_config = load_config_file(&system_path)?;
-        config = merge_configs(config, system_config);
+        if let Some(system_config) = load_config_file_with_validation(&system_path)? {
+            config = merge_configs(config, system_config);
+        }
     }
 
     // Layer 4: User config
     let user_path = config_path.map(PathBuf::from).or_else(default_config_path).filter(|p| p.exists());
     if let Some(path) = user_path {
-        let user_config = load_config_file(&path)?;
-        config = merge_configs(config, user_config);
+        if let Some(user_config) = load_config_file_with_validation(&path)? {
+            config = merge_configs(config, user_config);
+        }
     }
 
     // Layer 3: Project config (if in a Git repository)
     if let Some(project_path) = project_config_path().filter(|p| p.exists()) {
-        let project_config = load_config_file(&project_path)?;
-        config = merge_configs(config, project_config);
+        if let Some(project_config) = load_config_file_with_validation(&project_path)? {
+            config = merge_configs(config, project_config);
+        }
     }
 
     // Layer 2: Environment variables
@@ -623,6 +972,11 @@ pub fn default_config_path() -> Option<PathBuf> {
 /// Merge file config over defaults. File values override defaults.
 fn merge_configs(base: Config, file: Config) -> Config {
     Config {
+        schema_version: if file.schema_version != default_schema_version() {
+            file.schema_version
+        } else {
+            base.schema_version
+        },
         vcs: VcsConfig {
             preference: if file.vcs.preference != default_vcs_preference() {
                 file.vcs.preference
@@ -927,15 +1281,15 @@ pub fn user_config_exists() -> bool {
 pub fn create_default_config() -> anyhow::Result<PathBuf> {
     let config_path = default_config_path()
         .ok_or_else(|| anyhow::anyhow!("Cannot determine config file path"))?;
-    
+
     // Create parent directory if it doesn't exist
     if let Some(parent) = config_path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    
+
     // Write the default config template
     std::fs::write(&config_path, default_config_template())?;
-    
+
     Ok(config_path)
 }
 
@@ -944,7 +1298,7 @@ pub fn init_config_if_missing() -> anyhow::Result<bool> {
     if user_config_exists() {
         return Ok(false);
     }
-    
+
     create_default_config()?;
     Ok(true)
 }
@@ -1002,13 +1356,13 @@ default_blocking = true
         let path = system_config_path();
         #[cfg(target_os = "linux")]
         assert_eq!(path, Some(PathBuf::from("/etc/smartfo/config.toml")));
-        
+
         #[cfg(target_os = "macos")]
         assert_eq!(path, Some(PathBuf::from("/Library/Application Support/smartfo/config.toml")));
-        
+
         #[cfg(target_os = "windows")]
         assert!(path.is_some());
-        
+
         #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
         assert!(path.is_none());
     }
@@ -1025,7 +1379,7 @@ default_blocking = true
     #[test]
     fn test_config_precedence() {
         let mut tmpdir = tempfile::TempDir::new().unwrap();
-        
+
         // Create system config
         let system_path = tmpdir.path().join("system.toml");
         let system_toml = r#"
@@ -1033,7 +1387,7 @@ default_blocking = true
 smart_mode = false
 "#;
         std::fs::write(&system_path, system_toml).unwrap();
-        
+
         // Create user config
         let user_path = tmpdir.path().join("user.toml");
         let user_toml = r#"
@@ -1042,7 +1396,7 @@ smart_mode = true
 default_blocking = true
 "#;
         std::fs::write(&user_path, user_toml).unwrap();
-        
+
         // Test precedence: system -> user -> project
         // Since we can't easily mock project config, we'll just test system -> user
         let config = resolve_config(Some(&user_path)).unwrap();
@@ -1053,7 +1407,7 @@ default_blocking = true
     #[test]
     fn test_config_precedence_full_chain() {
         let mut tmpdir = tempfile::TempDir::new().unwrap();
-        
+
         // Create system config (lowest precedence)
         let system_path = tmpdir.path().join("system.toml");
         let system_toml = r#"
@@ -1062,7 +1416,7 @@ smart_mode = false
 default_blocking = false
 "#;
         std::fs::write(&system_path, system_toml).unwrap();
-        
+
         // Create user config (higher precedence than system)
         let user_path = tmpdir.path().join("user.toml");
         let user_toml = r#"
@@ -1070,7 +1424,7 @@ default_blocking = false
 smart_mode = true
 "#;
         std::fs::write(&user_path, user_toml).unwrap();
-        
+
         // User config should override system config
         let config = resolve_config(Some(&user_path)).unwrap();
         assert!(config.behavior.smart_mode, "user config should override system config");
@@ -1104,15 +1458,15 @@ smart_mode = true
     fn test_create_default_config() {
         let tmpdir = tempfile::TempDir::new().unwrap();
         let config_path = tmpdir.path().join("smartfo").join("config.toml");
-        
+
         // Temporarily override the config path
         let original_home = env::var("HOME");
         env::set_var("HOME", tmpdir.path());
-        
+
         let result = create_default_config();
         assert!(result.is_ok());
         assert!(config_path.exists());
-        
+
         // Restore original HOME
         if let Ok(home) = original_home {
             env::set_var("HOME", home);
@@ -1124,19 +1478,19 @@ smart_mode = true
     #[test]
     fn test_init_config_if_missing() {
         let tmpdir = tempfile::TempDir::new().unwrap();
-        
+
         // Temporarily override the config path
         let original_home = env::var("HOME");
         env::set_var("HOME", tmpdir.path());
-        
+
         // First call should create config
         let created = init_config_if_missing().unwrap();
         assert!(created);
-        
+
         // Second call should not create config (already exists)
         let created_again = init_config_if_missing().unwrap();
         assert!(!created_again);
-        
+
         // Restore original HOME
         if let Ok(home) = original_home {
             env::set_var("HOME", home);

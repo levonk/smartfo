@@ -1161,6 +1161,39 @@ fn run_main() -> Result<i32> {
                     return Ok(0);
                 }
 
+                // Handle --validate-config flag
+                if args.validate_config {
+                    info!("--validate-config flag triggered");
+                    let config_path = config::default_config_path()
+                        .ok_or_else(|| anyhow::anyhow!("Could not determine default config path"))?;
+
+                    if !config_path.exists() {
+                        eprintln!("Config file not found at: {}", config_path.display());
+                        eprintln!("Run --init-config to create a default config file.");
+                        return Ok(1);
+                    }
+
+                    match config::validate_config_file(&config_path) {
+                        Ok(config) => {
+                            println!("Config file is valid: {}", config_path.display());
+                            println!();
+                            println!("Configuration summary:");
+                            println!("  VCS preference: {}", config.vcs.preference);
+                            println!("  Trash mode: {}", config.trash.mode);
+                            println!("  Max concurrent jobs: {}", config.concurrency.max_concurrent_jobs);
+                            println!("  Log level: {}", config.logging.level);
+                            return Ok(0);
+                        }
+                        Err(e) => {
+                            eprintln!("Config validation failed:");
+                            eprintln!("  {}", e);
+                            eprintln!();
+                            eprintln!("Suggestion: {}", e.suggestion);
+                            return Ok(1);
+                        }
+                    }
+                }
+
                 // Handle --generate-completion flag
                 if args.generate_completion.is_some() {
                     let shell = args.generate_completion.as_deref()

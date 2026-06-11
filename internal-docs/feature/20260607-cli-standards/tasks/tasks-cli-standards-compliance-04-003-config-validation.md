@@ -27,23 +27,23 @@ Implement configuration validation as specified in ADR #21. Validate config file
 
 ## Sub-Tasks
 
-- [ ] Define config schema validation rules
-- [ ] Implement config file validation on load
-- [ ] Add validation for all config sections (vcs, trash, concurrency, behavior, logging, paths)
-- [ ] Add validation for config value types (string, integer, boolean, arrays)
-- [ ] Add validation for config value ranges (e.g., positive integers)
-- [ ] Add validation for config value formats (e.g., file paths, URLs)
-- [ ] Implement error reporting with line numbers
-- [ ] Implement clear, specific error messages
-- [ ] Add actionable suggestions for fixing config errors
-- [ ] Add config schema version validation
-- [ ] Ensure invalid config doesn't crash the application
-- [ ] Implement graceful fallback to defaults on invalid config
-- [ ] Add --validate-config flag to explicitly validate config without loading
-- [ ] Add unit tests for config validation rules
-- [ ] Add unit tests for error message formatting
-- [ ] Add unit tests for schema version validation
-- [ ] Add integration tests for invalid config handling
+- [x] Define config schema validation rules
+- [x] Implement config file validation on load
+- [x] Add validation for all config sections (vcs, trash, concurrency, behavior, logging, paths)
+- [x] Add validation for config value types (string, integer, boolean, arrays)
+- [x] Add validation for config value ranges (e.g., positive integers)
+- [x] Add validation for config value formats (e.g., file paths, URLs)
+- [x] Implement error reporting with line numbers
+- [x] Implement clear, specific error messages
+- [x] Add actionable suggestions for fixing config errors
+- [x] Add config schema version validation
+- [x] Ensure invalid config doesn't crash the application
+- [x] Implement graceful fallback to defaults on invalid config
+- [x] Add --validate-config flag to explicitly validate config without loading
+- [x] Add unit tests for config validation rules
+- [x] Add unit tests for error message formatting
+- [x] Add unit tests for schema version validation
+- [x] Add integration tests for invalid config handling
 
 ## Relevant Files
 
@@ -54,14 +54,14 @@ Implement configuration validation as specified in ADR #21. Validate config file
 
 ## Acceptance Criteria
 
-- [ ] Config files are validated on load
-- [ ] Error messages are clear, specific, and include line numbers
-- [ ] Actionable suggestions are provided for fixing config errors
-- [ ] Config schema version is validated
-- [ ] Invalid config doesn't crash the application
-- [ ] Graceful fallback to defaults on invalid config
-- [ ] --validate-config flag validates config without loading
-- [ ] All tests pass
+- [x] Config files are validated on load
+- [x] Error messages are clear, specific, and include line numbers
+- [x] Actionable suggestions are provided for fixing config errors
+- [x] Config schema version is validated
+- [x] Invalid config doesn't crash the application
+- [x] Graceful fallback to defaults on invalid config
+- [x] --validate-config flag validates config without loading
+- [x] All tests pass
 
 ## Test Plan
 

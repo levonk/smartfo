@@ -8,6 +8,17 @@ This directory contains the test framework for smartfo, including unit tests, in
 tests/
 ├── cli_standards_utils.rs      # CLI standards test utilities
 ├── cli_tests.rs                # Basic CLI tests
+├── platform/                   # Cross-platform test utilities
+│   ├── mod.rs                  # Platform detection and utilities
+│   ├── platform_test.rs       # Platform detection tests
+│   ├── linux_config.rs         # Linux-specific configuration
+│   ├── macos_config.rs        # macOS-specific configuration
+│   ├── windows_config.rs      # Windows-specific configuration
+│   ├── fixtures/              # Platform-specific test fixtures
+│   │   ├── mod.rs
+│   │   └── paths.rs
+│   ├── setup.sh               # Unix environment setup script
+│   └── setup.ps1             # Windows environment setup script
 ├── integration_tests/          # Integration tests
 │   ├── mod.rs
 │   ├── fixtures.rs             # Test fixtures
@@ -34,6 +45,91 @@ tests/
 │   └── trash_preserve.rs       # Trash preservation tests
 └── *.rs                        # Other test modules
 ```
+
+## Cross-Platform Testing
+
+The `tests/platform/` module provides utilities for cross-platform testing across Linux, macOS, and Windows.
+
+### Platform Detection
+
+The `Platform` enum detects the current operating system at runtime:
+
+```rust
+use smartfo::tests::platform::Platform;
+
+let platform = Platform::current();
+match platform {
+    Platform::Linux => println!("Running on Linux"),
+    Platform::MacOS => println!("Running on macOS"),
+    Platform::Windows => println!("Running on Windows"),
+    Platform::Unknown => println!("Unknown platform"),
+}
+```
+
+### Platform-Specific Utilities
+
+The platform module provides utilities for:
+
+- **Path handling**: `normalize_path()`, `is_absolute_path()`, `temp_dir()`, `home_env_var()`
+- **Daemon operations**: `socket_dir()`, `pid_dir()`, `supports_fork()`, `supports_double_fork()`
+- **VCS commands**: `git_command()`, `hg_command()`, `svn_command()`, `jj_command()`
+- **Filesystem features**: `supports_symlinks()`, `supports_file_permissions()`
+
+### Platform-Specific Configuration
+
+Each platform has its own configuration module:
+
+- `linux_config.rs` - Linux-specific test configuration
+- `macos_config.rs` - macOS-specific test configuration
+- `windows_config.rs` - Windows-specific test configuration
+
+These modules use conditional compilation (`#[cfg(target_os = "...")]`) to ensure tests only run on their respective platforms.
+
+### Test Fixtures
+
+Platform-specific test fixtures are provided in `tests/platform/fixtures/`:
+
+- `paths.rs` - Platform-specific test paths and invalid paths
+
+### Environment Setup
+
+Platform-specific environment setup scripts:
+
+- `setup.sh` - Unix (Linux/macOS) environment setup
+- `setup.ps1` - Windows environment setup
+
+These scripts create test directories and set environment variables for testing.
+
+### Usage Example
+
+```rust
+use smartfo::tests::platform::{Platform, TestConfig};
+
+#[test]
+fn test_platform_specific_behavior() {
+    let config = TestConfig::current();
+    
+    if config.platform.is_unix() {
+        // Unix-specific test
+        assert!(config.supports_daemon);
+        assert!(config.supports_unix_sockets);
+    } else if config.platform.is_windows() {
+        // Windows-specific test
+        assert!(!config.supports_daemon);
+        assert_eq!(config.path_separator, ';');
+    }
+}
+```
+
+### CI Matrix
+
+The CI matrix in `.github/workflows/ci.yml` runs tests on all three platforms:
+
+- `ubuntu-latest` - Linux
+- `macos-latest` - macOS
+- `windows-latest` - Windows
+
+Platform-specific tests use conditional compilation to run only on their target platform.
 
 ## CLI Standards Test Utilities
 
