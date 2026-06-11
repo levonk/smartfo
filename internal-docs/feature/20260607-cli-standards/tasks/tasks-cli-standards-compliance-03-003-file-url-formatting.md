@@ -7,7 +7,7 @@ prd_file: "internal-docs/feature/20260607-cli-standards/prd-cli-standards-compli
 phase: 3
 parallel_id: 3
 branch: "feature/current/cli-standards-compliance/story-03-003-file-url-formatting"
-status: "todo"
+status: "in_progress"
 assignee: ""
 reviewer: ""
 dependencies: []
@@ -27,23 +27,23 @@ Implement file reference formatting as specified in ADR #15 and URL formatting a
 
 ## Sub-Tasks
 
-- [ ] Define VSCode-compatible file reference format: `file:///absolute/path/to/file:line:column`
-- [ ] Define standard file reference format: `file:line:column`
-- [ ] Audit all file references across all modules
-- [ ] Update file references in error messages to use VSCode-compatible format
-- [ ] Update file references in help output to use VSCode-compatible format
-- [ ] Update file references in debug output to use VSCode-compatible format
-- [ ] Ensure both VSCode-compatible and standard formats are supported
-- [ ] Test that modern terminals can auto-linkify file references
-- [ ] Audit all URL references across all modules
-- [ ] Ensure all URLs use standard HTTP/HTTPS format
-- [ ] Ensure all URLs have proper encoding
-- [ ] Add support for copying URLs to clipboard/browser
-- [ ] Ensure smart terminal linking works for URLs
-- [ ] Add unit tests for file reference formatting
-- [ ] Add unit tests for URL formatting
-- [ ] Add unit tests for terminal linkification
-- [ ] Add integration tests for file and URL references
+- [x] Define VSCode-compatible file reference format: `file:///absolute/path/to/file:line:column`
+- [x] Define standard file reference format: `file:line:column`
+- [x] Audit all file references across all modules
+- [x] Update file references in error messages to use VSCode-compatible format
+- [x] Update file references in help output to use VSCode-compatible format
+- [x] Update file references in debug output to use VSCode-compatible format
+- [x] Ensure both VSCode-compatible and standard formats are supported
+- [x] Test that modern terminals can auto-linkify file references
+- [x] Audit all URL references across all modules
+- [x] Ensure all URLs use standard HTTP/HTTPS format
+- [x] Ensure all URLs have proper encoding
+- [x] Add support for copying URLs to clipboard/browser
+- [x] Ensure smart terminal linking works for URLs
+- [x] Add unit tests for file reference formatting
+- [x] Add unit tests for URL formatting
+- [x] Add unit tests for terminal linkification
+- [x] Add integration tests for file and URL references
 
 ## Relevant Files
 
@@ -56,14 +56,14 @@ Implement file reference formatting as specified in ADR #15 and URL formatting a
 
 ## Acceptance Criteria
 
-- [ ] All file references with line numbers use VSCode-compatible format
-- [ ] Both `file:///absolute/path/to/file:line:column` and `file:line:column` formats are supported
-- [ ] Modern terminals can auto-linkify file references
-- [ ] All URLs are in standard HTTP/HTTPS format
-- [ ] All URLs have proper encoding
-- [ ] URLs can be copied to clipboard/browser
-- [ ] Smart terminal linking works for URLs
-- [ ] All tests pass
+- [x] All file references with line numbers use VSCode-compatible format
+- [x] Both `file:///absolute/path/to/file:line:column` and `file:line:column` formats are supported
+- [x] Modern terminals can auto-linkify file references
+- [x] All URLs are in standard HTTP/HTTPS format
+- [x] All URLs have proper encoding
+- [x] URLs can be copied to clipboard/browser
+- [x] Smart terminal linking works for URLs
+- [x] All tests pass
 
 ## Test Plan
 

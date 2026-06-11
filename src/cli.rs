@@ -138,6 +138,14 @@ pub struct MvArgs {
     #[arg(long, help = "Enable debug logging")]
     pub debug: bool,
 
+    /// Pre-launch daemon in background and wait for jobs
+    #[arg(long, help = "Pre-launch daemon in background and wait for jobs")]
+    pub daemon: bool,
+
+    /// Force synchronous in-process operation (disable auto-spawning)
+    #[arg(long, help = "Force synchronous in-process operation (disable auto-spawning)")]
+    pub no_daemon: bool,
+
     /// Source file(s) to move (supports glob patterns like *.txt, **/*.rs)
     /// Use `-` to read paths from stdin
     #[arg(value_name = "SOURCE")]
@@ -152,7 +160,7 @@ impl MvArgs {
     pub fn resolve_paths(&self) -> anyhow::Result<(Vec<PathBuf>, Option<PathBuf>)> {
         // Check for stdin flag (`-` argument)
         let stdin_flag = self.sources.iter().any(|p| p.to_string_lossy() == "-");
-        
+
         // Process input arguments (glob expansion and stdin handling)
         let processed_sources = if stdin_flag {
             // Remove the `-` argument and read from stdin
@@ -161,7 +169,7 @@ impl MvArgs {
                 .filter(|p| p.to_string_lossy() != "-")
                 .cloned()
                 .collect();
-            
+
             if is_stdin_piped() || !sources_without_stdin.is_empty() {
                 process_input_args(&sources_without_stdin, true)
                     .context("Failed to process input")?
@@ -179,51 +187,51 @@ impl MvArgs {
             expand_globs(&self.sources)
                 .context("Failed to expand glob patterns")?
         };
-        
+
         if let Some(ref dir) = self.target_directory {
             return Ok((processed_sources, Some(dir.clone())));
         }
-        
+
         if processed_sources.len() >= 2 {
             let dest = processed_sources.last().cloned();
             let sources = processed_sources[..processed_sources.len() - 1].to_vec();
             return Ok((sources, dest));
         }
-        
+
         Ok((processed_sources, None))
     }
-    
+
     /// Validate flag combinations and required arguments
     pub fn validate(&self) -> Result<(), String> {
         // Check for conflicting overwrite flags
         if self.force && self.no_clobber {
             return Err("Cannot specify both --force and --no-clobber".to_string());
         }
-        
+
         if self.interactive && self.force {
             return Err("Cannot specify both --interactive and --force".to_string());
         }
-        
+
         // Check for conflicting async/blocking flags
         if self.async_mode && self.blocking {
             return Err("Cannot specify both --async and --blocking".to_string());
         }
-        
+
         // Validate sources are provided (before glob expansion)
         if self.sources.is_empty() && !is_stdin_piped() {
             return Err("Missing source file(s)".to_string());
         }
-        
+
         // Validate destination or target directory is provided
         // Note: We can't fully validate this until after glob expansion
         // because the number of sources might change
         if self.target_directory.is_none() && self.sources.len() < 2 && !is_stdin_piped() {
             return Err("Missing destination file operand".to_string());
         }
-        
+
         Ok(())
     }
-    
+
     /// Get effective interactive flag (suppressed in agent mode)
     pub fn effective_interactive(&self, agent_mode: bool) -> bool {
         if agent_mode {
@@ -232,7 +240,7 @@ impl MvArgs {
             self.interactive
         }
     }
-    
+
     /// Get effective force flag (force in agent mode to avoid prompts)
     pub fn effective_force(&self, agent_mode: bool) -> bool {
         if agent_mode {
@@ -371,6 +379,14 @@ pub struct RmArgs {
     #[arg(long, help = "Enable debug logging")]
     pub debug: bool,
 
+    /// Pre-launch daemon in background and wait for jobs
+    #[arg(long, help = "Pre-launch daemon in background and wait for jobs")]
+    pub daemon: bool,
+
+    /// Force synchronous in-process operation (disable auto-spawning)
+    #[arg(long, help = "Force synchronous in-process operation (disable auto-spawning)")]
+    pub no_daemon: bool,
+
     /// File(s) or directories to remove (supports glob patterns like *.txt, **/*.rs)
     /// Use `-` to read paths from stdin
     #[arg(value_name = "FILE")]
@@ -382,7 +398,7 @@ impl RmArgs {
     pub fn resolve_paths(&self) -> anyhow::Result<Vec<PathBuf>> {
         // Check for stdin flag (`-` argument)
         let stdin_flag = self.paths.iter().any(|p| p.to_string_lossy() == "-");
-        
+
         // Process input arguments (glob expansion and stdin handling)
         let processed_paths = if stdin_flag {
             // Remove the `-` argument and read from stdin
@@ -391,7 +407,7 @@ impl RmArgs {
                 .filter(|p| p.to_string_lossy() != "-")
                 .cloned()
                 .collect();
-            
+
             if is_stdin_piped() || !paths_without_stdin.is_empty() {
                 process_input_args(&paths_without_stdin, true)
                     .context("Failed to process input")?
@@ -409,44 +425,44 @@ impl RmArgs {
             expand_globs(&self.paths)
                 .context("Failed to expand glob patterns")?
         };
-        
+
         Ok(processed_paths)
     }
-    
+
     /// Validate flag combinations and required arguments
     pub fn validate(&self) -> Result<(), String> {
         // Check for conflicting interactive flags
         if self.interactive && self.force {
             return Err("Cannot specify both -i and --force".to_string());
         }
-        
+
         if self.interactive_once && self.force {
             return Err("Cannot specify both -I and --force".to_string());
         }
-        
+
         if self.interactive && self.interactive_once {
             return Err("Cannot specify both -i and -I".to_string());
         }
-        
+
         // Check for conflicting async/blocking flags
         if self.blocking && self.force_delete {
             // These can actually be combined, but we should document the behavior
             // For now, allow it
         }
-        
+
         // Validate paths are provided (before glob expansion)
         if self.paths.is_empty() && !is_stdin_piped() {
             return Err("Missing file operand(s)".to_string());
         }
-        
+
         // Validate recursive flag usage
         if self.recursive && self.dir {
             return Err("Cannot specify both -r and -d".to_string());
         }
-        
+
         Ok(())
     }
-    
+
     /// Get effective interactive flag (suppressed in agent mode)
     pub fn effective_interactive(&self, agent_mode: bool) -> bool {
         if agent_mode {
@@ -455,7 +471,7 @@ impl RmArgs {
             self.interactive
         }
     }
-    
+
     /// Get effective interactive_once flag (suppressed in agent mode)
     pub fn effective_interactive_once(&self, agent_mode: bool) -> bool {
         if agent_mode {
@@ -464,7 +480,7 @@ impl RmArgs {
             self.interactive_once
         }
     }
-    
+
     /// Get effective force flag (force in agent mode to avoid prompts)
     pub fn effective_force(&self, agent_mode: bool) -> bool {
         if agent_mode {
@@ -600,6 +616,14 @@ pub struct SmartfoArgs {
     #[arg(long, help = "Enable debug logging")]
     pub debug: bool,
 
+    /// Pre-launch daemon in background and wait for jobs
+    #[arg(long, help = "Pre-launch daemon in background and wait for jobs")]
+    pub daemon: bool,
+
+    /// Force synchronous in-process operation (disable auto-spawning)
+    #[arg(long, help = "Force synchronous in-process operation (disable auto-spawning)")]
+    pub no_daemon: bool,
+
     /// Subcommands
     #[command(subcommand)]
     pub command: Option<SmartfoCommand>,
@@ -662,5 +686,31 @@ pub enum SmartfoCommand {
         /// Skill file path to check (default: SKILL.md)
         #[arg(long, value_name = "PATH")]
         skill_file: Option<std::path::PathBuf>,
+    },
+    /// List background jobs with optional filtering
+    #[command(name = "list-jobs", about = "List background jobs with optional job ID filtering")]
+    ListJobs {
+        /// Optional job IDs to filter (comma-separated)
+        #[arg(long, value_name = "IDS")]
+        ids: Option<String>,
+        /// Decrease logging verbosity (suppress non-essential output)
+        #[arg(short = 'q', long, help = "Decrease logging verbosity (suppress non-essential output)")]
+        quiet: bool,
+        /// Enable debug logging
+        #[arg(long, help = "Enable debug logging")]
+        debug: bool,
+    },
+    /// Cancel a specific background job
+    #[command(name = "cancel-job", about = "Cancel a specific background job by ID")]
+    CancelJob {
+        /// Job ID to cancel
+        #[arg(value_name = "ID")]
+        job_id: String,
+        /// Decrease logging verbosity (suppress non-essential output)
+        #[arg(short = 'q', long, help = "Decrease logging verbosity (suppress non-essential output)")]
+        quiet: bool,
+        /// Enable debug logging
+        #[arg(long, help = "Enable debug logging")]
+        debug: bool,
     },
 }

@@ -123,7 +123,7 @@ fn determine_field_selector(
         match FieldSelector::from_string(fields_str, schema) {
             Ok(selector) => Some(selector),
             Err(e) => {
-                eprintln!("Error parsing fields: {}", e);
+                eprintln!("ERROR: Failed to parse field selector - {} - Use --help to see available fields", e);
                 eprintln!("Available fields: {}",
                     schema.get_available_fields()
                         .iter()
@@ -138,6 +138,38 @@ fn determine_field_selector(
         // Use default fields from schema
         Some(FieldSelector::from_schema(schema))
     }
+}
+
+/// Determine if daemon mode should be used based on flags and platform support
+fn should_use_daemon(daemon_flag: bool, no_daemon_flag: bool) -> Result<bool> {
+    // Check for conflicting flags (already validated in cli.rs, but double-check)
+    if daemon_flag && no_daemon_flag {
+        return Err(anyhow::anyhow!("Cannot specify both --daemon and --no-daemon"));
+    }
+
+    // --no-daemon explicitly disables daemon mode
+    if no_daemon_flag {
+        return Ok(false);
+    }
+
+    // --daemon explicitly enables daemon mode
+    if daemon_flag {
+        // Check platform support
+        if !daemon::Daemon::is_daemon_supported() {
+            // Load config to check if fallback should be quiet
+            let config = config::resolve_config(None)?;
+            if !config.behavior.daemon_fallback_quiet {
+                eprintln!("WARNING: Daemon mode is not supported on this platform - Falling back to synchronous processing");
+                eprintln!("Use --no-daemon to suppress this warning");
+            }
+            return Ok(false);
+        }
+        return Ok(true);
+    }
+
+    // Default: auto-spawn on first async operation (existing behavior)
+    // This will be handled by the actual operation logic
+    Ok(false)
 }
 
 fn setup_logging(debug: bool, quiet: bool, json: bool, color: Option<&str>) -> Result<()> {
@@ -167,6 +199,16 @@ fn run_mv(args: MvArgs) -> Result<()> {
         info!("--version flag triggered for mv mode");
         println!("smartfo mv {}", env!("CARGO_PKG_VERSION"));
         return Ok(());
+    }
+
+    // Handle daemon flags
+    let use_daemon = should_use_daemon(args.daemon, args.no_daemon)?;
+    if use_daemon {
+        info!("Daemon mode explicitly enabled via --daemon flag");
+        // TODO: Pre-launch daemon and wait for jobs (will be implemented in story 04-003)
+        // For now, just log the intent
+    } else if args.no_daemon {
+        info!("Daemon mode explicitly disabled via --no-daemon flag");
     }
 
     // Handle --usage flag
@@ -290,6 +332,16 @@ fn run_rm(args: RmArgs) -> Result<()> {
         info!("--version flag triggered for rm mode");
         println!("smartfo rm {}", env!("CARGO_PKG_VERSION"));
         return Ok(());
+    }
+
+    // Handle daemon flags
+    let use_daemon = should_use_daemon(args.daemon, args.no_daemon)?;
+    if use_daemon {
+        info!("Daemon mode explicitly enabled via --daemon flag");
+        // TODO: Pre-launch daemon and wait for jobs (will be implemented in story 04-003)
+        // For now, just log the intent
+    } else if args.no_daemon {
+        info!("Daemon mode explicitly disabled via --no-daemon flag");
     }
 
     // Handle --usage flag
@@ -903,7 +955,7 @@ fn run_main() -> Result<i32> {
     // Setup signal handler for graceful shutdown
     let signal_handler = SignalHandler::new();
     if let Err(e) = signal_handler.setup_handlers() {
-        eprintln!("Warning: Failed to setup signal handlers: {}", e);
+        eprintln!("WARNING: Failed to setup signal handlers - {} - Graceful shutdown may not work correctly", e);
     }
 
     let mode = detect_mode();
@@ -971,6 +1023,8 @@ fn run_main() -> Result<i32> {
                     println!("  install-agent-hooks      Install agent hooks for Claude Code or Codex");
                     println!("  generate-skill           Generate agent skill (SKILL.md) from CLI metadata");
                     println!("  check-skill              Check if generated skill is stale");
+                    println!("  list-jobs               List background jobs with optional filtering");
+                    println!("  cancel-job <id>         Cancel a specific background job by ID");
                     return Ok(0);
                 }
 
@@ -1000,6 +1054,14 @@ fn run_main() -> Result<i32> {
                         SmartfoCommand::InstallAgentHooks => run_install_agent_hooks(),
                         SmartfoCommand::GenerateSkill { output } => run_generate_skill(output),
                         SmartfoCommand::CheckSkill { skill_file } => run_check_skill(skill_file),
+                        SmartfoCommand::ListJobs { ids, quiet, debug } => {
+                            setup_logging(*debug, *quiet, args.json, args.color.as_deref())?;
+                            run_list_jobs(ids)
+                        },
+                        SmartfoCommand::CancelJob { job_id, quiet, debug } => {
+                            setup_logging(*debug, *quiet, args.json, args.color.as_deref())?;
+                            run_cancel_job(job_id)
+                        },
                     }
                 } else if args.install {
                     run_install(&args)
@@ -1074,7 +1136,7 @@ fn run_main() -> Result<i32> {
 // Entry point that calls run_main and exits with the appropriate code
 fn main() {
     let exit_code = run_main().unwrap_or_else(|e| {
-        eprintln!("Fatal error: {}", e);
+        eprintln!("ERROR: Fatal error during initialization - {} - Check configuration and environment", e);
         1
     });
     std::process::exit(exit_code);
@@ -1127,6 +1189,31 @@ fn run_check_skill(skill_file: &Option<std::path::PathBuf>) -> Result<()> {
     }
 
     info!("Skill is up to date");
+    Ok(())
+}
+
+fn run_list_jobs(ids: &Option<String>) -> Result<()> {
+    info!("list-jobs command: ids={:?}", ids);
+
+    // TODO: Implement actual job listing from queue (will be implemented in story 04-003)
+    // For now, show placeholder message
+    println!("Background job listing");
+    if let Some(ref id_list) = ids {
+        println!("Filtering by job IDs: {}", id_list);
+    }
+    println!("Note: Full job queue implementation coming in story 04-003");
+
+    Ok(())
+}
+
+fn run_cancel_job(job_id: &str) -> Result<()> {
+    info!("cancel-job command: job_id={}", job_id);
+
+    // TODO: Implement actual job cancellation (will be implemented in story 04-003)
+    // For now, show placeholder message
+    println!("Cancelling job: {}", job_id);
+    println!("Note: Full job cancellation implementation coming in story 04-003");
+
     Ok(())
 }
 

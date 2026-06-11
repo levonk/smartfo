@@ -286,7 +286,7 @@ fn svn_remove(vcs_info: &VcsInfo, file_path: &Path) -> Result<()> {
     if !output.status.success() {
         let stderr = std::str::from_utf8(&output.stderr)
             .context("Invalid UTF-8 in svn stderr")?;
-        anyhow::bail!("svn rm failed: {}", stderr.trim());
+        anyhow::bail!("VCS remove failed (svn): {} - Check file status and repository state", stderr.trim());
     }
 
     tracing::info!("VCS-aware remove (svn): {:?}", file_path);

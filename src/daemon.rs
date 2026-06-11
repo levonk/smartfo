@@ -71,10 +71,10 @@ impl Daemon {
             }
             Ok(ForkResult::Child) => {
                 info!("First fork: child process, creating new session");
-                
+
                 // Create new session to detach from controlling terminal
-                setsid().context("Failed to create new session")?;
-                
+                setsid().context("Failed to create new session - Daemon may not detach properly")?;
+
                 // Second fork
                 match unsafe { fork() } {
                     Ok(ForkResult::Parent { child: _ }) => {
@@ -103,10 +103,10 @@ impl Daemon {
         let pid = std::process::id();
         let mut file = File::create(&self.pid_file)
             .context("Failed to create PID file")?;
-        
+
         writeln!(file, "{}", pid)
             .context("Failed to write PID to file")?;
-        
+
         info!("Wrote PID {} to lockfile: {:?}", pid, self.pid_file);
         Ok(())
     }
@@ -119,10 +119,10 @@ impl Daemon {
 
         let content = std::fs::read_to_string(&self.pid_file)
             .context("Failed to read PID file")?;
-        
+
         let pid: u32 = content.trim().parse()
             .context("Failed to parse PID from file")?;
-        
+
         Ok(Some(pid))
     }
 
@@ -214,7 +214,7 @@ impl Daemon {
 
         let listener = UnixListener::bind(&self.socket_path)
             .context("Failed to bind Unix socket")?;
-        
+
         info!("Daemon listening on socket: {:?}", self.socket_path);
         Ok(listener)
     }
@@ -279,7 +279,8 @@ impl Daemon {
     /// Handle a client connection (simple echo/pong for now)
     ///
     /// This is a placeholder - will be expanded to handle job enqueue/status
-    pub fn handle_client_connection(&self, stream: UnixStream) -> Result<()> {
+    /// Returns job ID if a job was enqueued
+    pub fn handle_client_connection(&self, stream: UnixStream) -> Result<Option<String>> {
         let mut reader = BufReader::new(stream);
         let mut request = String::new();
         reader.read_line(&mut request)
@@ -294,16 +295,23 @@ impl Daemon {
                 writeln!(writer, "PONG")
                     .context("Failed to send PONG response")?;
                 info!("Sent PONG response");
+                Ok(None)
             }
             _ => {
                 let mut writer = reader.into_inner();
                 warn!("Unknown request: {}", request);
                 writeln!(writer, "ERROR: Unknown command")
                     .context("Failed to send error response")?;
+                Ok(None)
             }
         }
+    }
 
-        Ok(())
+    /// Check if daemon mode is supported on this platform
+    ///
+    /// Daemon mode requires Unix domain sockets and fork support
+    pub fn is_daemon_supported() -> bool {
+        cfg!(unix)
     }
 
     /// Get or spawn daemon connection from CLI perspective
@@ -435,7 +443,7 @@ mod tests {
 
         // Write PID
         daemon.write_pid_file().unwrap();
-        
+
         // Read PID back
         let pid = daemon.read_pid_file().unwrap();
         assert!(pid.is_some());
@@ -450,7 +458,7 @@ mod tests {
     fn test_is_process_running() {
         // Current process should be running
         assert!(Daemon::is_process_running(std::process::id()));
-        
+
         // PID 999999 is unlikely to be running
         assert!(!Daemon::is_process_running(999999));
     }
@@ -472,7 +480,7 @@ mod tests {
         // Should acquire lock despite stale PID file
         let acquired = daemon.acquire_lock().unwrap();
         assert!(acquired);
-        
+
         // PID should now be current process
         let pid = daemon.read_pid_file().unwrap();
         assert_eq!(pid.unwrap(), std::process::id());
@@ -649,5 +657,57 @@ mod tests {
         // but we can verify the setup doesn't fail
         let result = daemon.setup_signal_handler();
         assert!(result.is_ok(), "Signal handler setup should succeed");
+    }
+
+    #[test]
+    fn test_is_daemon_supported() {
+        // On Unix platforms, daemon should be supported
+        #[cfg(unix)]
+        assert!(Daemon::is_daemon_supported(), "Daemon should be supported on Unix");
+
+        // On non-Unix platforms, daemon should not be supported
+        #[cfg(not(unix))]
+        assert!(!Daemon::is_daemon_supported(), "Daemon should not be supported on non-Unix");
+    }
+
+    #[test]
+    fn test_handle_client_connection_returns_job_id() {
+        let temp_dir = TempDir::new().unwrap();
+        let socket_path = temp_dir.path().join("test.sock");
+
+        let daemon = Daemon {
+            pid_file: temp_dir.path().join("test.pid"),
+            socket_path: socket_path.clone(),
+        };
+
+        // Bind socket (simulating daemon)
+        let listener = daemon.bind_socket().unwrap();
+
+        // Spawn a thread to handle connections
+        let daemon_clone = daemon.clone();
+        std::thread::spawn(move || {
+            if let Ok(stream) = daemon_clone.accept_connection(&listener) {
+                let _ = daemon_clone.handle_client_connection(stream);
+            }
+        });
+
+        // Give server thread a moment to start
+        std::thread::sleep(std::time::Duration::from_millis(100));
+
+        // Connect as client
+        let mut stream = UnixStream::connect(&socket_path).unwrap();
+
+        // Send PING
+        writeln!(stream, "PING").unwrap();
+
+        // Read response
+        let mut reader = BufReader::new(stream);
+        let mut response = String::new();
+        reader.read_line(&mut response).unwrap();
+
+        assert_eq!(response.trim(), "PONG");
+
+        // Cleanup
+        daemon.cleanup().unwrap();
     }
 }

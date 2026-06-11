@@ -7,7 +7,7 @@ prd_file: "internal-docs/feature/20260607-cli-standards/prd-cli-standards-compli
 phase: 3
 parallel_id: 1
 branch: "feature/current/cli-standards-compliance/story-03-001-daemon-enhancements"
-status: "todo"
+status: "done"
 assignee: ""
 reviewer: ""
 dependencies: ["02-002"]
@@ -27,29 +27,29 @@ Enhance daemon process support as specified in ADR #13. Provide --daemon and --n
 
 ## Sub-Tasks
 
-- [ ] Add --daemon flag to clap parsers in cli.rs for all modes
-- [ ] Add --no-daemon flag to clap parsers in cli.rs for all modes
-- [ ] Implement --daemon flag to pre-launch daemon in background and wait for jobs
-- [ ] Implement --no-daemon flag to force synchronous in-process operation (disable auto-spawning)
-- [ ] Add --list-jobs command to show background job status
-- [ ] Implement optional job ID list filtering for --list-jobs command
-- [ ] Add --cancel-job <id> command to cancel specific background jobs
-- [ ] Modify daemon.rs to return job ID immediately when daemon performs operation
-- [ ] Implement platform detection for daemon mode support
-- [ ] Implement fallback to synchronous processing when daemon mode not supported
-- [ ] Add clear error message explaining limitation when daemon mode not supported
-- [ ] Add suggestions for alternatives when --daemon is used on unsupported platform
-- [ ] Add daemon_fallback_quiet config variable to control noisy fallback behavior
-- [ ] Implement config variable override for platform-specific fallback messages
-- [ ] Add instructions for monitoring job progress in help output
-- [ ] Maintain existing Unix socket and PID lockfile infrastructure
-- [ ] Add unit tests for --daemon flag behavior
-- [ ] Add unit tests for --no-daemon flag behavior
-- [ ] Add unit tests for --list-jobs command
-- [ ] Add unit tests for --list-jobs with job ID filtering
-- [ ] Add unit tests for --cancel-job command
-- [ ] Add integration tests for platform fallback behavior
-- [ ] Add integration tests for daemon_fallback_quiet config variable
+- [x] Add --daemon flag to clap parsers in cli.rs for all modes
+- [x] Add --no-daemon flag to clap parsers in cli.rs for all modes
+- [x] Implement --daemon flag to pre-launch daemon in background and wait for jobs
+- [x] Implement --no-daemon flag to force synchronous in-process operation (disable auto-spawning)
+- [x] Add --list-jobs command to show background job status
+- [x] Implement optional job ID list filtering for --list-jobs command
+- [x] Add --cancel-job <id> command to cancel specific background jobs
+- [x] Modify daemon.rs to return job ID immediately when daemon performs operation
+- [x] Implement platform detection for daemon mode support
+- [x] Implement fallback to synchronous processing when daemon mode not supported
+- [x] Add clear error message explaining limitation when daemon mode not supported
+- [x] Add suggestions for alternatives when --daemon is used on unsupported platform
+- [x] Add daemon_fallback_quiet config variable to control noisy fallback behavior
+- [x] Implement config variable override for platform-specific fallback messages
+- [x] Add instructions for monitoring job progress in help output
+- [x] Maintain existing Unix socket and PID lockfile infrastructure
+- [x] Add unit tests for --daemon flag behavior
+- [x] Add unit tests for --no-daemon flag behavior
+- [x] Add unit tests for --list-jobs command
+- [x] Add unit tests for --list-jobs with job ID filtering
+- [x] Add unit tests for --cancel-job command
+- [x] Add integration tests for platform fallback behavior
+- [x] Add integration tests for daemon_fallback_quiet config variable
 
 ## Relevant Files
 

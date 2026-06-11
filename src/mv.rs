@@ -229,7 +229,7 @@ fn git_move(source: &Path, dest: &Path, vcs_info: &VcsInfo) -> Result<()> {
         Ok(())
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!("git mv failed: {}", stderr);
+        anyhow::bail!("VCS move failed (git): {} - Check file status and repository state", stderr);
     }
 }
 
@@ -249,7 +249,7 @@ fn hg_move(source: &Path, dest: &Path, vcs_info: &VcsInfo) -> Result<()> {
         Ok(())
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!("hg mv failed: {}", stderr);
+        anyhow::bail!("VCS move failed (hg): {} - Check file status and repository state", stderr);
     }
 }
 
@@ -269,7 +269,7 @@ fn svn_move(source: &Path, dest: &Path, vcs_info: &VcsInfo) -> Result<()> {
         Ok(())
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!("svn mv failed: {}", stderr);
+        anyhow::bail!("VCS move failed (svn): {} - Check file status and repository state", stderr);
     }
 }
 
