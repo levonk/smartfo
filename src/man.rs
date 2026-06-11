@@ -86,7 +86,7 @@ Uninstall smartfo (remove symlinks, completions, man pages)
 Bypass confirmation prompts during uninstall
 .TP
 \fB\-\-init-config\fR
-Initialize or recreate default config file
+Initialize or recreate default config file with all settings commented out. Use \fB\-\-force\fR to overwrite an existing config file.
 .TP
 \fB\-\-hooks=TYPE\fR
 Hook types to install: client, server, or client,server (default: both)

@@ -1,6 +1,7 @@
-use smartfo::config::validate_config_file;
+use smartfo::config::{validate_config_file, create_default_config_force};
 use std::io::Write;
 use tempfile::NamedTempFile;
+use std::env;
 
 #[test]
 fn test_valid_config_passes_validation() {
@@ -375,4 +376,187 @@ fn test_missing_file_error() {
     assert_eq!(error.section, "file");
     assert_eq!(error.key, "read");
     assert!(error.message.contains("Failed to read config file"));
+}
+
+#[test]
+fn test_init_config_creates_valid_config() {
+    let tmpdir = tempfile::TempDir::new().unwrap();
+    let config_dir = tmpdir.path().join(".config").join("smartfo");
+    std::fs::create_dir_all(&config_dir).unwrap();
+
+    // Temporarily override environment variables
+    let original_home = env::var("HOME");
+    let original_xdg = env::var("XDG_CONFIG_HOME");
+    env::set_var("HOME", tmpdir.path());
+    env::set_var("XDG_CONFIG_HOME", tmpdir.path().join(".config"));
+
+    // Create config
+    let result = create_default_config_force(false);
+    assert!(result.is_ok());
+
+    let config_path = result.unwrap();
+    assert!(config_path.exists());
+
+    // Validate the created config
+    let validation_result = validate_config_file(&config_path);
+    assert!(validation_result.is_ok(), "Created config should be valid");
+
+    // Restore original environment
+    if let Ok(home) = original_home {
+        env::set_var("HOME", home);
+    } else {
+        env::remove_var("HOME");
+    }
+    if let Ok(xdg) = original_xdg {
+        env::set_var("XDG_CONFIG_HOME", xdg);
+    } else {
+        env::remove_var("XDG_CONFIG_HOME");
+    }
+}
+
+#[test]
+fn test_init_config_without_force_fails_on_existing() {
+    let tmpdir = tempfile::TempDir::new().unwrap();
+    let config_dir = tmpdir.path().join(".config").join("smartfo");
+    std::fs::create_dir_all(&config_dir).unwrap();
+
+    // Temporarily override environment variables
+    let original_home = env::var("HOME");
+    let original_xdg = env::var("XDG_CONFIG_HOME");
+    env::set_var("HOME", tmpdir.path());
+    env::set_var("XDG_CONFIG_HOME", tmpdir.path().join(".config"));
+
+    // Create initial config
+    let result = create_default_config_force(false);
+    assert!(result.is_ok());
+
+    // Try to recreate without force - should fail
+    let result = create_default_config_force(false);
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("already exists"));
+
+    // Restore original environment
+    if let Ok(home) = original_home {
+        env::set_var("HOME", home);
+    } else {
+        env::remove_var("HOME");
+    }
+    if let Ok(xdg) = original_xdg {
+        env::set_var("XDG_CONFIG_HOME", xdg);
+    } else {
+        env::remove_var("XDG_CONFIG_HOME");
+    }
+}
+
+#[test]
+fn test_init_config_with_force_overwrites_existing() {
+    let tmpdir = tempfile::TempDir::new().unwrap();
+    let config_dir = tmpdir.path().join(".config").join("smartfo");
+    std::fs::create_dir_all(&config_dir).unwrap();
+    let config_path = config_dir.join("config.toml");
+
+    // Temporarily override environment variables
+    let original_home = env::var("HOME");
+    let original_xdg = env::var("XDG_CONFIG_HOME");
+    env::set_var("HOME", tmpdir.path());
+    env::set_var("XDG_CONFIG_HOME", tmpdir.path().join(".config"));
+
+    // Create initial config
+    let result = create_default_config_force(false);
+    assert!(result.is_ok());
+
+    // Write custom content
+    std::fs::write(&config_path, "# custom config").unwrap();
+
+    // Recreate with force - should succeed
+    let result = create_default_config_force(true);
+    assert!(result.is_ok());
+
+    // Verify it was overwritten and is still valid
+    let validation_result = validate_config_file(&config_path);
+    assert!(validation_result.is_ok(), "Overwritten config should be valid");
+
+    // Restore original environment
+    if let Ok(home) = original_home {
+        env::set_var("HOME", home);
+    } else {
+        env::remove_var("HOME");
+    }
+    if let Ok(xdg) = original_xdg {
+        env::set_var("XDG_CONFIG_HOME", xdg);
+    } else {
+        env::remove_var("XDG_CONFIG_HOME");
+    }
+}
+
+#[test]
+fn test_init_config_with_xdg_config_home() {
+    let tmpdir = tempfile::TempDir::new().unwrap();
+    let config_dir = tmpdir.path().join("custom_config").join("smartfo");
+    std::fs::create_dir_all(&config_dir).unwrap();
+
+    // Temporarily override environment variables
+    let original_home = env::var("HOME");
+    let original_xdg = env::var("XDG_CONFIG_HOME");
+    env::set_var("HOME", tmpdir.path());
+    env::set_var("XDG_CONFIG_HOME", tmpdir.path().join("custom_config"));
+
+    // Create config with custom XDG_CONFIG_HOME
+    let result = create_default_config_force(false);
+    assert!(result.is_ok());
+
+    let config_path = result.unwrap();
+    assert!(config_path.exists());
+    assert!(config_path.starts_with(tmpdir.path().join("custom_config")));
+
+    // Validate the created config
+    let validation_result = validate_config_file(&config_path);
+    assert!(validation_result.is_ok(), "Created config should be valid");
+
+    // Restore original environment
+    if let Ok(home) = original_home {
+        env::set_var("HOME", home);
+    } else {
+        env::remove_var("HOME");
+    }
+    if let Ok(xdg) = original_xdg {
+        env::set_var("XDG_CONFIG_HOME", xdg);
+    } else {
+        env::remove_var("XDG_CONFIG_HOME");
+    }
+}
+
+#[test]
+fn test_init_config_with_home_fallback() {
+    let tmpdir = tempfile::TempDir::new().unwrap();
+    let config_dir = tmpdir.path().join("smartfo");
+    std::fs::create_dir_all(&config_dir).unwrap();
+
+    // Temporarily override HOME only (no XDG_CONFIG_HOME)
+    let original_home = env::var("HOME");
+    let original_xdg = env::var("XDG_CONFIG_HOME");
+    env::set_var("HOME", tmpdir.path());
+    env::remove_var("XDG_CONFIG_HOME");
+
+    // Create config with HOME fallback
+    let result = create_default_config_force(false);
+    assert!(result.is_ok());
+
+    let config_path = result.unwrap();
+    assert!(config_path.exists());
+    assert!(config_path.starts_with(tmpdir.path().join("smartfo")));
+
+    // Validate the created config
+    let validation_result = validate_config_file(&config_path);
+    assert!(validation_result.is_ok(), "Created config should be valid");
+
+    // Restore original environment
+    if let Ok(home) = original_home {
+        env::set_var("HOME", home);
+    } else {
+        env::remove_var("HOME");
+    }
+    if let Ok(xdg) = original_xdg {
+        env::set_var("XDG_CONFIG_HOME", xdg);
+    }
 }

@@ -560,8 +560,8 @@ pub struct SmartfoArgs {
     #[arg(long)]
     pub force: bool,
 
-    /// Initialize or recreate default config file
-    #[arg(long = "init-config")]
+    /// Initialize or recreate default config file with all settings commented out
+    #[arg(long = "init-config", help = "Initialize or recreate default config file with all settings commented out. Use --force to overwrite an existing config file.")]
     pub init_config: bool,
 
     /// Validate configuration file without loading

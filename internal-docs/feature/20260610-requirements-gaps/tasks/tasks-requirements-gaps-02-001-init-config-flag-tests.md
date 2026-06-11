@@ -27,18 +27,18 @@ Implement the `--init-config` flag to explicitly create or recreate the default 
 
 ## Sub-Tasks
 
-- [ ] Add `--init-config` flag to CLI arguments in `src/cli.rs`
-- [ ] Implement config initialization logic in `src/config.rs`
-- [ ] Add config template with all settings commented out
-- [ ] Add environment variable expansion documentation in config template
-- [ ] Implement config file validation before initialization
-- [ ] Add error handling for config initialization failures
-- [ ] Write unit tests for config initialization
-- [ ] Write integration tests for --init-config flag
-- [ ] Write tests for config recreation (overwriting existing config)
-- [ ] Update man pages with --init-config documentation
-- [ ] Update help text with --init-config flag
-- [ ] Test config initialization with various XDG locations
+- [x] Add `--init-config` flag to CLI arguments in `src/cli.rs`
+- [x] Implement config initialization logic in `src/config.rs`
+- [x] Add config template with all settings commented out
+- [x] Add environment variable expansion documentation in config template
+- [x] Implement config file validation before initialization
+- [x] Add error handling for config initialization failures
+- [x] Write unit tests for config initialization
+- [x] Write integration tests for --init-config flag
+- [x] Write tests for config recreation (overwriting existing config)
+- [x] Update man pages with --init-config documentation
+- [x] Update help text with --init-config flag
+- [x] Test config initialization with various XDG locations
 
 Status conventions: mark in-progress with `[~]`, done with `[x]`, blocked with `[!]`.
 

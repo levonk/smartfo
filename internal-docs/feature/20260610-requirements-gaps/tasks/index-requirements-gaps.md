@@ -11,12 +11,12 @@ This task index addresses the compliance gaps identified in the smartfo requirem
 | -------- | ----------- | ------ | ------ | ------------ | ------------- | ------- |
 | 01-001 | Test framework enhancements | [x] Done | feature/current/requirements-gaps/story-01-001-test-framework-enhancements | None | Parallel-safe: true | tests, framework |
 | 01-002 | Cross-platform test harness setup | [x] Done | feature/current/requirements-gaps/story-01-002-cross-platform-test-harness | None | Parallel-safe: true | tests, platform |
-| 01-003 | Property test extensions | [ ] Todo | feature/current/requirements-gaps/story-01-003-property-test-extensions | None | Parallel-safe: true | tests, property |
+| 01-003 | Property test extensions | [x] Done | feature/current/requirements-gaps/story-01-003-property-test-extensions | None | Parallel-safe: true | tests, property |
 
 ### Phase 02: Foundation Features + Tests
 | Story ID | Story Title | Branch | Dependencies | Parallel-safe | Modules |
 | -------- | ----------- | ------ | ------------ | ------------- | ------- |
-| 02-001 | --init-config flag + tests | feature/current/requirements-gaps/story-02-001-init-config-flag-tests | 01-001 | Parallel-safe: true | install, cli, tests |
+| 02-001 | --init-config flag + tests | [x] Done | feature/current/requirements-gaps/story-02-001-init-config-flag-tests | 01-001 | Parallel-safe: true | install, cli, tests |
 | 02-002 | Health check mechanism + tests | feature/current/requirements-gaps/story-02-002-health-check-mechanism-tests | 01-001 | Parallel-safe: true | daemon, health, tests |
 | 02-003 | Terminal size awareness + tests | feature/current/requirements-gaps/story-02-003-terminal-size-awareness-tests | 01-002 | Parallel-safe: true | tui, terminal, tests |
 

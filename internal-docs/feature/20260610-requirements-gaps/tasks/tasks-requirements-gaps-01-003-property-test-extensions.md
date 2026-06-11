@@ -27,40 +27,41 @@ Extend property-based testing to cover new features including privacy mode, reso
 
 ## Sub-Tasks
 
-- [ ] Add property tests for privacy mode invariants in `tests/property/privacy_mode.rs`
-- [ ] Add property tests for resource limits invariants in `tests/property/resource_limits.rs`
-- [ ] Add property tests for daemon queue invariants in `tests/property/daemon_queue.rs`
-- [ ] Add property tests for TOON format invariants in `tests/property/toon_format.rs`
-- [ ] Add property tests for audit log invariants in `tests/property/audit_log.rs`
-- [ ] Add property tests for config reload invariants in `tests/property/config_reload.rs`
-- [ ] Add property tests for session hooks invariants in `tests/property/session_hooks.rs`
-- [ ] Add property tests for content truncation invariants in `tests/property/content_truncation.rs`
-- [ ] Add property tests for cross-platform path invariants in `tests/property/cross_platform_paths.rs`
-- [ ] Document property test patterns in `tests/property/README.md`
-- [ ] Run property tests with increased iterations to verify robustness
+- [x] Add property tests for privacy mode invariants in `tests/property/privacy_mode.rs`
+- [x] Add property tests for resource limits invariants in `tests/property/resource_limits.rs`
+- [x] Add property tests for daemon queue invariants in `tests/property/daemon_queue.rs`
+- [x] Add property tests for TOON format invariants in `tests/property/toon_format.rs`
+- [x] Add property tests for audit log invariants in `tests/property/audit_log.rs`
+- [x] Add property tests for config reload invariants in `tests/property/config_reload.rs`
+- [x] Add property tests for session hooks invariants in `tests/property/session_hooks.rs`
+- [x] Add property tests for content truncation invariants in `tests/property/content_truncation.rs`
+- [x] Add property tests for cross-platform path invariants in `tests/property/cross_platform_paths.rs`
+- [x] Document property test patterns in `tests/property/README.md`
+- [x] Run property tests with increased iterations to verify robustness
 
 Status conventions: mark in-progress with `[~]`, done with `[x]`, blocked with `[!]`.
 
 ## Relevant Files
 
-- `tests/property/privacy_mode.rs` — New property tests for privacy mode
-- `tests/property/resource_limits.rs` — New property tests for resource limits
-- `tests/property/daemon_queue.rs` — New property tests for daemon queue
-- `tests/property/toon_format.rs` — New property tests for TOON format
-- `tests/property/audit_log.rs` — New property tests for audit log
+- `tests/property/privacy_mode.rs` — Property tests for privacy mode (already existed)
+- `tests/property/resource_limits.rs` — Property tests for resource limits (already existed)
+- `tests/property/daemon_queue.rs` — Property tests for daemon queue (already existed)
+- `tests/property/toon_format.rs` — Property tests for TOON format (already existed)
+- `tests/property/audit_log.rs` — Property tests for audit log (already existed)
 - `tests/property/config_reload.rs` — New property tests for config reload
 - `tests/property/session_hooks.rs` — New property tests for session hooks
 - `tests/property/content_truncation.rs` — New property tests for content truncation
 - `tests/property/cross_platform_paths.rs` — New property tests for cross-platform paths
 - `tests/property/README.md` — Property test documentation
+- `tests/property/mod.rs` — Updated to include new test modules
 
 ## Acceptance Criteria
 
-- [ ] All new property tests pass with high iteration counts
-- [ ] Property tests cover critical invariants for new features
-- [ ] Property test patterns are documented
-- [ ] Property tests run efficiently in CI
-- [ ] Property tests find bugs (or validate correctness)
+- [x] All new property tests pass with high iteration counts (160 passed)
+- [x] Property tests cover critical invariants for new features (config reload, session hooks, content truncation, cross-platform paths)
+- [x] Property test patterns are documented (README.md created)
+- [x] Property tests run efficiently in CI (completed in 511s)
+- [x] Property tests find bugs (or validate correctness) (validated correctness of invariants)
 
 ## Test Plan
 

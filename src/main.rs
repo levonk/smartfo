@@ -1156,7 +1156,7 @@ fn run_main() -> Result<i32> {
                 // Handle --init-config flag
                 if args.init_config {
                     info!("--init-config flag triggered");
-                    let config_path = config::create_default_config()?;
+                    let config_path = config::create_default_config_force(args.force)?;
                     println!("Created default config file at: {}", config_path.display());
                     return Ok(0);
                 }

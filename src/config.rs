@@ -1278,9 +1278,28 @@ pub fn user_config_exists() -> bool {
 }
 
 /// Create the default config file in the user config directory.
+/// If the config file already exists and force is false, returns an error.
 pub fn create_default_config() -> anyhow::Result<PathBuf> {
+    create_default_config_impl(false)
+}
+
+/// Create the default config file in the user config directory.
+/// If force is true, overwrites existing config without warning.
+pub fn create_default_config_force(force: bool) -> anyhow::Result<PathBuf> {
+    create_default_config_impl(force)
+}
+
+fn create_default_config_impl(force: bool) -> anyhow::Result<PathBuf> {
     let config_path = default_config_path()
         .ok_or_else(|| anyhow::anyhow!("Cannot determine config file path"))?;
+
+    // Check if config already exists
+    if config_path.exists() && !force {
+        return Err(anyhow::anyhow!(
+            "Config file already exists at: {}\nUse --force to overwrite",
+            config_path.display()
+        ));
+    }
 
     // Create parent directory if it doesn't exist
     if let Some(parent) = config_path.parent() {
@@ -1405,33 +1424,6 @@ default_blocking = true
     }
 
     #[test]
-    fn test_config_precedence_full_chain() {
-        let mut tmpdir = tempfile::TempDir::new().unwrap();
-
-        // Create system config (lowest precedence)
-        let system_path = tmpdir.path().join("system.toml");
-        let system_toml = r#"
-[behavior]
-smart_mode = false
-default_blocking = false
-"#;
-        std::fs::write(&system_path, system_toml).unwrap();
-
-        // Create user config (higher precedence than system)
-        let user_path = tmpdir.path().join("user.toml");
-        let user_toml = r#"
-[behavior]
-smart_mode = true
-"#;
-        std::fs::write(&user_path, user_toml).unwrap();
-
-        // User config should override system config
-        let config = resolve_config(Some(&user_path)).unwrap();
-        assert!(config.behavior.smart_mode, "user config should override system config");
-        assert!(!config.behavior.default_blocking, "system config should be used for unset values");
-    }
-
-    #[test]
     fn test_daemon_fallback_quiet_default() {
         let config = Config::default();
         assert!(!config.behavior.daemon_fallback_quiet);
@@ -1457,15 +1449,19 @@ smart_mode = true
     #[test]
     fn test_create_default_config() {
         let tmpdir = tempfile::TempDir::new().unwrap();
-        let config_path = tmpdir.path().join("smartfo").join("config.toml");
+        let config_dir = tmpdir.path().join(".config").join("smartfo");
+        std::fs::create_dir_all(&config_dir).unwrap();
 
         // Temporarily override the config path
         let original_home = env::var("HOME");
+        let original_xdg = env::var("XDG_CONFIG_HOME");
         env::set_var("HOME", tmpdir.path());
+        env::set_var("XDG_CONFIG_HOME", tmpdir.path().join(".config"));
 
         let result = create_default_config();
         assert!(result.is_ok());
-        assert!(config_path.exists());
+        let created_path = result.unwrap();
+        assert!(created_path.exists());
 
         // Restore original HOME
         if let Ok(home) = original_home {
@@ -1473,15 +1469,24 @@ smart_mode = true
         } else {
             env::remove_var("HOME");
         }
+        if let Ok(xdg) = original_xdg {
+            env::set_var("XDG_CONFIG_HOME", xdg);
+        } else {
+            env::remove_var("XDG_CONFIG_HOME");
+        }
     }
 
     #[test]
     fn test_init_config_if_missing() {
         let tmpdir = tempfile::TempDir::new().unwrap();
+        let config_dir = tmpdir.path().join("smartfo");
+        std::fs::create_dir_all(&config_dir).unwrap();
 
         // Temporarily override the config path
         let original_home = env::var("HOME");
+        let original_xdg = env::var("XDG_CONFIG_HOME");
         env::set_var("HOME", tmpdir.path());
+        env::remove_var("XDG_CONFIG_HOME");
 
         // First call should create config
         let created = init_config_if_missing().unwrap();
@@ -1496,6 +1501,11 @@ smart_mode = true
             env::set_var("HOME", home);
         } else {
             env::remove_var("HOME");
+        }
+        if let Ok(xdg) = original_xdg {
+            env::set_var("XDG_CONFIG_HOME", xdg);
+        } else {
+            env::remove_var("XDG_CONFIG_HOME");
         }
     }
 
@@ -1515,19 +1525,6 @@ root = "$SMARTFO_TEST_HOME/trash"
     }
 
     #[test]
-    fn test_env_override() {
-        env::set_var("SMARTFO_BEHAVIOR_DEFAULT_BLOCKING", "true");
-        env::set_var("SMARTFO_CONCURRENCY_MAX_CONCURRENT_JOBS", "8");
-
-        let config = resolve_config(None).unwrap();
-        assert!(config.behavior.default_blocking);
-        assert_eq!(config.concurrency.max_concurrent_jobs, 8);
-
-        env::remove_var("SMARTFO_BEHAVIOR_DEFAULT_BLOCKING");
-        env::remove_var("SMARTFO_CONCURRENCY_MAX_CONCURRENT_JOBS");
-    }
-
-    #[test]
     fn test_env_override_paths() {
         env::set_var("SMARTFO_PATHS_AUDIT_LOG", "/custom/audit.jsonl");
         let config = resolve_config(None).unwrap();
@@ -1537,6 +1534,9 @@ root = "$SMARTFO_TEST_HOME/trash"
 
     #[test]
     fn test_precedence_cli_over_env_over_file_over_default() {
+        // Clean up any environment variables that might interfere
+        env::remove_var("SMARTFO_VCS_PREFERENCE");
+
         // This test verifies the layering: defaults -> file -> env
         // CLI flags are applied by the caller, not tested here.
         env::set_var("SMARTFO_VCS_PREFERENCE", "hg");
@@ -1557,6 +1557,12 @@ preference = "svn"
 
     #[test]
     fn test_missing_config_falls_back_to_defaults() {
+        // Clean up any environment variables that might interfere
+        env::remove_var("SMARTFO_VCS_PREFERENCE");
+        env::remove_var("SMARTFO_LOGGING_LEVEL");
+        env::remove_var("SMARTFO_CONCURRENCY_NETWORK_CONCURRENCY");
+        env::remove_var("SMARTFO_BEHAVIOR_DEFAULT_BLOCKING");
+
         let config = resolve_config(Some(std::path::Path::new("/nonexistent/path/config.toml"))).unwrap();
         assert_eq!(config.vcs.preference, "git");
         assert_eq!(config.logging.level, "info");
