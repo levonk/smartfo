@@ -8,6 +8,11 @@ pub mod logging;
 pub mod exit;
 pub mod error;
 pub mod dry_run;
+pub mod confirmation;
+pub mod progress;
+pub mod worker;
+pub mod queue;
+pub mod trash;
 
 // Re-export ColorMode for testing
 pub use config::ColorMode;
@@ -40,4 +45,7 @@ pub use logging::{LogLevel, LogFormat, init_logging};
 pub use exit::{ExitCode, SignalHandler, error_category_to_exit_code, ErrorCategory};
 
 // Re-export error types for testing
+
+// Re-export confirmation types for testing
+pub use confirmation::{ConfirmationState, confirm, confirm_batch, confirm_destructive};
 pub use error::{SmartfoError, Result};

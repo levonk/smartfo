@@ -11,6 +11,8 @@ use std::path::{Path, PathBuf};
 use crate::vcs::{VcsInfo, VcsType, detect_vcs, is_tracked};
 use crate::config::Config;
 use crate::audit::{AuditEntry, append_audit_log};
+use crate::confirmation::{ConfirmationState, confirm_destructive};
+use crate::progress::ProgressManager;
 
 /// File classification for delete operations
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -38,7 +40,7 @@ pub fn classify_file(file_path: &Path) -> Result<FileClassification> {
 
     // Check if file is tracked
     let tracked = is_tracked(&vcs_info, file_path).unwrap_or(false);
-    
+
     if !tracked {
         // Check if file is ignored
         let ignored = is_ignored(&vcs_info, file_path).unwrap_or(false);
@@ -53,7 +55,7 @@ pub fn classify_file(file_path: &Path) -> Result<FileClassification> {
 
     // File is tracked - check if it has uncommitted changes (dirty)
     let dirty = is_dirty(&vcs_info, file_path).unwrap_or(false);
-    
+
     if dirty {
         tracing::debug!("File classification: VCS-committed dirty");
         Ok(FileClassification::VcsCommittedDirty)
@@ -310,7 +312,17 @@ fn jj_remove(vcs_info: &VcsInfo, file_path: &Path) -> Result<()> {
 }
 
 /// Remove a file based on classification and config settings
-pub fn remove_file(file_path: &Path, config: &Config, blocking: bool, force_delete: bool) -> Result<()> {
+pub fn remove_file(
+    file_path: &Path,
+    config: &Config,
+    blocking: bool,
+    force_delete: bool,
+    force: bool,
+    quiet: bool,
+    json_mode: bool,
+    interactive: bool,
+    dry_run: bool,
+) -> Result<()> {
     // Classify the file
     let classification = classify_file(file_path)?;
 
@@ -326,6 +338,30 @@ pub fn remove_file(file_path: &Path, config: &Config, blocking: bool, force_dele
         FileClassification::VcsCommittedDirty => Some(false),
         _ => None,
     };
+
+    // Confirmation prompt for destructive operations
+    let mut confirmation_state = ConfirmationState::default();
+
+    // Always prompt for deletion unless force or quiet is set
+    // Interactive flag also enables prompts even for non-destructive operations
+    let should_prompt = interactive || !force && !quiet;
+
+    if should_prompt {
+        let file_display = file_path.display();
+        let confirmed = confirm_destructive(
+            "remove",
+            &file_display.to_string(),
+            force,
+            quiet,
+            &mut confirmation_state,
+            dry_run,
+        )?;
+
+        if !confirmed {
+            tracing::info!("User cancelled deletion of: {:?}", file_path);
+            return Ok(()); // Exit early if user rejects
+        }
+    }
 
     match classification {
         FileClassification::VcsCommittedClean => {
@@ -351,7 +387,7 @@ pub fn remove_file(file_path: &Path, config: &Config, blocking: bool, force_dele
                     append_audit_log(&entry, &audit_path)?;
                 } else {
                     // Backup to trash
-                    let trash_path = enqueue_trash(file_path, blocking)?;
+                    let trash_path = enqueue_trash(file_path, blocking, quiet, json_mode)?;
 
                     // Log audit entry
                     let entry = AuditEntry::new_delete(
@@ -387,7 +423,7 @@ pub fn remove_file(file_path: &Path, config: &Config, blocking: bool, force_dele
         FileClassification::VcsCommittedDirty => {
             // Dirty committed files: always trash + VCS remove
             // (uncommitted changes are not in VCS history)
-            let trash_path = enqueue_trash(file_path, blocking)?;
+            let trash_path = enqueue_trash(file_path, blocking, quiet, json_mode)?;
             let vcs_info = detect_vcs(file_path)?
                 .context("VCS info required for VCS-aware remove")?;
             vcs_remove(&vcs_info, file_path)?;
@@ -423,7 +459,7 @@ pub fn remove_file(file_path: &Path, config: &Config, blocking: bool, force_dele
                 let audit_path = PathBuf::from(&config.paths.audit_log);
                 append_audit_log(&entry, &audit_path)?;
             } else {
-                let trash_path = enqueue_trash(file_path, blocking)?;
+                let trash_path = enqueue_trash(file_path, blocking, quiet, json_mode)?;
 
                 // Log audit entry
                 let entry = AuditEntry::new_delete(
@@ -457,7 +493,7 @@ pub fn remove_file(file_path: &Path, config: &Config, blocking: bool, force_dele
                 let audit_path = PathBuf::from(&config.paths.audit_log);
                 append_audit_log(&entry, &audit_path)?;
             } else {
-                let trash_path = enqueue_trash(file_path, blocking)?;
+                let trash_path = enqueue_trash(file_path, blocking, quiet, json_mode)?;
 
                 // Log audit entry
                 let entry = AuditEntry::new_delete(
@@ -484,7 +520,7 @@ pub fn remove_file(file_path: &Path, config: &Config, blocking: bool, force_dele
 /// For now, this is a stub that logs the intent.
 ///
 /// Returns the trash path if successful (for audit logging), None otherwise.
-pub fn enqueue_trash(file_path: &Path, blocking: bool) -> Result<Option<String>> {
+pub fn enqueue_trash(file_path: &Path, blocking: bool, quiet: bool, json_mode: bool) -> Result<Option<String>> {
     if blocking {
         tracing::info!("Blocking trash enqueue: {:?}", file_path);
         // TODO: Implement blocking trash operation (wait for worker completion)
@@ -504,8 +540,15 @@ pub fn enqueue_trash(file_path: &Path, blocking: bool) -> Result<Option<String>>
             .context("Invalid UTF-8 in file name")?;
 
         let dest_path = trash_path.join(file_name);
+
+        // Create progress manager for blocking operation
+        let progress_manager = ProgressManager::new(quiet, json_mode);
+        let spinner = progress_manager.create_spinner(&format!("Moving {} to trash", file_name));
+
         std::fs::rename(file_path, &dest_path)
             .context("Failed to move file to trash")?;
+
+        progress_manager.finish_with_success(&spinner, "Move complete");
 
         let trash_path_str = dest_path.to_string_lossy().to_string();
         tracing::info!("Moved to trash (blocking): {:?} -> {:?}", file_path, dest_path);
@@ -554,7 +597,7 @@ mod tests {
     fn test_enqueue_trash_async() {
         // Test async trash enqueue (should succeed for now)
         let test_file = Path::new("/tmp/test_file.txt");
-        let result = enqueue_trash(test_file, false);
+        let result = enqueue_trash(test_file, false, false, false);
         assert!(result.is_ok());
         // Async mode returns None for trash path (not yet implemented)
         assert_eq!(result.unwrap(), None);
@@ -564,7 +607,7 @@ mod tests {
     fn test_enqueue_trash_blocking() {
         // Test blocking trash enqueue (should create temp trash for now)
         let test_file = Path::new("/nonexistent_test_file.txt");
-        let result = enqueue_trash(test_file, true);
+        let result = enqueue_trash(test_file, true, false, false);
         // This will fail because the file doesn't exist, but the function should run
         assert!(result.is_err());
     }
@@ -591,7 +634,7 @@ mod tests {
         let test_file = Path::new("/tmp/test.txt");
 
         // This will fail at runtime (no actual file), but tests the API
-        let _result = remove_file(test_file, &config, false, false);
+        let _result = remove_file(test_file, &config, false, false, false, false, false, false, false);
     }
 
     #[test]

@@ -27,22 +27,22 @@ Implement progress indicators as specified in ADR #12. Show progress bars or spi
 
 ## Sub-Tasks
 
-- [ ] Add indicatif crate to Cargo.toml dependencies
-- [ ] Implement progress bar wrapper for file operations
-- [ ] Add progress indicator for large file copies in worker.rs
-- [ ] Add progress indicator for cross-device moves in worker.rs
-- [ ] Add progress indicator for synchronous daemon operations (--no-daemon mode)
-- [ ] Add progress indicator for batch file operations
-- [ ] Ensure progress indicators respect --quiet flag (suppress in quiet mode)
-- [ ] Ensure progress indicators go to stderr (not stdout)
-- [ ] Implement spinner for short-duration operations
-- [ ] Implement progress bar for long-duration operations with percentage
-- [ ] Add estimated time remaining for long operations
-- [ ] Ensure progress indicators work with --json mode (suppress or format appropriately)
-- [ ] Add unit tests for progress bar functionality
-- [ ] Add unit tests for spinner functionality
-- [ ] Add integration tests for progress indicators with --quiet flag
-- [ ] Add integration tests for progress indicators with --json mode
+- [x] Add indicatif crate to Cargo.toml dependencies
+- [x] Implement progress bar wrapper for file operations
+- [x] Add progress indicator for large file copies in worker.rs
+- [x] Add progress indicator for cross-device moves in worker.rs
+- [x] Add progress indicator for synchronous daemon operations (--blocking mode)
+- [x] Add progress indicator for batch file operations
+- [x] Ensure progress indicators respect --quiet flag (suppress in quiet mode)
+- [x] Ensure progress indicators go to stderr (not stdout)
+- [x] Implement spinner for short-duration operations
+- [x] Implement progress bar for long-duration operations with percentage
+- [x] Add estimated time remaining for long operations
+- [x] Ensure progress indicators work with --json mode (suppress or format appropriately)
+- [x] Add unit tests for progress bar functionality
+- [x] Add unit tests for spinner functionality
+- [x] Add integration tests for progress indicators with --quiet flag
+- [x] Add integration tests for progress indicators with --json mode
 
 ## Relevant Files
 
@@ -54,14 +54,14 @@ Implement progress indicators as specified in ADR #12. Show progress bars or spi
 
 ## Acceptance Criteria
 
-- [ ] Progress bars or spinners are shown for long-running operations
-- [ ] Progress is displayed for async daemon operations in --no-daemon mode
-- [ ] Progress is displayed for large file copies (cross-device moves)
-- [ ] Progress indicators respect --quiet flag (suppressed in quiet mode)
-- [ ] Progress indicators go to stderr
-- [ ] Progress indicators work correctly with --json mode
-- [ ] Estimated time remaining is shown for long operations
-- [ ] All tests pass
+- [x] Progress bars or spinners are shown for long-running operations
+- [x] Progress is displayed for async daemon operations in --no-daemon mode
+- [x] Progress is displayed for large file copies (cross-device moves)
+- [x] Progress indicators respect --quiet flag (suppressed in quiet mode)
+- [x] Progress indicators go to stderr
+- [x] Progress indicators work correctly with --json mode
+- [x] Estimated time remaining is shown for long operations
+- [x] All tests pass
 
 ## Test Plan
 

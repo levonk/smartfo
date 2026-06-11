@@ -20,6 +20,7 @@ use uuid::Uuid;
 use crate::queue::{Job, JobQueue, OperationType};
 use crate::trash::TrashManager;
 use crate::config::Config;
+use crate::progress::ProgressManager;
 
 /// Default buffer size for chunked copy (64KB)
 const DEFAULT_BUFFER_SIZE: usize = 64 * 1024;
@@ -38,6 +39,8 @@ pub struct Worker {
     buffer_size: usize,
     /// Track active operations per directory for serialization
     active_dir_ops: Arc<Mutex<HashMap<PathBuf, usize>>>,
+    /// Progress manager for showing progress indicators
+    progress_manager: ProgressManager,
 }
 
 impl Worker {
@@ -48,13 +51,23 @@ impl Worker {
     /// * `trash_manager` - Optional trash manager for rm jobs
     /// * `config` - Configuration for space guard settings
     /// * `buffer_size` - Buffer size for chunked copy (default: 64KB)
-    pub fn new(queue: JobQueue, trash_manager: Option<TrashManager>, config: Config, buffer_size: Option<usize>) -> Self {
+    /// * `quiet` - If true, suppress progress indicators
+    /// * `json_mode` - If true, suppress progress indicators for JSON output
+    pub fn new(
+        queue: JobQueue,
+        trash_manager: Option<TrashManager>,
+        config: Config,
+        buffer_size: Option<usize>,
+        quiet: bool,
+        json_mode: bool,
+    ) -> Self {
         Worker {
             queue,
             trash_manager,
             config,
             buffer_size: buffer_size.unwrap_or(DEFAULT_BUFFER_SIZE),
             active_dir_ops: Arc::new(Mutex::new(HashMap::new())),
+            progress_manager: ProgressManager::new(quiet, json_mode),
         }
     }
 
@@ -118,15 +131,15 @@ impl Worker {
     /// Detects if source and destination are on the same filesystem:
     /// - Same filesystem: atomic rename
     /// - Cross-device: copy + fsync + unlink
-    /// 
+    ///
     /// Implements directory-level serialization for same-directory operations
     fn process_move(&self, source: &Path, dest: &Path) -> Result<()> {
         let same_fs = self.same_filesystem(source, dest)?;
-        
+
         // Get parent directories for serialization
         let source_dir = Self::get_parent_dir(source)?;
         let dest_dir = Self::get_parent_dir(dest)?;
-        
+
         // Serialize same-directory operations
         if source_dir == dest_dir && self.should_serialize_same_dir(&source_dir, &dest_dir) {
             debug!("Serializing same-directory operation in {:?}", source_dir);
@@ -170,7 +183,7 @@ impl Worker {
     fn process_delete(&self, source: &Path) -> Result<()> {
         if let Some(ref trash_manager) = self.trash_manager {
             let trash_path = trash_manager.compute_trash_path(source, 1);
-            
+
             // Try to move to trash (this will check disk space and cull if needed)
             if let Err(e) = trash_manager.move_to_trash(source, &trash_path, "rm", &self.config) {
                 // Check if this is the special error indicating trash is full
@@ -285,8 +298,20 @@ impl Worker {
             .open(&temp_path)
             .context("Failed to create temporary destination file")?;
 
+        // Get file size for progress bar
+        let file_size = src_file.metadata()
+            .context("Failed to get source file metadata")?
+            .len();
+
+        // Create progress bar for file copy
+        let pb = self.progress_manager.create_file_copy_progress(
+            file_size,
+            &format!("Copying {}", source.display())
+        );
+
         // Copy in chunks to avoid loading entire file into memory
         let mut buffer = vec![0u8; self.buffer_size];
+        let mut total_copied: u64 = 0;
         loop {
             let bytes_read = src_file.read(&mut buffer)
                 .context("Failed to read from source file")?;
@@ -295,6 +320,9 @@ impl Worker {
             }
             dest_file.write_all(&buffer[..bytes_read])
                 .context("Failed to write to destination file")?;
+
+            total_copied += bytes_read as u64;
+            pb.set_position(total_copied);
         }
 
         // Sync the file to disk
@@ -317,6 +345,7 @@ impl Worker {
                 dest.display()
             ))?;
 
+        self.progress_manager.finish_with_success(&pb, "Copy complete");
         debug!("Copy with fsync succeeded: {} -> {}", source.display(), dest.display());
         Ok(())
     }
@@ -437,7 +466,7 @@ mod tests {
         config.trash.root = trash_root.clone();
         let trash_manager = Some(TrashManager::new(&config));
 
-        let worker = Worker::new(queue, trash_manager, config, Some(4096));
+        let worker = Worker::new(queue, trash_manager, config, Some(4096), true, false);
         (worker, temp_dir)
     }
 
@@ -452,7 +481,7 @@ mod tests {
         let db_path = temp_dir.path().join("test_queue.db");
         let queue = JobQueue::new(&db_path).unwrap();
         let config = Config::default();
-        let worker = Worker::new(queue, None, config, None);
+        let worker = Worker::new(queue, None, config, None, true, false);
 
         // Files in same directory should be on same filesystem
         let result = worker.same_filesystem(&file1, &file2);
@@ -473,17 +502,17 @@ mod tests {
         let db_path = temp_dir.path().join("test_queue.db");
         let queue = JobQueue::new(&db_path).unwrap();
         let config = Config::default();
-        let worker = Worker::new(queue, None, config, None);
+        let worker = Worker::new(queue, None, config, None, true, false);
 
         let dir = Path::new("/tmp/test");
-        
+
         // Initially no active ops
         assert!(!worker.has_active_ops(dir));
-        
+
         // Increment op count
         worker.increment_dir_op(dir);
         assert!(worker.has_active_ops(dir));
-        
+
         // Decrement op count
         worker.decrement_dir_op(dir);
         assert!(!worker.has_active_ops(dir));
@@ -495,11 +524,11 @@ mod tests {
         let db_path = temp_dir.path().join("test_queue.db");
         let queue = JobQueue::new(&db_path).unwrap();
         let config = Config::default();
-        let worker = Worker::new(queue, None, config, None);
+        let worker = Worker::new(queue, None, config, None, true, false);
 
         let dir1 = Path::new("/tmp/test1");
         let dir2 = Path::new("/tmp/test2");
-        
+
         // Should always serialize for now (safety)
         assert!(worker.should_serialize_same_dir(dir1, dir2));
     }
@@ -515,7 +544,7 @@ mod tests {
         let db_path = temp_dir.path().join("test_queue.db");
         let queue = JobQueue::new(&db_path).unwrap();
         let config = Config::default();
-        let worker = Worker::new(queue, None, config, None);
+        let worker = Worker::new(queue, None, config, None, true, false);
 
         worker.atomic_rename(&source, &dest).unwrap();
 
@@ -535,7 +564,7 @@ mod tests {
         let db_path = temp_dir.path().join("test_queue.db");
         let queue = JobQueue::new(&db_path).unwrap();
         let config = Config::default();
-        let worker = Worker::new(queue, None, config, None);
+        let worker = Worker::new(queue, None, config, None, true, false);
 
         worker.copy_with_fsync(&source, &dest).unwrap();
 
@@ -557,7 +586,7 @@ mod tests {
         let db_path = temp_dir.path().join("test_queue.db");
         let queue = JobQueue::new(&db_path).unwrap();
         let config = Config::default();
-        let worker = Worker::new(queue, None, config, None);
+        let worker = Worker::new(queue, None, config, None, true, false);
 
         worker.copy_with_fsync(&source, &dest).unwrap();
 
@@ -668,8 +697,8 @@ mod tests {
         };
 
         queue.enqueue(&job).unwrap();
-        
-        let worker = Worker::new(queue, trash_manager, config, Some(4096));
+
+        let worker = Worker::new(queue, trash_manager, config, Some(4096), true, false);
         worker.process_job(&job).unwrap();
 
         let status = worker.queue.get_status(&job.uuid).unwrap();
@@ -703,8 +732,8 @@ mod tests {
         };
 
         queue.enqueue(&job).unwrap();
-        
-        let worker = Worker::new(queue, trash_manager, config, Some(4096));
+
+        let worker = Worker::new(queue, trash_manager, config, Some(4096), true, false);
         let result = worker.process_job(&job);
 
         assert!(result.is_err());
@@ -720,7 +749,7 @@ mod tests {
         let queue = JobQueue::new(&db_path).unwrap();
         let config = Config::default();
 
-        let worker = Worker::new(queue, None, config, Some(8192));
+        let worker = Worker::new(queue, None, config, Some(8192), true, false);
         assert_eq!(worker.buffer_size, 8192);
     }
 
@@ -731,7 +760,7 @@ mod tests {
         let queue = JobQueue::new(&db_path).unwrap();
         let config = Config::default();
 
-        let worker = Worker::new(queue, None, config, None);
+        let worker = Worker::new(queue, None, config, None, true, false);
         assert_eq!(worker.buffer_size, DEFAULT_BUFFER_SIZE);
     }
 }

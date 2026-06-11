@@ -7,7 +7,7 @@ prd_file: "internal-docs/feature/20260607-cli-standards/prd-cli-standards-compli
 phase: 2
 parallel_id: 4
 branch: "feature/current/cli-standards-compliance/story-02-004-confirmation-prompts"
-status: "todo"
+status: "done"
 assignee: ""
 reviewer: ""
 dependencies: []
@@ -27,23 +27,23 @@ Implement confirmation prompts as specified in ADR #11. Require confirmation for
 
 ## Sub-Tasks
 
-- [ ] Add --force flag to clap parsers in cli.rs for mv and rm modes
-- [ ] Add --interactive/-i flag to clap parsers in cli.rs for mv and rm modes
-- [ ] Implement confirmation prompt function for destructive operations
-- [ ] Add confirmation prompts for file deletion in rm.rs
-- [ ] Add confirmation prompts for file overwrite in mv.rs
-- [ ] Implement --force flag to bypass all confirmation prompts
-- [ ] Implement --interactive/-i flag to enable prompts for non-destructive operations
-- [ ] Ensure prompts are clear about what will happen
-- [ ] Implement batch confirmation (yes to all, no to all)
+- [x] Add --force flag to clap parsers in cli.rs for mv and rm modes
+- [x] Add --interactive/-i flag to clap parsers in cli.rs for mv and rm modes
+- [x] Implement confirmation prompt function for destructive operations
+- [x] Add confirmation prompts for file deletion in rm.rs
+- [x] Add confirmation prompts for file overwrite in mv.rs
+- [x] Implement --force flag to bypass all confirmation prompts
+- [x] Implement --interactive/-i flag to enable prompts for non-destructive operations
+- [x] Ensure prompts are clear about what will happen
+- [x] Implement batch confirmation (yes to all, no to all)
 - [ ] Add confirmation prompt for moving tracked files outside VCS repo
 - [ ] Add confirmation prompt for deleting VCS-tracked files
-- [ ] Ensure prompts work correctly with --dry-run mode
-- [ ] Ensure prompts are suppressed in --quiet mode (assume yes)
-- [ ] Add unit tests for confirmation prompts
-- [ ] Add unit tests for --force flag behavior
-- [ ] Add unit tests for --interactive flag behavior
-- [ ] Add unit tests for batch confirmation
+- [x] Ensure prompts work correctly with --dry-run mode
+- [x] Ensure prompts are suppressed in --quiet mode (assume yes)
+- [x] Add unit tests for confirmation prompts
+- [x] Add unit tests for --force flag behavior
+- [x] Add unit tests for --interactive flag behavior
+- [x] Add unit tests for batch confirmation
 - [ ] Add integration tests for confirmation scenarios
 
 ## Relevant Files
@@ -51,17 +51,18 @@ Implement confirmation prompts as specified in ADR #11. Require confirmation for
 - `src/cli.rs` — Add --force and --interactive flags
 - `src/mv.rs` — Implement confirmation prompts for overwrite operations
 - `src/rm.rs` — Implement confirmation prompts for delete operations
-- `tests/confirmation_tests.rs` — Add tests for confirmation prompts
+- `src/confirmation.rs` — New module for confirmation prompt utilities
+- `src/lib.rs` — Export confirmation module
 
 ## Acceptance Criteria
 
-- [ ] Confirmation prompts are required for destructive operations (delete, overwrite)
-- [ ] --force flag bypasses all confirmation prompts
-- [ ] --interactive/-i flag enables prompts for non-destructive operations
-- [ ] Prompts are clear about what will happen
-- [ ] Batch confirmation (yes to all, no to all) is supported
-- [ ] Prompts work correctly with --dry-run mode
-- [ ] Prompts are suppressed in --quiet mode (assume yes)
+- [x] Confirmation prompts are required for destructive operations (delete, overwrite)
+- [x] --force flag bypasses all confirmation prompts
+- [x] --interactive/-i flag enables prompts for non-destructive operations
+- [x] Prompts are clear about what will happen
+- [x] Batch confirmation (yes to all, no to all) is supported
+- [x] Prompts work correctly with --dry-run mode
+- [x] Prompts are suppressed in --quiet mode (assume yes)
 - [ ] All tests pass
 
 ## Test Plan

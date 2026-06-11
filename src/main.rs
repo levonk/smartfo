@@ -23,6 +23,8 @@ mod skill;
 mod globbing;
 mod exit;
 mod dry_run;
+mod confirmation;
+mod progress;
 use cli::{MvArgs, RmArgs, SmartfoArgs, SmartfoCommand};
 use vcs::detect_vcs;
 use vcs::is_tracked;
@@ -85,14 +87,14 @@ fn determine_output_format(
     if toon_flag {
         return OutputFormat::Toon;
     }
-    
+
     // Explicit --format flag
     if let Some(format) = format_flag {
         if let Some(parsed) = OutputFormat::parse(format) {
             return parsed;
         }
     }
-    
+
     // Use mode-based defaults
     let output_mode = config::OutputMode::determine_mode(agent_flag, human_flag, config::OutputMode::Auto);
     match output_mode {
@@ -116,13 +118,13 @@ fn determine_field_selector(
 ) -> Option<FieldSelector> {
     let registry = SchemaRegistry::new();
     let schema = registry.get_or_default_schema(schema_name);
-    
+
     if let Some(fields_str) = fields_flag {
         match FieldSelector::from_string(fields_str, schema) {
             Ok(selector) => Some(selector),
             Err(e) => {
                 eprintln!("Error parsing fields: {}", e);
-                eprintln!("Available fields: {}", 
+                eprintln!("Available fields: {}",
                     schema.get_available_fields()
                         .iter()
                         .map(|f| f.as_str())
@@ -143,19 +145,19 @@ fn setup_logging(debug: bool, quiet: bool, json: bool, color: Option<&str>) -> R
     let log_format = if json { Some("json") } else { None };
     let color_mode = config::ColorMode::determine(color, "auto");
     let use_ansi = color_mode.should_color();
-    
+
     // Convert color mode to format string for logging module
-    let format_str = if json { 
-        Some("json") 
+    let format_str = if json {
+        Some("json")
     } else if use_ansi {
         Some("pretty")
     } else {
         None
     };
-    
+
     // Initialize logging using the module function
     let _guard = logging::init_logging(debug, quiet, format_str, None, None, None);
-    
+
     Ok(())
 }
 
@@ -213,18 +215,18 @@ fn run_mv(args: MvArgs) -> Result<()> {
         let (sources, dest) = args.resolve_paths()
             .context("Failed to resolve paths")?;
         info!("dry-run: mv {:?} -> {:?}", sources, dest);
-        
+
         // Show what would be done
         println!("Dry-run mode: No changes will be made");
         println!();
-        
+
         if let Some(ref dest_dir) = dest {
             if sources.len() > 1 {
                 // Multiple sources, dest is a directory
                 for source in &sources {
                     let dest_path = dest_dir.join(source.file_name().unwrap_or(source.as_os_str()));
                     println!("Would move: {} -> {}", source.display(), dest_path.display());
-                    
+
                     // Check if source is in a VCS repo
                     if let Ok(Some(vcs_info)) = vcs::detect_vcs(source) {
                         if let Ok(tracked) = vcs::is_tracked(&vcs_info, source) {
@@ -237,7 +239,7 @@ fn run_mv(args: MvArgs) -> Result<()> {
             } else {
                 // Single source, dest is the target file/directory
                 println!("Would move: {} -> {}", sources[0].display(), dest_dir.display());
-                
+
                 // Check if source is in a VCS repo
                 if let Ok(Some(vcs_info)) = vcs::detect_vcs(&sources[0]) {
                     if let Ok(tracked) = vcs::is_tracked(&vcs_info, &sources[0]) {
@@ -252,7 +254,7 @@ fn run_mv(args: MvArgs) -> Result<()> {
             for source in &sources {
                 let dest_path = target_dir.join(source.file_name().unwrap_or(source.as_os_str()));
                 println!("Would move: {} -> {}", source.display(), dest_path.display());
-                
+
                 // Check if source is in a VCS repo
                 if let Ok(Some(vcs_info)) = vcs::detect_vcs(source) {
                     if let Ok(tracked) = vcs::is_tracked(&vcs_info, source) {
@@ -263,7 +265,7 @@ fn run_mv(args: MvArgs) -> Result<()> {
                 }
             }
         }
-        
+
         return Ok(());
     }
 
@@ -334,14 +336,14 @@ fn run_rm(args: RmArgs) -> Result<()> {
         let paths = args.resolve_paths()
             .context("Failed to resolve paths")?;
         info!("dry-run: rm {:?}", paths);
-        
+
         // Show what would be done
         println!("Dry-run mode: No changes will be made");
         println!();
-        
+
         for path in &paths {
             println!("Would remove: {}", path.display());
-            
+
             // Check if path is in a VCS repo
             if let Ok(Some(vcs_info)) = vcs::detect_vcs(path) {
                 if let Ok(tracked) = vcs::is_tracked(&vcs_info, path) {
@@ -350,7 +352,7 @@ fn run_rm(args: RmArgs) -> Result<()> {
                     }
                 }
             }
-            
+
             // Check if path is a directory
             if path.is_dir() {
                 if args.recursive || args.dir {
@@ -359,7 +361,7 @@ fn run_rm(args: RmArgs) -> Result<()> {
                     println!("  (Would fail: -r or -d required for directory)");
                 }
             }
-            
+
             // Check if --force-delete is set
             if args.force_delete {
                 println!("  (Would bypass trash and delete directly)");
@@ -367,13 +369,13 @@ fn run_rm(args: RmArgs) -> Result<()> {
                 println!("  (Would move to trash)");
             }
         }
-        
+
         return Ok(());
     }
 
     let paths = args.resolve_paths()
         .context("Failed to resolve paths")?;
-    
+
     if paths.is_empty() {
         anyhow::bail!("missing operand");
     }
@@ -412,46 +414,46 @@ fn run_rm_plain(args: &RmArgs, paths: &[PathBuf]) -> Result<()> {
 
 fn run_list(all: bool, limit: Option<usize>, args: &SmartfoArgs) -> Result<()> {
     info!("list command: all={}, limit={:?}", all, limit);
-    
+
     // Determine output format
     let output_format = determine_output_format(args.toon, &args.format, args.agent, args.human);
-    
+
     // Determine field selector
     let field_selector = determine_field_selector(&args.fields, "list");
-    
+
     // Create sample data for demonstration (TODO: replace with actual queue/audit data)
     let items = vec![
         serde_json::json!({"id": "1", "type": "move", "status": "completed", "source": "/tmp/file1.txt"}),
         serde_json::json!({"id": "2", "type": "remove", "status": "pending", "source": "/tmp/file2.txt"}),
         serde_json::json!({"id": "3", "type": "move", "status": "completed", "source": "/tmp/file3.txt"}),
     ];
-    
+
     // Check for empty state
     let empty_context = EmptyContext::new(if all {
         "all operations".to_string()
     } else {
         format!("operations (limit: {})", limit.unwrap_or_default())
     });
-    
+
     if let Some(empty_state) = check_empty(&items, empty_context) {
         // Return empty state
         let output = serde_json::json!({
             "empty": empty_state,
         });
-        
+
         let mut writer = output::OutputWriter::new(std::io::stdout(), output_format);
         writer.write(&output)?;
         return Ok(());
     }
-    
+
     // Compute aggregate
     let total = if all { 100 } else { limit.unwrap_or(items.len()) };
     let aggregate = AggregateComputer::compute_list_aggregate(&items, total);
-    
+
     // Generate contextual suggestions
     let in_git_repo = detect_git_repo().is_some();
     let daemon_running = daemon::Daemon::new().and_then(|d| d.ping_daemon()).unwrap_or(false);
-    
+
     // Try to get queue depth using default queue path
     let queue_depth = if let Ok(daemon) = daemon::Daemon::new() {
         let xdg_data_home = std::env::var("XDG_DATA_HOME")
@@ -467,21 +469,21 @@ fn run_list(all: bool, limit: Option<usize>, args: &SmartfoArgs) -> Result<()> {
     } else {
         None
     };
-    
+
     let suggestion_context = SuggestionContext::new("list")
         .with_git_repo(in_git_repo)
         .with_daemon(daemon_running)
         .with_queue_depth(queue_depth.unwrap_or(0));
-    
+
     let suggestions = SuggestionEngine::generate(&suggestion_context);
     let help_suggestions = format_suggestions_as_help(&suggestions);
-    
+
     // Create output with aggregate
     let output = serde_json::json!({
         "items": items,
         "aggregate": aggregate,
     });
-    
+
     // Apply field selection if specified
     let output_data = if let Some(ref _selector) = field_selector {
         // For now, just return the output as-is since field selection needs structured data
@@ -489,55 +491,55 @@ fn run_list(all: bool, limit: Option<usize>, args: &SmartfoArgs) -> Result<()> {
     } else {
         output
     };
-    
+
     // Write output with suggestions
     let mut writer = output::OutputWriter::new(std::io::stdout(), output_format)
         .with_suggestions(help_suggestions);
     writer.write(&output_data)?;
-    
+
     Ok(())
 }
 
 fn run_status(detailed: bool, args: &SmartfoArgs) -> Result<()> {
     info!("status command: detailed={}", detailed);
-    
+
     // Determine output format
     let output_format = determine_output_format(args.toon, &args.format, args.agent, args.human);
-    
+
     // Determine field selector
     let field_selector = determine_field_selector(&args.fields, "status");
-    
+
     // Create sample aggregates for demonstration (TODO: replace with actual daemon/queue data)
     let operations = Some(AggregateComputer::compute_operation_aggregate(10, 7, 2));
     let queue = Some(AggregateComputer::compute_queue_aggregate(5, 2));
     let daemon = Some(AggregateComputer::compute_daemon_aggregate("running", Some(1234)));
-    
+
     // Check for empty state (if all aggregates are None or empty)
     let is_empty = operations.is_none() && queue.is_none() && daemon.is_none();
-    
+
     if is_empty {
         let empty_context = EmptyContext::new(if detailed {
             "detailed status".to_string()
         } else {
             "status summary".to_string()
         });
-        
+
         let empty_state = EmptyState::new(empty_context);
         let output = serde_json::json!({
             "empty": empty_state,
         });
-        
+
         let mut writer = output::OutputWriter::new(std::io::stdout(), output_format);
         writer.write(&output)?;
         return Ok(());
     }
-    
+
     let status_aggregate = StatusAggregate::new(operations, queue, daemon);
-    
+
     // Generate contextual suggestions
     let in_git_repo = detect_git_repo().is_some();
     let daemon_running = daemon::Daemon::new().and_then(|d| d.ping_daemon()).unwrap_or(false);
-    
+
     // Try to get queue depth using default queue path
     let queue_depth = if let Ok(daemon) = daemon::Daemon::new() {
         let xdg_data_home = std::env::var("XDG_DATA_HOME")
@@ -553,20 +555,20 @@ fn run_status(detailed: bool, args: &SmartfoArgs) -> Result<()> {
     } else {
         None
     };
-    
+
     let suggestion_context = SuggestionContext::new("status")
         .with_git_repo(in_git_repo)
         .with_daemon(daemon_running)
         .with_queue_depth(queue_depth.unwrap_or(0));
-    
+
     let suggestions = SuggestionEngine::generate(&suggestion_context);
     let help_suggestions = format_suggestions_as_help(&suggestions);
-    
+
     // Create output with aggregate
     let output = serde_json::json!({
         "status": status_aggregate,
     });
-    
+
     // Apply field selection if specified
     let output_data = if let Some(ref _selector) = field_selector {
         // For now, just return the output as-is since field selection needs structured data
@@ -574,12 +576,12 @@ fn run_status(detailed: bool, args: &SmartfoArgs) -> Result<()> {
     } else {
         output
     };
-    
+
     // Write output with suggestions
     let mut writer = output::OutputWriter::new(std::io::stdout(), output_format)
         .with_suggestions(help_suggestions);
     writer.write(&output_data)?;
-    
+
     Ok(())
 }
 
@@ -703,9 +705,9 @@ fn install_hooks(repo_root: &PathBuf, args: &SmartfoArgs) -> Result<()> {
     // Resolve smartfo binary path for hook scripts
     let smartfo_binary = std::env::current_exe()
         .context("Failed to get smartfo binary path")?;
-    
+
     let force_hooks = args.force_hooks;
-    
+
     if install_client {
         install_pre_commit_hook(&hooks_dir, &smartfo_binary, force_hooks)?;
     }
@@ -719,7 +721,7 @@ fn install_hooks(repo_root: &PathBuf, args: &SmartfoArgs) -> Result<()> {
 /// Install the pre-commit hook
 fn install_pre_commit_hook(hooks_dir: &PathBuf, smartfo_binary: &PathBuf, force: bool) -> Result<()> {
     let hook_path = hooks_dir.join("pre-commit");
-    
+
     // Hook script content
     let hook_script = format!(
         r#"#!/bin/sh
@@ -729,7 +731,7 @@ exec "{}" git-hook-client
 "#,
         smartfo_binary.display()
     );
-    
+
     // Check if hook already exists
     if hook_path.exists() {
         // Check if it's a smartfo hook
@@ -739,7 +741,7 @@ exec "{}" git-hook-client
                 return Ok(());
             }
         }
-        
+
         // Existing non-smartfo hook
         if force {
             info!("Overwriting existing pre-commit hook: {}", hook_path.display());
@@ -749,11 +751,11 @@ exec "{}" git-hook-client
             return Ok(());
         }
     }
-    
+
     // Write the hook script
     std::fs::write(&hook_path, hook_script)
         .context("Failed to write pre-commit hook")?;
-    
+
     // Make it executable
     #[cfg(unix)]
     {
@@ -762,7 +764,7 @@ exec "{}" git-hook-client
         perms.set_mode(0o755);
         std::fs::set_permissions(&hook_path, perms)?;
     }
-    
+
     info!("Installed pre-commit hook: {}", hook_path.display());
     Ok(())
 }
@@ -770,7 +772,7 @@ exec "{}" git-hook-client
 /// Install the pre-receive hook
 fn install_pre_receive_hook(hooks_dir: &PathBuf, smartfo_binary: &PathBuf, force: bool) -> Result<()> {
     let hook_path = hooks_dir.join("pre-receive");
-    
+
     // Hook script content
     let hook_script = format!(
         r#"#!/bin/sh
@@ -780,7 +782,7 @@ exec "{}" git-hook-server
 "#,
         smartfo_binary.display()
     );
-    
+
     // Check if hook already exists
     if hook_path.exists() {
         // Check if it's a smartfo hook
@@ -790,7 +792,7 @@ exec "{}" git-hook-server
                 return Ok(());
             }
         }
-        
+
         // Existing non-smartfo hook
         if force {
             info!("Overwriting existing pre-receive hook: {}", hook_path.display());
@@ -800,11 +802,11 @@ exec "{}" git-hook-server
             return Ok(());
         }
     }
-    
+
     // Write the hook script
     std::fs::write(&hook_path, hook_script)
         .context("Failed to write pre-receive hook")?;
-    
+
     // Make it executable
     #[cfg(unix)]
     {
@@ -813,7 +815,7 @@ exec "{}" git-hook-server
         perms.set_mode(0o755);
         std::fs::set_permissions(&hook_path, perms)?;
     }
-    
+
     info!("Installed pre-receive hook: {}", hook_path.display());
     Ok(())
 }
@@ -872,27 +874,27 @@ fn run_git_hook_server() -> Result<()> {
 
 fn run_session_context() -> Result<()> {
     info!("Generating session context");
-    
+
     let context = hooks::SessionContext::new()
         .context("Failed to create session context")?;
-    
+
     // Output in TOON format
     let toon_output = context.to_toon();
     println!("{}", toon_output);
-    
+
     // Cache session metadata
     hooks::cache_session_metadata(&context)
         .context("Failed to cache session metadata")?;
-    
+
     Ok(())
 }
 
 fn run_install_agent_hooks() -> Result<()> {
     info!("Installing agent hooks");
-    
+
     hooks::install_agent_hooks()
         .context("Failed to install agent hooks")?;
-    
+
     println!("Agent hooks installed successfully");
     Ok(())
 }
@@ -1054,13 +1056,13 @@ fn run_main() -> Result<i32> {
                 } else {
                     ExitCode::GenericError
                 };
-                
+
                 let code = exit_code_enum.as_i32();
                 tracing::debug!("Operation failed with exit code: {} ({})", code, exit_code_enum.description());
-                
+
                 // Print error message
                 eprintln!("Error: {}", e);
-                
+
                 code
             }
         }
@@ -1081,13 +1083,13 @@ fn main() {
 /// Generate agent skill from CLI metadata
 fn run_generate_skill(output: &Option<std::path::PathBuf>) -> Result<()> {
     info!("generate-skill command: output={:?}", output);
-    
+
     let mut generator = skill::SkillGenerator::new();
     let skill = generator.generate_with_defaults()
         .context("Failed to generate skill")?;
-    
+
     let markdown = skill.to_markdown();
-    
+
     match output {
         Some(path) => {
             std::fs::write(path, &markdown)
@@ -1098,32 +1100,32 @@ fn run_generate_skill(output: &Option<std::path::PathBuf>) -> Result<()> {
             println!("{}", markdown);
         }
     }
-    
+
     Ok(())
 }
 
 /// Check if generated skill is stale
 fn run_check_skill(skill_file: &Option<std::path::PathBuf>) -> Result<()> {
     info!("check-skill command: skill_file={:?}", skill_file);
-    
+
     let skill_path = skill_file.as_ref()
         .map(|p| p.as_path())
         .unwrap_or(std::path::Path::new("SKILL.md"));
-    
+
     if !skill_path.exists() {
         anyhow::bail!("Skill file not found: {}", skill_path.display());
     }
-    
+
     let content = std::fs::read_to_string(skill_path)
         .context(format!("Failed to read skill file: {}", skill_path.display()))?;
-    
+
     let is_stale = skill::check_skill_stale(&content)
         .context("Failed to check skill staleness")?;
-    
+
     if is_stale {
         anyhow::bail!("Skill is stale. Run 'smartfo generate-skill' to regenerate.");
     }
-    
+
     info!("Skill is up to date");
     Ok(())
 }
@@ -1131,7 +1133,7 @@ fn run_check_skill(skill_file: &Option<std::path::PathBuf>) -> Result<()> {
 /// Run no-args invocation: show content-first state summary
 fn run_noargs(args: &SmartfoArgs) -> Result<()> {
     info!("no-args invocation: showing content-first state summary");
-    
+
     // Determine output format
     let output_format = determine_output_format(
         args.toon,
@@ -1139,12 +1141,12 @@ fn run_noargs(args: &SmartfoArgs) -> Result<()> {
         args.agent,
         args.human,
     );
-    
+
     // Detect context
     let current_dir = std::env::current_dir()?;
     let git_repo = detect_git_repo();
     let is_in_git = git_repo.is_some();
-    
+
     // Build context-aware state summary
     let mut state = serde_json::json!({
         "context": {
@@ -1152,11 +1154,11 @@ fn run_noargs(args: &SmartfoArgs) -> Result<()> {
             "in_git_repository": is_in_git,
         }
     });
-    
+
     // Add git repository info if in git
     if let Some(repo_root) = git_repo {
         state["context"]["git_repository_root"] = serde_json::Value::String(repo_root.display().to_string());
-        
+
         // Try to get operations summary from queue
         let queue_result = get_queue_summary();
         match queue_result {
@@ -1171,14 +1173,14 @@ fn run_noargs(args: &SmartfoArgs) -> Result<()> {
             }
         }
     }
-    
+
     // Add daemon status
     let daemon_status = get_daemon_status();
     state["daemon"] = daemon_status;
-    
+
     // Generate contextual suggestions
     let daemon_running = daemon::Daemon::new().and_then(|d| d.ping_daemon()).unwrap_or(false);
-    
+
     // Try to get queue depth using default queue path
     let queue_depth = if let Ok(daemon) = daemon::Daemon::new() {
         let xdg_data_home = std::env::var("XDG_DATA_HOME")
@@ -1194,20 +1196,20 @@ fn run_noargs(args: &SmartfoArgs) -> Result<()> {
     } else {
         None
     };
-    
+
     let suggestion_context = SuggestionContext::new("")
         .with_git_repo(is_in_git)
         .with_daemon(daemon_running)
         .with_queue_depth(queue_depth.unwrap_or(0));
-    
+
     let suggestions = SuggestionEngine::generate(&suggestion_context);
     let help_suggestions = format_suggestions_as_help(&suggestions);
-    
+
     // Write output with suggestions
     let mut writer = output::OutputWriter::new(std::io::stdout(), output_format)
         .with_suggestions(help_suggestions);
     writer.write(&state)?;
-    
+
     Ok(())
 }
 
@@ -1215,17 +1217,17 @@ fn run_noargs(args: &SmartfoArgs) -> Result<()> {
 fn get_queue_summary() -> Result<serde_json::Value> {
     // Try to get queue depth using default queue path
     let queue_path = std::path::PathBuf::from("/tmp/smartfo-queue.db");
-    
+
     if !queue_path.exists() {
         return Ok(serde_json::json!({
             "queue_exists": false,
             "message": "No operation queue found"
         }));
     }
-    
+
     let queue = queue::JobQueue::new(&queue_path)?;
     let depth = queue.queue_depth()?;
-    
+
     Ok(serde_json::json!({
         "queue_exists": true,
         "queue_depth": depth,
@@ -1237,7 +1239,7 @@ fn get_queue_summary() -> Result<serde_json::Value> {
 /// Get daemon status
 fn get_daemon_status() -> serde_json::Value {
     let daemon = daemon::Daemon::new();
-    
+
     match daemon {
         Ok(d) => {
             // Check if daemon is running by pinging it
@@ -1284,7 +1286,7 @@ pub fn exit_with_code(result: Result<()>) -> ! {
             let is_usage_error = e.to_string().contains("Missing")
                 || e.to_string().contains("Cannot specify")
                 || e.to_string().contains("usage");
-            
+
             if is_usage_error {
                 std::process::exit(2);
             } else {
