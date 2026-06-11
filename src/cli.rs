@@ -146,6 +146,10 @@ pub struct MvArgs {
     #[arg(long, help = "Force synchronous in-process operation (disable auto-spawning)")]
     pub no_daemon: bool,
 
+    /// Disable pager for long output
+    #[arg(long, help = "Disable pager for long output")]
+    pub no_pager: bool,
+
     /// Source file(s) to move (supports glob patterns like *.txt, **/*.rs)
     /// Use `-` to read paths from stdin
     #[arg(value_name = "SOURCE")]
@@ -387,6 +391,14 @@ pub struct RmArgs {
     #[arg(long, help = "Force synchronous in-process operation (disable auto-spawning)")]
     pub no_daemon: bool,
 
+    /// Disable pager for long output
+    #[arg(long, help = "Disable pager for long output")]
+    pub no_pager: bool,
+
+    /// Display man page content
+    #[arg(long, help = "Display man page content")]
+    pub man: bool,
+
     /// File(s) or directories to remove (supports glob patterns like *.txt, **/*.rs)
     /// Use `-` to read paths from stdin
     #[arg(value_name = "FILE")]
@@ -624,9 +636,17 @@ pub struct SmartfoArgs {
     #[arg(long, help = "Force synchronous in-process operation (disable auto-spawning)")]
     pub no_daemon: bool,
 
+    /// Disable pager for long output
+    #[arg(long, help = "Disable pager for long output")]
+    pub no_pager: bool,
+
     /// Generate shell completion script for the specified shell (auto-detects if not specified)
     #[arg(long, value_name = "SHELL", num_args = 0..=1, default_missing_value = "auto", help = "Generate shell completion script for bash, zsh, or fish (auto-detects if not specified)")]
     pub generate_completion: Option<String>,
+
+    /// Display man page content
+    #[arg(long, help = "Display man page content")]
+    pub man: bool,
 
     /// Subcommands
     #[command(subcommand)]

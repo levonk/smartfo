@@ -27,6 +27,7 @@ mod dry_run;
 mod confirmation;
 mod progress;
 mod completions;
+mod man;
 use cli::{MvArgs, RmArgs, SmartfoArgs, SmartfoCommand};
 use vcs::detect_vcs;
 use vcs::is_tracked;
@@ -35,6 +36,8 @@ use output::schema::{SchemaRegistry, FieldSelector};
 use output::aggregates::*;
 use output::empty::{EmptyState, check_empty, EmptyContext};
 use output::suggestions::{SuggestionContext, SuggestionEngine, format_suggestions_as_help};
+use output::Pager;
+use man::{ManPageType, generate_man_page};
 use exit::{ExitCode, SignalHandler, error_category_to_exit_code, ErrorCategory};
 
 /// Resolve the symlink target directory based on XDG conventions and permissions.
@@ -216,37 +219,46 @@ fn run_mv(args: MvArgs) -> Result<()> {
     // Handle --usage flag
     if args.usage {
         info!("--usage flag triggered for mv mode");
-        println!("Usage: mv [OPTION]... SOURCE... DEST");
-        println!("Move (rename) SOURCE to DEST, or multiple SOURCE(s) to DIRECTORY.");
-        println!();
-        println!("Glob Patterns:");
-        println!("  *.txt                   Match all .txt files in current directory");
-        println!("  **/*.rs                 Match all .rs files recursively");
-        println!("  -                       Read paths from stdin (one per line)");
-        println!();
-        println!("Options:");
-        println!("  -f, --force              Do not prompt before overwriting");
-        println!("  -i, --interactive        Prompt before overwrite");
-        println!("  -n, --no-clobber         Do not overwrite an existing file");
-        println!("  -v, --verbose            Explain what is being done");
-        println!("  -T, --no-target-directory  Treat DEST as a normal file");
-        println!("  -t, --target-directory=DIRECTORY  Move all SOURCE arguments into DIRECTORY");
-        println!("      --backup             Make a backup of each existing destination file");
-        println!("      --strip-trailing-slashes  Remove trailing slashes from SOURCE arguments");
-        println!("      --plain              Disable all smart features; behave exactly like POSIX mv");
-        println!("      --force-outside-vcs  Allow moving tracked files outside repo");
-        println!("      --async              Force async move even for small/same-fs files");
-        println!("      --blocking           Wait for operation to complete");
-        println!("      --sync               Fsync destination file and directory after operation");
-        println!("      --reason=REASON      Annotate intent in the audit log");
-        println!("      --json               Output operation metadata as JSON");
-        println!("      --toon               Output in TOON format (token-efficient for agents)");
-        println!("      --format=FORMAT      Output format: toon, json, or human");
-        println!("      --fields=FIELDS      Select specific output fields (comma-separated)");
-        println!("      --dry-run            Preview operations without executing");
-        println!("      --usage              Show brief usage message");
-        println!("  -h, --help               Show this help message");
-        println!("  -V, --version            Print version information");
+
+        // Create pager for long output
+        let pager = Pager::new(args.no_pager, args.quiet, args.json, false);
+
+        let usage_text = format!(
+            "Usage: mv [OPTION]... SOURCE... DEST\n\
+             Move (rename) SOURCE to DEST, or multiple SOURCE(s) to DIRECTORY.\n\
+             \n\
+             Glob Patterns:\n\
+               *.txt                   Match all .txt files in current directory\n\
+               **/*.rs                 Match all .rs files recursively\n\
+               -                       Read paths from stdin (one per line)\n\
+             \n\
+             Options:\n\
+               -f, --force              Do not prompt before overwriting\n\
+               -i, --interactive        Prompt before overwrite\n\
+               -n, --no-clobber         Do not overwrite an existing file\n\
+               -v, --verbose            Explain what is being done\n\
+               -T, --no-target-directory  Treat DEST as a normal file\n\
+               -t, --target-directory=DIRECTORY  Move all SOURCE arguments into DIRECTORY\n\
+                   --backup             Make a backup of each existing destination file\n\
+                   --strip-trailing-slashes  Remove trailing slashes from SOURCE arguments\n\
+                   --plain              Disable all smart features; behave exactly like POSIX mv\n\
+                   --force-outside-vcs  Allow moving tracked files outside repo\n\
+                   --async              Force async move even for small/same-fs files\n\
+                   --blocking           Wait for operation to complete\n\
+                   --sync               Fsync destination file and directory after operation\n\
+                   --reason=REASON      Annotate intent in the audit log\n\
+                   --json               Output operation metadata as JSON\n\
+                   --toon               Output in TOON format (token-efficient for agents)\n\
+                   --format=FORMAT      Output format: toon, json, or human\n\
+                   --fields=FIELDS      Select specific output fields (comma-separated)\n\
+                   --dry-run            Preview operations without executing\n\
+                   --usage              Show brief usage message\n\
+                   --no-pager           Disable pager for long output\n\
+               -h, --help               Show this help message\n\
+               -V, --version            Print version information"
+        );
+
+        pager.page_content(&usage_text)?;
         return Ok(());
     }
 
@@ -336,6 +348,17 @@ fn run_rm(args: RmArgs) -> Result<()> {
         return Ok(());
     }
 
+    // Handle --man flag
+    if args.man {
+        info!("--man flag triggered for rm mode");
+        let man_page = generate_man_page(ManPageType::Rm)?;
+
+        // Create pager for long output
+        let pager = Pager::new(args.no_pager, args.quiet, args.json, false);
+        pager.page_content(&man_page)?;
+        return Ok(());
+    }
+
     // Handle daemon flags
     let use_daemon = should_use_daemon(args.daemon, args.no_daemon)?;
     if use_daemon {
@@ -349,35 +372,44 @@ fn run_rm(args: RmArgs) -> Result<()> {
     // Handle --usage flag
     if args.usage {
         info!("--usage flag triggered for rm mode");
-        println!("Usage: rm [OPTION]... FILE...");
-        println!("Remove (unlink) the FILE(s).");
-        println!();
-        println!("Glob Patterns:");
-        println!("  *.log                   Match all .log files in current directory");
-        println!("  **/*.tmp                Match all .tmp files recursively");
-        println!("  -                       Read paths from stdin (one per line)");
-        println!();
-        println!("Options:");
-        println!("  -f, --force              Ignore non-existent files, never prompt");
-        println!("  -i                      Prompt before every removal");
-        println!("  -I                      Prompt once before removing more than three files");
-        println!("  -r, -R, --recursive     Remove directories and their contents recursively");
-        println!("  -d, --dir               Remove empty directories");
-        println!("      --preserve-root      Do not remove '/' (default)");
-        println!("      --one-filesystem     Skip directories on different file systems");
-        println!("      --plain              Disable all smart features; behave exactly like POSIX rm");
-        println!("      --force-delete       Bypass trash and delete directly");
-        println!("      --blocking           Wait for operation to complete");
-        println!("      --sync               Fsync after operation");
-        println!("      --reason=REASON      Annotate intent in the audit log");
-        println!("      --json               Output operation metadata as JSON");
-        println!("      --toon               Output in TOON format (token-efficient for agents)");
-        println!("      --format=FORMAT      Output format: toon, json, or human");
-        println!("      --fields=FIELDS      Select specific output fields (comma-separated)");
-        println!("      --dry-run            Preview operations without executing");
-        println!("      --usage              Show brief usage message");
-        println!("  -h, --help               Show this help message");
-        println!("  -V, --version            Print version information");
+
+        // Create pager for long output
+        let pager = Pager::new(args.no_pager, args.quiet, args.json, false);
+
+        let usage_text = format!(
+            "Usage: rm [OPTION]... FILE...\n\
+             Remove (unlink) the FILE(s).\n\
+             \n\
+             Glob Patterns:\n\
+               *.log                   Match all .log files in current directory\n\
+               **/*.tmp                Match all .tmp files recursively\n\
+               -                       Read paths from stdin (one per line)\n\
+             \n\
+             Options:\n\
+               -f, --force              Ignore non-existent files, never prompt\n\
+               -i                      Prompt before every removal\n\
+               -I                      Prompt once before removing more than three files\n\
+               -r, -R, --recursive     Remove directories and their contents recursively\n\
+               -d, --dir               Remove empty directories\n\
+                   --preserve-root      Do not remove '/' (default)\n\
+                   --one-filesystem     Skip directories on different file systems\n\
+                   --plain              Disable all smart features; behave exactly like POSIX rm\n\
+                   --force-delete       Bypass trash and delete directly\n\
+                   --blocking           Wait for operation to complete\n\
+                   --sync               Fsync after operation\n\
+                   --reason=REASON      Annotate intent in the audit log\n\
+                   --json               Output operation metadata as JSON\n\
+                   --toon               Output in TOON format (token-efficient for agents)\n\
+                   --format=FORMAT      Output format: toon, json, or human\n\
+                   --fields=FIELDS      Select specific output fields (comma-separated)\n\
+                   --dry-run            Preview operations without executing\n\
+                   --usage              Show brief usage message\n\
+                   --no-pager           Disable pager for long output\n\
+               -h, --help               Show this help message\n\
+               -V, --version            Print version information"
+        );
+
+        pager.page_content(&usage_text)?;
         return Ok(());
     }
 
@@ -644,6 +676,17 @@ fn run_install(args: &SmartfoArgs) -> Result<()> {
     if args.version {
         info!("--version flag triggered for install mode");
         println!("smartfo {}", env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
+
+    // Handle --man flag
+    if args.man {
+        info!("--man flag triggered for install mode");
+        let man_page = generate_man_page(ManPageType::Smartfo)?;
+
+        // Create pager for long output
+        let pager = Pager::new(args.no_pager, args.quiet, args.json, false);
+        pager.page_content(&man_page)?;
         return Ok(());
     }
 

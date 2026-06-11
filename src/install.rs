@@ -3,6 +3,7 @@ use std::fs;
 use std::path::PathBuf;
 use tracing::{info, warn, debug};
 use clap::CommandFactory;
+use crate::man::{install_man_pages, remove_man_pages};
 
 /// Install/uninstall operations for smartfo
 pub struct Installer {
@@ -343,145 +344,7 @@ impl Installer {
     }
 
     fn install_man_pages(&self) -> Result<()> {
-        info!("Installing man pages to {}", self.man_dir.display());
-
-        // Create man directory structure
-        let man1_dir = self.man_dir.join("man1");
-        fs::create_dir_all(&man1_dir)
-            .context("Failed to create man1 directory")?;
-
-        // Generate man page content
-        let man_page = self.generate_man_page()?;
-        let man_path = man1_dir.join("smartfo.1");
-        fs::write(&man_path, man_page)
-            .context("Failed to write man page")?;
-        debug!("Installed man page to {}", man_path.display());
-
-        info!("Man pages installed successfully");
-        Ok(())
-    }
-
-    fn generate_man_page(&self) -> Result<String> {
-        // Generate a basic man page
-        let man_content = r#".TH SMARTFO 1 "2026-06-07" "smartfo 0.1.0" "User Commands"
-.SH NAME
-smartfo \- VCS-aware safe mv/rm replacement with trash and audit
-.SH SYNOPSIS
-.B smartfo
-[\fIOPTIONS\fR]
-.br
-.B mv
-[\fIOPTIONS\fR]... \fISOURCE\fR... \fIDEST\fR
-.br
-.B rm
-[\fIOPTIONS\fR]... \fIFILE\fR...
-.SH DESCRIPTION
-Smartfo is a drop-in replacement for POSIX mv and rm that provides:
-.IP
-VCS-aware file operations (Git, Mercurial, SVN, Jujutsu)
-.IP
-Trash instead of permanent deletion
-.IP
-Async background processing
-.IP
-Comprehensive audit logging
-.IP
-Git hooks to prevent data loss
-.SH OPTIONS
-.TP
-\fB\-\-install\fR
-Install symlinks and Git hooks
-.TP
-\fB\-\-uninstall\fR
-Uninstall smartfo (remove symlinks, completions, man pages)
-.TP
-\fB\-\-force-uninstall\fR
-Bypass confirmation prompts during uninstall
-.TP
-\fB\-\-init-config\fR
-Initialize or recreate default config file
-.TP
-\fB\-\-version\fR, \fB\-V\fR
-Print version information
-.TP
-\fB\-\-help\fR, \fB\-h\fR
-Show help message
-.SH MV OPTIONS
-.TP
-\fB\-f\fR, \fB\-\-force\fR
-Do not prompt before overwriting
-.TP
-\fB\-i\fR, \fB\-\-interactive\fR
-Prompt before overwrite
-.TP
-\fB\-n\fR, \fB\-\-no-clobber\fR
-Do not overwrite an existing file
-.TP
-\fB\-v\fR, \fB\-\-verbose\fR
-Explain what is being done
-.TP
-\fB\-\-plain\fR
-Disable all smart features; behave exactly like POSIX mv
-.TP
-\fB\-\-async\fR
-Force async move even for small/same-fs files
-.TP
-\fB\-\-blocking\fR
-Wait for operation to complete
-.SH RM OPTIONS
-.TP
-\fB\-f\fR, \fB\-\-force\fR
-Ignore non-existent files, never prompt
-.TP
-\fB\-i\fR
-Prompt before every removal
-.TP
-\fB\-r\fR, \fB\-R\fR, \fB\-\-recursive\fR
-Remove directories and their contents recursively
-.TP
-\fB\-\-plain\fR
-Disable all smart features; behave exactly like POSIX rm
-.TP
-\fB\-\-force-delete\fR
-Bypass trash and delete directly
-.TP
-\fB\-\-blocking\fR
-Wait for operation to complete
-.SH ENVIRONMENT
-.TP
-\fBSMARTFO_CONFIG_HOME\fR
-Override config directory
-.TP
-\fBSMARTFO_TRASH_ROOT\fR
-Override trash directory
-.TP
-\fBXDG_DATA_HOME\fR
-Base directory for data files
-.TP
-\fBXDG_CACHE_HOME\fR
-Base directory for cache files
-.TP
-\fBXDG_CONFIG_HOME\fR
-Base directory for config files
-.SH FILES
-.TP
-\fI~/.config/smartfo/config.toml\fR
-User configuration file
-.TP
-\fI$XDG_DATA_HOME/smartfo/trash/\fR
-Trash directory
-.TP
-\fI$XDG_DATA_HOME/smartfo/audit/operations.jsonl\fR
-Audit log
-.SH SEE ALSO
-.BR git (1),
-.BR hg (1),
-.BR svn (1),
-.BR jj (1)
-.SH AUTHOR
-smartfo development team
-"#;
-        Ok(man_content.to_string())
+        install_man_pages(&self.man_dir)
     }
 
     fn remove_symlinks(&self) -> Result<()> {
@@ -529,17 +392,7 @@ smartfo development team
     }
 
     fn remove_man_pages(&self) -> Result<()> {
-        info!("Removing man pages");
-
-        let man_path = self.man_dir.join("man1").join("smartfo.1");
-        if man_path.exists() {
-            fs::remove_file(&man_path)
-                .context("Failed to remove man page")?;
-            debug!("Removed man page from {}", man_path.display());
-        }
-
-        info!("Man pages removed successfully");
-        Ok(())
+        remove_man_pages(&self.man_dir)
     }
 
     fn remove_config(&self) -> Result<()> {
@@ -643,8 +496,7 @@ mod tests {
 
     #[test]
     fn test_man_page_generation() {
-        let installer = Installer::new().unwrap();
-        let man_page = installer.generate_man_page().unwrap();
+        let man_page = crate::man::generate_man_page(crate::man::ManPageType::Smartfo).unwrap();
         assert!(!man_page.is_empty());
         assert!(man_page.contains("smartfo"));
         assert!(man_page.contains("VCS-aware"));

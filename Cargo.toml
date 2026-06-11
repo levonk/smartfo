@@ -38,6 +38,7 @@ nix = { version = "0.27", features = ["user", "process", "signal", "socket", "fs
 libc = "0.2"
 which = "6.0"
 dialoguer = "0.11"
+pager = "0.16"
 
 [dev-dependencies]
 assert_cmd = "2.0"
@@ -90,6 +91,10 @@ path = "tests/signal_tests.rs"
 [[test]]
 name = "dry_run_tests"
 path = "tests/dry_run_tests.rs"
+
+[[test]]
+name = "pager_tests"
+path = "tests/pager_tests.rs"
 
 [[bench]]
 name = "agent_mode_benchmarks"

@@ -7,10 +7,12 @@ pub mod truncation;
 pub mod aggregates;
 pub mod empty;
 pub mod suggestions;
+pub mod pager;
 
 pub use schema::FieldFilterable;
 pub use truncation::DEFAULT_TRUNCATION_LIMIT;
 pub use suggestions::{Suggestion, SuggestionContext, SuggestionEngine, format_suggestions_as_help};
+pub use pager::Pager;
 
 use serde::Serialize;
 use std::io::Write;
@@ -60,8 +62,8 @@ pub struct OutputWriter<W: Write> {
 impl<W: Write> OutputWriter<W> {
     /// Create a new output writer
     pub fn new(writer: W, format: OutputFormat) -> Self {
-        Self { 
-            writer, 
+        Self {
+            writer,
             format,
             field_selector: None,
             truncation_enabled: true,
@@ -72,8 +74,8 @@ impl<W: Write> OutputWriter<W> {
 
     /// Create a new output writer with field selection
     pub fn with_fields(writer: W, format: OutputFormat, field_selector: schema::FieldSelector) -> Self {
-        Self { 
-            writer, 
+        Self {
+            writer,
             format,
             field_selector: Some(field_selector),
             truncation_enabled: true,

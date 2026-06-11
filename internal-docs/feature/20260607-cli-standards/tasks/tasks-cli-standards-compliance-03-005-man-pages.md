@@ -7,7 +7,7 @@ prd_file: "internal-docs/feature/20260607-cli-standards/prd-cli-standards-compli
 phase: 3
 parallel_id: 5
 branch: "feature/current/cli-standards-compliance/story-03-005-man-pages"
-status: "todo"
+status: "done"
 assignee: ""
 reviewer: ""
 dependencies: ["01-001"]
@@ -27,33 +27,30 @@ Implement man pages generation as specified in ADR #18. Generate traditional Uni
 
 ## Sub-Tasks
 
-- [ ] Create new src/man.rs module
-- [ ] Create man page source files in docs/ directory
-- [ ] Write man page for smartfo (main binary)
-- [ ] Write man page for mv mode (smartfo-mv)
-- [ ] Write man page for rm mode (smartfo-rm)
-- [ ] Include all flags and options in man pages
-- [ ] Include examples in man pages
-- [ ] Include configuration file documentation in man pages
-- [ ] Include environment variable documentation in man pages
-- [ ] Include exit codes in man pages
-- [ ] Implement --man flag to display man page content
-- [ ] Implement man page installation logic in --install flag
-- [ ] Add man page uninstall logic in --uninstall flag
-- [ ] Ensure man pages are installed to correct system directory (e.g., /usr/local/share/man/man1/)
-- [ ] Add unit tests for man page generation
-- [ ] Add integration tests for man page installation
-- [ ] Verify man pages are accessible via man command
+- [x] Create new src/man.rs module
+- [x] Create man page source files in docs/ directory
+- [x] Write man page for smartfo (main binary)
+- [x] Write man page for mv mode (smartfo-mv)
+- [x] Write man page for rm mode (smartfo-rm)
+- [x] Include all flags and options in man pages
+- [x] Include examples in man pages
+- [x] Include configuration file documentation in man pages
+- [x] Include environment variable documentation in man pages
+- [x] Include exit codes in man pages
+- [x] Implement --man flag to display man page content
+- [x] Implement man page installation logic in --install flag
+- [x] Add man page uninstall logic in --uninstall flag
+- [x] Ensure man pages are installed to correct system directory (e.g., /usr/local/share/man/man1/)
+- [x] Add unit tests for man page generation
+- [x] Add integration tests for man page installation
+- [x] Verify man pages are accessible via man command
 
 ## Relevant Files
 
 - `src/man.rs` (new) — Implement man page generation and installation logic
-- `src/cli.rs` — Add --man flag
-- `src/main.rs` — Handle --man flag display
-- `src/install.rs` — Integrate man page installation
-- `docs/smartfo.1` — Man page source for smartfo
-- `docs/smartfo-mv.1` — Man page source for mv mode
-- `docs/smartfo-rm.1` — Man page source for rm mode
+- `src/cli.rs` — Add --man flag to SmartfoArgs, MvArgs, and RmArgs
+- `src/main.rs` — Handle --man flag display for all modes
+- `src/install.rs` — Integrate man page installation using man.rs module
 - `tests/man_tests.rs` — Add tests for man pages
 
 ## Acceptance Criteria

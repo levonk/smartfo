@@ -66,6 +66,7 @@ pub fn shell_name(shell: Shell) -> &'static str {
 mod tests {
     use super::*;
     use clap::Parser;
+    use clap::CommandFactory;
 
     #[derive(Parser, Debug)]
     struct TestCmd {
