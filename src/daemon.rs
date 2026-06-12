@@ -5,6 +5,7 @@
 //! - PID lockfile management
 //! - Unix domain socket for CLI-to-daemon communication
 //! - Graceful shutdown on SIGTERM
+//! - HTTP health check endpoint for container orchestration
 
 use anyhow::{Context, Result};
 use nix::unistd::{fork, ForkResult, setsid, Pid};
@@ -14,11 +15,17 @@ use std::io::{BufRead, BufReader, Write};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread;
 use tracing::{info, warn, error};
+use crate::health::{HealthChecker, HealthStatus};
 
 /// Global shutdown flag for signal handler
 /// This must be static because signal handlers can't capture variables
 static SHUTDOWN_FLAG: AtomicBool = AtomicBool::new(false);
+
+/// Global health checker for signal handler
+/// This must be static because signal handlers can't capture variables
+static mut HEALTH_CHECKER: Option<HealthChecker> = None;
 
 /// Daemon instance managing lifecycle and communication
 #[derive(Clone)]
@@ -201,6 +208,34 @@ impl Daemon {
         Ok(())
     }
 
+    /// Set up signal handler for health check (SIGUSR1)
+    ///
+    /// This installs a handler for SIGUSR1 that writes health status to a file
+    pub fn setup_health_check_signal_handler(&self, health_checker: HealthChecker) -> Result<()> {
+        // Safety: We store the health checker in a static variable for the signal handler
+        // The signal handler only reads from it and writes to a file, which is safe
+        unsafe {
+            HEALTH_CHECKER = Some(health_checker);
+
+            extern "C" fn sigusr1_handler(_sig: i32) {
+                // Safety: Accessing static mutable variable in signal handler
+                // This is safe because we only read and write to a file, no data races
+                let checker = unsafe { HEALTH_CHECKER.as_ref() };
+                if let Some(ref checker) = checker {
+                    let status = checker.check();
+                    checker.write_status_file(status);
+                }
+            }
+
+            let handler = SigHandler::Handler(sigusr1_handler);
+            signal::signal(Signal::SIGUSR1, handler)
+                .context("Failed to install SIGUSR1 handler")?;
+        }
+
+        info!("Installed SIGUSR1 handler for health checks");
+        Ok(())
+    }
+
     /// Bind and listen on Unix domain socket
     ///
     /// Removes existing socket file if present (stale from previous daemon)
@@ -312,6 +347,71 @@ impl Daemon {
     /// Daemon mode requires Unix domain sockets and fork support
     pub fn is_daemon_supported() -> bool {
         cfg!(unix)
+    }
+
+    /// Start HTTP health check server in a background thread
+    ///
+    /// This spawns a lightweight HTTP server on localhost that responds to
+    /// GET /health with 200 when healthy, 503 when unhealthy.
+    /// The server runs in a background thread and shuts down when the daemon exits.
+    pub fn start_health_check_server(&self, health_checker: HealthChecker) -> Result<()> {
+        let port = health_checker.config().http_port;
+        let health_checker_clone = health_checker.clone();
+
+        thread::spawn(move || {
+            info!("Starting HTTP health check server on port {}", port);
+
+            let server = match tiny_http::Server::http(format!("127.0.0.1:{}", port)) {
+                Ok(s) => s,
+                Err(e) => {
+                    error!("Failed to start HTTP health check server: {}", e);
+                    return;
+                }
+            };
+
+            info!("HTTP health check server listening on 127.0.0.1:{}", port);
+
+            for request in server.incoming_requests() {
+                // Check if shutdown was requested
+                if Self::is_shutdown_requested() {
+                    info!("Health check server shutting down");
+                    break;
+                }
+
+                // Only respond to GET /health requests
+                let url = request.url();
+                if url == "/health" && *request.method() == tiny_http::Method::Get {
+                    let status = health_checker_clone.check();
+                    let http_status = status.http_status();
+                    let body = match status {
+                        HealthStatus::Healthy => "OK\n",
+                        HealthStatus::Unhealthy => "UNHEALTHY\n",
+                    };
+
+                    let response = tiny_http::Response::from_string(body.to_string())
+                        .with_status_code(tiny_http::StatusCode::from(http_status))
+                        .with_header(tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"text/plain"[..]).unwrap());
+
+                    if let Err(e) = request.respond(response) {
+                        error!("Failed to send health check response: {}", e);
+                    } else {
+                        info!("Health check responded with status {}", http_status);
+                    }
+                } else {
+                    // Return 404 for other paths
+                    let response = tiny_http::Response::from_string("Not Found\n")
+                        .with_status_code(tiny_http::StatusCode::from(404));
+
+                    if let Err(e) = request.respond(response) {
+                        error!("Failed to send 404 response: {}", e);
+                    }
+                }
+            }
+
+            info!("HTTP health check server stopped");
+        });
+
+        Ok(())
     }
 
     /// Get or spawn daemon connection from CLI perspective

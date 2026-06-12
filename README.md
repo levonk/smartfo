@@ -90,6 +90,38 @@ smartfo --session-context
 smartfo list --human
 ```
 
+### TUI Mode
+
+Smartfo includes a Terminal User Interface (TUI) mode for interactive argument editing and configuration.
+
+**Launch TUI for move operations:**
+```bash
+mv --tui file1 file2
+mv --interactive-tui file1 file2
+```
+
+**Launch TUI for remove operations:**
+```bash
+rm --tui file.txt
+rm --interactive-tui file.txt
+```
+
+**Launch TUI for install:**
+```bash
+smartfo --install --tui
+```
+
+**Launch TUI for config editing:**
+```bash
+smartfo --init-config --tui
+```
+
+The TUI mode provides:
+- Interactive argument editing before execution
+- Visual navigation with arrow keys
+- Enter to confirm, Esc to cancel
+- Terminal resize support
+
 ### Smartfo Commands
 
 ```bash
@@ -98,6 +130,8 @@ smartfo list --all              # Show all items including completed
 smartfo list --limit 10         # Limit number of items
 smartfo status                  # Show daemon and queue status
 smartfo status --detailed       # Show detailed status
+smartfo health check            # Check daemon health status
+smartfo health check --signal    # Use signal-based health check (SIGUSR1)
 ```
 
 ## Agent Integration
@@ -323,9 +357,39 @@ smartfo --check-skill
 - Exits with code 1 if skill is stale and needs regeneration
 - Used in CI pipelines to ensure documentation stays synchronized
 
-## Output Formats
+## Terminal Size Awareness
 
-Smartfo supports multiple output formats for agent consumption:
+Smartfo automatically detects terminal size and formats output accordingly for optimal readability.
+
+### Terminal Size Detection
+
+Smartfo detects terminal dimensions on startup using:
+- **ioctl TIOCGWINSZ** (Unix/Linux/macOS): Direct terminal size query
+- **Environment variables**: Falls back to `COLUMNS` and `LINES` if ioctl fails
+- **Default values**: Uses 80x24 if running in a non-terminal environment
+
+### Output Formatting
+
+**Help text**: Usage messages are wrapped to fit terminal width
+```bash
+mv --usage  # Wrapped to terminal width
+rm --usage  # Wrapped to terminal width
+```
+
+**Human format output**: JSON output is wrapped based on terminal width when in human mode
+```bash
+smartfo list --format=human  # Wrapped to terminal width
+```
+
+**Fallback behavior**: When running in non-terminal environments (pipes, redirects, CI), smartfo uses default dimensions (80x24) to ensure output remains readable.
+
+### Resize Handling
+
+Terminal resize events (SIGWINCH) are logged when detected. The terminal size cache provides infrastructure for future TUI mode enhancements with interactive resize handling.
+
+### Configuration
+
+Terminal size detection is automatic and requires no configuration. The detection happens at startup and the size is used for all subsequent output formatting.
 
 ### TOON Format (Token-Oriented Object Notation)
 

@@ -7,7 +7,7 @@ prd_file: "internal-docs/feature/20260610-requirements-gaps/20260610-requirement
 phase: 3
 parallel_id: 1
 branch: "feature/current/requirements-gaps/story-03-001-tui-mode-framework-tests"
-status: "todo"
+status: "in_progress"
 assignee: ""
 reviewer: ""
 dependencies: ["02-003"]
@@ -27,24 +27,24 @@ Implement TUI mode framework triggered by `--interactive` or `--tui` flag. Allow
 
 ## Sub-Tasks
 
-- [ ] Add ratatui dependency to Cargo.toml
-- [ ] Add crossterm dependency to Cargo.toml
-- [ ] Create TUI framework module in `src/tui.rs`
-- [ ] Implement TUI event loop
-- [ ] Implement TUI layout system
-- [ ] Implement TUI argument editor
-- [ ] Implement TUI config editor
-- [ ] Add `--interactive` flag to CLI
-- [ ] Add `--tui` flag to CLI
-- [ ] Integrate TUI with argument parsing
-- [ ] Add TUI for install operations
-- [ ] Add TUI for config editing
-- [ ] Add TUI for batch operations
-- [ ] Implement terminal resize handling in TUI
-- [ ] Write unit tests for TUI components
-- [ ] Write integration tests for TUI mode
-- [ ] Update man pages with TUI documentation
-- [ ] Document TUI usage in README
+- [x] Add ratatui dependency to Cargo.toml
+- [x] Add crossterm dependency to Cargo.toml
+- [x] Create TUI framework module in `src/tui.rs`
+- [x] Implement TUI event loop
+- [x] Implement TUI layout system
+- [x] Implement TUI argument editor
+- [x] Implement TUI config editor
+- [x] Add `--interactive` flag to CLI
+- [x] Add `--tui` flag to CLI
+- [x] Integrate TUI with argument parsing
+- [x] Add TUI for install operations
+- [x] Add TUI for config editing
+- [x] Add TUI for batch operations
+- [x] Implement terminal resize handling in TUI
+- [x] Write unit tests for TUI components
+- [x] Write integration tests for TUI mode
+- [x] Update man pages with TUI documentation
+- [x] Document TUI usage in README
 
 Status conventions: mark in-progress with `[~]`, done with `[x]`, blocked with `[!]`.
 
@@ -62,13 +62,13 @@ Status conventions: mark in-progress with `[~]`, done with `[x]`, blocked with `
 
 ## Acceptance Criteria
 
-- [ ] TUI mode launches with --interactive or --tui flag
-- [ ] Users can view and modify arguments before execution
-- [ ] TUI supports interactive configuration
-- [ ] TUI handles terminal resize events
-- [ ] TUI works for install, config editing, and batch operations
-- [ ] All tests pass
-- [ ] Documentation complete
+- [x] TUI mode launches with --interactive or --tui flag
+- [x] Users can view and modify arguments before execution
+- [x] TUI supports interactive configuration
+- [x] TUI handles terminal resize events
+- [x] TUI works for install, config editing, and batch operations
+- [x] All tests pass
+- [x] Documentation complete
 
 ## Test Plan
 

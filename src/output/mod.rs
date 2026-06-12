@@ -16,6 +16,7 @@ pub use pager::Pager;
 
 use serde::Serialize;
 use std::io::Write;
+use crate::terminal::{get_terminal_size, wrap_text};
 
 /// Output format options
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -57,11 +58,13 @@ pub struct OutputWriter<W: Write> {
     truncation_enabled: bool,
     truncation_limit: usize,
     suggestions: Option<Vec<String>>,
+    terminal_width: Option<usize>,
 }
 
 impl<W: Write> OutputWriter<W> {
     /// Create a new output writer
     pub fn new(writer: W, format: OutputFormat) -> Self {
+        let terminal_size = get_terminal_size();
         Self {
             writer,
             format,
@@ -69,11 +72,13 @@ impl<W: Write> OutputWriter<W> {
             truncation_enabled: true,
             truncation_limit: DEFAULT_TRUNCATION_LIMIT,
             suggestions: None,
+            terminal_width: Some(terminal_size.cols),
         }
     }
 
     /// Create a new output writer with field selection
     pub fn with_fields(writer: W, format: OutputFormat, field_selector: schema::FieldSelector) -> Self {
+        let terminal_size = get_terminal_size();
         Self {
             writer,
             format,
@@ -81,6 +86,7 @@ impl<W: Write> OutputWriter<W> {
             truncation_enabled: true,
             truncation_limit: DEFAULT_TRUNCATION_LIMIT,
             suggestions: None,
+            terminal_width: Some(terminal_size.cols),
         }
     }
 
@@ -100,6 +106,17 @@ impl<W: Write> OutputWriter<W> {
     pub fn with_suggestions(mut self, suggestions: Vec<String>) -> Self {
         self.suggestions = Some(suggestions);
         self
+    }
+
+    /// Set terminal width explicitly (overrides auto-detection)
+    pub fn with_terminal_width(mut self, width: usize) -> Self {
+        self.terminal_width = Some(width);
+        self
+    }
+
+    /// Get the effective terminal width for formatting
+    pub fn get_terminal_width(&self) -> usize {
+        self.terminal_width.unwrap_or(80)
     }
 
     /// Write data in the configured format
@@ -136,7 +153,16 @@ impl<W: Write> OutputWriter<W> {
             OutputFormat::Human => {
                 // Human-readable format - use JSON for now, can be enhanced later
                 let json_output = serde_json::to_string_pretty(&output_data)?;
-                writeln!(self.writer, "{}", json_output)?;
+                // Wrap JSON output based on terminal width if available
+                let width = self.get_terminal_width();
+                if width > 0 && json_output.len() > width {
+                    let wrapped = wrap_text(&json_output, width);
+                    for line in wrapped {
+                        writeln!(self.writer, "{}", line)?;
+                    }
+                } else {
+                    writeln!(self.writer, "{}", json_output)?;
+                }
             }
         }
         Ok(())

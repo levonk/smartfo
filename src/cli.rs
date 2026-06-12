@@ -150,6 +150,14 @@ pub struct MvArgs {
     #[arg(long, help = "Disable pager for long output")]
     pub no_pager: bool,
 
+    /// Launch TUI mode for interactive argument editing
+    #[arg(long, help = "Launch TUI mode for interactive argument editing")]
+    pub interactive_tui: bool,
+
+    /// Launch TUI mode (alias for --interactive-tui)
+    #[arg(long, help = "Launch TUI mode (alias for --interactive-tui)")]
+    pub tui: bool,
+
     /// Source file(s) to move (supports glob patterns like *.txt, **/*.rs)
     /// Use `-` to read paths from stdin
     #[arg(value_name = "SOURCE")]
@@ -398,6 +406,14 @@ pub struct RmArgs {
     /// Display man page content
     #[arg(long, help = "Display man page content")]
     pub man: bool,
+
+    /// Launch TUI mode for interactive argument editing
+    #[arg(long, help = "Launch TUI mode for interactive argument editing")]
+    pub interactive_tui: bool,
+
+    /// Launch TUI mode (alias for --interactive-tui)
+    #[arg(long, help = "Launch TUI mode (alias for --interactive-tui)")]
+    pub tui: bool,
 
     /// File(s) or directories to remove (supports glob patterns like *.txt, **/*.rs)
     /// Use `-` to read paths from stdin
@@ -652,6 +668,14 @@ pub struct SmartfoArgs {
     #[arg(long, help = "Display man page content")]
     pub man: bool,
 
+    /// Launch TUI mode for interactive configuration
+    #[arg(long, help = "Launch TUI mode for interactive configuration")]
+    pub interactive_tui: bool,
+
+    /// Launch TUI mode (alias for --interactive-tui)
+    #[arg(long, help = "Launch TUI mode (alias for --interactive-tui)")]
+    pub tui: bool,
+
     /// Subcommands
     #[command(subcommand)]
     pub command: Option<SmartfoCommand>,
@@ -672,6 +696,9 @@ pub enum SmartfoCommand {
     /// Information and query commands
     #[command(subcommand)]
     Info(InfoCommand),
+    /// Health check commands
+    #[command(subcommand)]
+    Health(HealthCommand),
 }
 
 /// Git hook subcommands
@@ -766,6 +793,27 @@ pub enum InfoCommand {
         /// Show detailed status
         #[arg(long)]
         detailed: bool,
+        /// Decrease logging verbosity (suppress non-essential output)
+        #[arg(short = 'q', long, help = "Decrease logging verbosity (suppress non-essential output)")]
+        quiet: bool,
+        /// Enable debug logging
+        #[arg(long, help = "Enable debug logging")]
+        debug: bool,
+    },
+}
+
+/// Health check subcommands
+#[derive(Parser, Debug)]
+pub enum HealthCommand {
+    /// Check daemon health status
+    #[command(name = "check", about = "Check daemon health status. Exits with 0 if healthy, 1 if unhealthy. Supports both HTTP endpoint and signal-based checks.")]
+    Check {
+        /// Use HTTP endpoint for health check
+        #[arg(long, help = "Use HTTP endpoint for health check (default: true)")]
+        http: bool,
+        /// Use signal-based health check (SIGUSR1)
+        #[arg(long, help = "Use signal-based health check via SIGUSR1")]
+        signal: bool,
         /// Decrease logging verbosity (suppress non-essential output)
         #[arg(short = 'q', long, help = "Decrease logging verbosity (suppress non-essential output)")]
         quiet: bool,

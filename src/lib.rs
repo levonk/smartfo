@@ -14,6 +14,10 @@ pub mod worker;
 pub mod queue;
 pub mod trash;
 pub mod completions;
+pub mod health;
+pub mod daemon;
+pub mod terminal;
+pub mod tui;
 
 // Re-export ColorMode for testing
 pub use config::ColorMode;

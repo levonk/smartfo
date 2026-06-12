@@ -17,13 +17,13 @@ This task index addresses the compliance gaps identified in the smartfo requirem
 | Story ID | Story Title | Branch | Dependencies | Parallel-safe | Modules |
 | -------- | ----------- | ------ | ------------ | ------------- | ------- |
 | 02-001 | --init-config flag + tests | [x] Done | feature/current/requirements-gaps/story-02-001-init-config-flag-tests | 01-001 | Parallel-safe: true | install, cli, tests |
-| 02-002 | Health check mechanism + tests | feature/current/requirements-gaps/story-02-002-health-check-mechanism-tests | 01-001 | Parallel-safe: true | daemon, health, tests |
-| 02-003 | Terminal size awareness + tests | feature/current/requirements-gaps/story-02-003-terminal-size-awareness-tests | 01-002 | Parallel-safe: true | tui, terminal, tests |
+| 02-002 | Health check mechanism + tests | feature/current/requirements-gaps/story-02-002-health-check-mechanism-tests | 01-001 | Parallel-safe: true | daemon, health, tests | [x] Done |
+| 02-003 | Terminal size awareness + tests | [x] Done | feature/current/requirements-gaps/story-02-003-terminal-size-awareness-tests | 01-002 | Parallel-safe: true | tui, terminal, tests |
 
 ### Phase 03: Core Features + Tests
 | Story ID | Story Title | Branch | Dependencies | Parallel-safe | Modules |
 | -------- | ----------- | ------ | ------------ | ------------- | ------- |
-| 03-001 | TUI mode framework + tests | feature/current/requirements-gaps/story-03-001-tui-mode-framework-tests | 02-003 | Parallel-safe: true | tui, cli, tests |
+| 03-001 | TUI mode framework + tests | feature/current/requirements-gaps/story-03-001-tui-mode-framework-tests | 02-003 | Parallel-safe: true | tui, cli, tests | [~] In-Progress |
 | 03-002 | Daemon process support + tests | feature/current/requirements-gaps/story-03-002-daemon-process-support-tests | 02-002 | Parallel-safe: true | daemon, cli, tests |
 | 03-003 | Resource limits + tests | feature/current/requirements-gaps/story-03-003-resource-limits-tests | 02-002 | Parallel-safe: true | daemon, config, tests |
 

@@ -27,18 +27,18 @@ Implement health check mechanism for container orchestration (Docker HEALTHCHECK
 
 ## Sub-Tasks
 
-- [ ] Design health check interface in `src/health.rs`
-- [ ] Implement HTTP health check endpoint in daemon
-- [ ] Implement signal-based health check (SIGUSR1)
-- [ ] Add health check command to CLI
-- [ ] Add health check validation logic (daemon operational state)
-- [ ] Add appropriate exit codes for health status (0=healthy, 1=unhealthy)
-- [ ] Write unit tests for health check logic
-- [ ] Write integration tests for HTTP health check endpoint
-- [ ] Write integration tests for signal-based health check
-- [ ] Add Docker HEALTHCHECK configuration
-- [ ] Add Kubernetes probe configuration examples
-- [ ] Document health check usage in README
+- [x] Design health check interface in `src/health.rs`
+- [x] Implement HTTP health check endpoint in daemon
+- [x] Implement signal-based health check (SIGUSR1)
+- [x] Add health check command to CLI
+- [x] Add health check validation logic (daemon operational state)
+- [x] Add appropriate exit codes for health status (0=healthy, 1=unhealthy)
+- [x] Write unit tests for health check logic
+- [x] Write integration tests for HTTP health check endpoint
+- [x] Write integration tests for signal-based health check
+- [x] Add Docker HEALTHCHECK configuration
+- [x] Add Kubernetes probe configuration examples
+- [x] Document health check usage in README
 
 Status conventions: mark in-progress with `[~]`, done with `[x]`, blocked with `[!]`.
 
@@ -54,13 +54,13 @@ Status conventions: mark in-progress with `[~]`, done with `[x]`, blocked with `
 
 ## Acceptance Criteria
 
-- [ ] HTTP health check endpoint returns 200 when healthy
-- [ ] Signal-based health check works with SIGUSR1
-- [ ] Health check validates operational state without side effects
-- [ ] Health check returns appropriate exit codes
-- [ ] Works with Docker HEALTHCHECK
-- [ ] Works with Kubernetes probes
-- [ ] All tests pass
+- [x] HTTP health check endpoint returns 200 when healthy
+- [x] Signal-based health check works with SIGUSR1
+- [x] Health check validates operational state without side effects
+- [x] Health check returns appropriate exit codes
+- [x] Works with Docker HEALTHCHECK
+- [x] Works with Kubernetes probes
+- [x] All tests pass
 
 ## Test Plan
 

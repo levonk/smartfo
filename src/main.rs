@@ -28,7 +28,10 @@ mod confirmation;
 mod progress;
 mod completions;
 mod man;
-use cli::{MvArgs, RmArgs, SmartfoArgs, SmartfoCommand, GitCommand, JobCommand, AgentCommand, InfoCommand};
+mod health;
+mod terminal;
+mod tui;
+use cli::{MvArgs, RmArgs, SmartfoArgs, SmartfoCommand, GitCommand, JobCommand, AgentCommand, InfoCommand, HealthCommand};
 use vcs::detect_vcs;
 use vcs::is_tracked;
 use output::OutputFormat;
@@ -39,6 +42,8 @@ use output::suggestions::{SuggestionContext, SuggestionEngine, format_suggestion
 use output::Pager;
 use man::{ManPageType, generate_man_page};
 use exit::{ExitCode, SignalHandler, error_category_to_exit_code, ErrorCategory};
+use terminal::{get_terminal_size, TerminalSizeCache, wrap_text};
+use tui::{edit_arguments, edit_config, install_tui, batch_operations, is_tui_supported};
 
 /// Resolve the symlink target directory based on XDG conventions and permissions.
 /// Priority: $XDG_BIN_HOME > ~/.local/bin (create if missing) > /usr/local/bin (if root)
@@ -207,6 +212,38 @@ fn run_mv(args: MvArgs) -> Result<()> {
         return Ok(());
     }
 
+    // Handle TUI mode flags
+    if args.interactive_tui || args.tui {
+        info!("TUI mode triggered for mv");
+        if !is_tui_supported() {
+            eprintln!("ERROR: TUI mode requires a terminal");
+            anyhow::bail!("TUI mode requires a terminal");
+        }
+
+        let (sources, dest) = args.resolve_paths()
+            .context("Failed to resolve paths")?;
+
+        let mut items: Vec<String> = sources.iter()
+            .map(|p| p.display().to_string())
+            .collect();
+
+        if let Some(ref d) = dest {
+            items.push(format!("-> {}", d.display()));
+        }
+
+        match edit_arguments(items) {
+            Ok(result) => {
+                info!("TUI result: {}", result);
+                println!("TUI completed: {}", result);
+                return Ok(());
+            }
+            Err(e) => {
+                eprintln!("TUI error: {}", e);
+                anyhow::bail!("TUI error: {}", e);
+            }
+        }
+    }
+
     // Handle daemon flags
     let use_daemon = should_use_daemon(args.daemon, args.no_daemon)?;
     if use_daemon {
@@ -259,7 +296,12 @@ fn run_mv(args: MvArgs) -> Result<()> {
                -V, --version            Print version information"
         );
 
-        pager.page_content(&usage_text)?;
+        // Wrap usage text based on terminal width
+        let terminal_size = get_terminal_size();
+        let wrapped_text = wrap_text(&usage_text, terminal_size.cols);
+        let formatted_text = wrapped_text.join("\n");
+
+        pager.page_content(&formatted_text)?;
         return Ok(());
     }
 
@@ -349,6 +391,34 @@ fn run_rm(args: RmArgs) -> Result<()> {
         return Ok(());
     }
 
+    // Handle TUI mode flags
+    if args.interactive_tui || args.tui {
+        info!("TUI mode triggered for rm");
+        if !is_tui_supported() {
+            eprintln!("ERROR: TUI mode requires a terminal");
+            anyhow::bail!("TUI mode requires a terminal");
+        }
+
+        let paths = args.resolve_paths()
+            .context("Failed to resolve paths")?;
+
+        let items: Vec<String> = paths.iter()
+            .map(|p| p.display().to_string())
+            .collect();
+
+        match batch_operations(items) {
+            Ok(result) => {
+                info!("TUI result: {}", result);
+                println!("TUI completed: {}", result);
+                return Ok(());
+            }
+            Err(e) => {
+                eprintln!("TUI error: {}", e);
+                anyhow::bail!("TUI error: {}", e);
+            }
+        }
+    }
+
     // Handle --man flag
     if args.man {
         info!("--man flag triggered for rm mode");
@@ -410,7 +480,12 @@ fn run_rm(args: RmArgs) -> Result<()> {
                -V, --version            Print version information"
         );
 
-        pager.page_content(&usage_text)?;
+        // Wrap usage text based on terminal width
+        let terminal_size = get_terminal_size();
+        let wrapped_text = wrap_text(&usage_text, terminal_size.cols);
+        let formatted_text = wrapped_text.join("\n");
+
+        pager.page_content(&formatted_text)?;
         return Ok(());
     }
 
@@ -672,12 +747,74 @@ fn run_status(detailed: bool, args: &SmartfoArgs) -> Result<()> {
     Ok(())
 }
 
+fn run_health_check(http: bool, signal: bool) -> Result<()> {
+    info!("health check command: http={}, signal={}", http, signal);
+
+    let checker = health::HealthChecker::new()?;
+
+    if signal {
+        // Signal-based health check: send SIGUSR1 to daemon and read status file
+        info!("Using signal-based health check");
+
+        // Get daemon PID
+        let daemon = daemon::Daemon::new()?;
+        if let Some(pid) = daemon.read_pid_file()? {
+            // Send SIGUSR1 to daemon
+            use nix::sys::signal::{self, Signal};
+            use nix::unistd::Pid;
+
+            if let Err(e) = signal::kill(Pid::from_raw(pid as i32), Signal::SIGUSR1) {
+                eprintln!("Failed to send SIGUSR1 to daemon: {}", e);
+                std::process::exit(1);
+            }
+
+            // Wait a moment for the signal handler to write the status file
+            std::thread::sleep(std::time::Duration::from_millis(100));
+
+            // Read status from file
+            let status = checker.read_status_file()?;
+            println!("{:?}", status);
+            std::process::exit(status.exit_code());
+        } else {
+            eprintln!("No daemon running (no PID file)");
+            std::process::exit(1);
+        }
+    } else {
+        // HTTP-based health check (default)
+        info!("Using HTTP-based health check");
+        let status = checker.check();
+        println!("{:?}", status);
+        std::process::exit(status.exit_code());
+    }
+}
+
 fn run_install(args: &SmartfoArgs) -> Result<()> {
     // Handle --version flag
     if args.version {
         info!("--version flag triggered for install mode");
         println!("smartfo {}", env!("CARGO_PKG_VERSION"));
         return Ok(());
+    }
+
+    // Handle TUI mode flags
+    if args.interactive_tui || args.tui {
+        info!("TUI mode triggered for install");
+        if !is_tui_supported() {
+            eprintln!("ERROR: TUI mode requires a terminal");
+            anyhow::bail!("TUI mode requires a terminal");
+        }
+
+        match install_tui() {
+            Ok(result) => {
+                info!("TUI result: {}", result);
+                println!("TUI completed: {}", result);
+                // Continue with normal install after TUI
+            }
+            Err(e) => {
+                eprintln!("TUI error: {}", e);
+                anyhow::bail!("TUI error: {}", e);
+            }
+        }
     }
 
     // Handle --man flag
@@ -1076,6 +1213,10 @@ fn run_main() -> Result<i32> {
     let signal_handler = SignalHandler::new();
     if let Err(e) = signal_handler.setup_handlers() {
         eprintln!("WARNING: Failed to setup signal handlers - {} - Graceful shutdown may not work correctly", e);
+    // Detect terminal size on startup
+    let terminal_size = get_terminal_size();
+    info!("Terminal size detected: {}x{}", terminal_size.cols, terminal_size.rows);
+
     }
 
     let mode = detect_mode();
@@ -1156,6 +1297,24 @@ fn run_main() -> Result<i32> {
                 // Handle --init-config flag
                 if args.init_config {
                     info!("--init-config flag triggered");
+                    if args.interactive_tui || args.tui {
+                        if !is_tui_supported() {
+                            eprintln!("ERROR: TUI mode requires a terminal");
+                            return Ok(1);
+                        }
+
+                        match edit_config() {
+                            Ok(result) => {
+                                info!("TUI config edit result: {}", result);
+                                println!("TUI config edit completed: {}", result);
+                            }
+                            Err(e) => {
+                                eprintln!("TUI error: {}", e);
+                                return Ok(1);
+                            }
+                        }
+                    }
+
                     let config_path = config::create_default_config_force(args.force)?;
                     println!("Created default config file at: {}", config_path.display());
                     return Ok(0);
@@ -1239,6 +1398,14 @@ fn run_main() -> Result<i32> {
                                 InfoCommand::Status { detailed, quiet, debug } => {
                                     setup_logging(*debug, *quiet, args.json, args.color.as_deref())?;
                                     run_status(*detailed, &args)
+                                },
+                            }
+                        },
+                        SmartfoCommand::Health(health_cmd) => {
+                            match health_cmd {
+                                HealthCommand::Check { http, signal, quiet, debug } => {
+                                    setup_logging(*debug, *quiet, args.json, args.color.as_deref())?;
+                                    run_health_check(*http, *signal)
                                 },
                             }
                         },

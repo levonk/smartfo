@@ -148,6 +148,12 @@ Pre-launch daemon in background and wait for jobs
 \fB\-\-no-daemon\fR
 Force synchronous in-process operation (disable auto-spawning)
 .TP
+\fB\-\-interactive-tui\fR, \fB\-\-tui\fR
+Launch TUI mode for interactive configuration
+.TP
+\fB\-\-no-pager\fR
+Disable pager for long output
+.TP
 \fB\-\-generate-completion[=SHELL]\fR
 Generate shell completion script for bash, zsh, or fish
 .SH COMMANDS
@@ -391,6 +397,9 @@ Decrease logging verbosity
 \fB\-\-debug\fR
 Enable debug logging
 .TP
+\fB\-\-interactive-tui\fR, \fB\-\-tui\fR
+Launch TUI mode for interactive argument editing
+.TP
 \fB\-\-daemon\fR
 Pre-launch daemon in background and wait for jobs
 .TP
@@ -598,6 +607,9 @@ Decrease logging verbosity
 .TP
 \fB\-\-debug\fR
 Enable debug logging
+.TP
+\fB\-\-interactive-tui\fR, \fB\-\-tui\fR
+Launch TUI mode for interactive argument editing
 .TP
 \fB\-\-daemon\fR
 Pre-launch daemon in background and wait for jobs
