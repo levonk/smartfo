@@ -27,21 +27,21 @@ Enhance daemon process support with `--daemon` and `--no-daemon` flags, `--list-
 
 ## Sub-Tasks
 
-- [ ] Add `--daemon` flag to CLI for pre-launching daemon
-- [ ] Add `--no-daemon` flag to CLI for synchronous operation
-- [ ] Implement `--list-jobs` command with optional job ID filtering
-- [ ] Implement `--cancel-job <id>` command
-- [ ] Add job status display in list command
-- [ ] Implement daemon platform fallback behavior
-- [ ] Add `daemon_fallback_quiet` config option
-- [ ] Add error messages for unsupported platforms
-- [ ] Add instructions for monitoring job progress
-- [ ] Write unit tests for daemon flags
-- [ ] Write integration tests for --list-jobs
-- [ ] Write integration tests for --cancel-job
-- [ ] Write tests for platform fallback behavior
-- [ ] Update man pages with daemon documentation
-- [ ] Update help text with new commands
+- [x] Add `--daemon` flag to CLI for pre-launching daemon
+- [x] Add `--no-daemon` flag to CLI for synchronous operation
+- [x] Implement `--list-jobs` command with optional job ID filtering
+- [x] Add job status display in list command
+- [x] Implement `--cancel-job <id>` command
+- [x] Implement daemon platform fallback behavior
+- [x] Add `daemon_fallback_quiet` config option
+- [x] Add error messages for unsupported platforms
+- [x] Add instructions for monitoring job progress
+- [x] Write unit tests for daemon flags
+- [x] Write integration tests for --list-jobs
+- [x] Write integration tests for --cancel-job
+- [x] Write tests for platform fallback behavior
+- [x] Update man pages with daemon documentation
+- [x] Update help text with new commands
 
 Status conventions: mark in-progress with `[~]`, done with `[x]`, blocked with `[!]`.
 
@@ -57,14 +57,14 @@ Status conventions: mark in-progress with `[~]`, done with `[x]`, blocked with `
 
 ## Acceptance Criteria
 
-- [ ] --daemon flag pre-launches daemon in background
-- [ ] --no-daemon flag forces synchronous operation
-- [ ] --list-jobs shows background job status with filtering
-- [ ] --cancel-job cancels specific jobs by ID
-- [ ] Platform fallback works with clear error messages
-- [ ] daemon_fallback_quiet config option works
-- [ ] All tests pass
-- [ ] Documentation complete
+- [x] --daemon flag pre-launches daemon in background
+- [x] --no-daemon flag forces synchronous operation
+- [x] --list-jobs shows background job status with filtering
+- [x] --cancel-job cancels specific jobs by ID
+- [x] Platform fallback works with clear error messages
+- [x] daemon_fallback_quiet config option works
+- [x] All tests pass
+- [x] Documentation complete
 
 ## Test Plan
 

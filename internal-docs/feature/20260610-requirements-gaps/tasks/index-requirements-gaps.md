@@ -23,8 +23,8 @@ This task index addresses the compliance gaps identified in the smartfo requirem
 ### Phase 03: Core Features + Tests
 | Story ID | Story Title | Branch | Dependencies | Parallel-safe | Modules |
 | -------- | ----------- | ------ | ------------ | ------------- | ------- |
-| 03-001 | TUI mode framework + tests | feature/current/requirements-gaps/story-03-001-tui-mode-framework-tests | 02-003 | Parallel-safe: true | tui, cli, tests | [~] In-Progress |
-| 03-002 | Daemon process support + tests | feature/current/requirements-gaps/story-03-002-daemon-process-support-tests | 02-002 | Parallel-safe: true | daemon, cli, tests |
+| 03-001 | TUI mode framework + tests | feature/current/requirements-gaps/story-03-001-tui-mode-framework-tests | 02-003 | Parallel-safe: true | tui, cli, tests | [x] Done |
+| 03-002 | Daemon process support + tests | feature/current/requirements-gaps/story-03-002-daemon-process-support-tests | 02-002 | Parallel-safe: true | daemon, cli, tests | [~] In-Progress |
 | 03-003 | Resource limits + tests | feature/current/requirements-gaps/story-03-003-resource-limits-tests | 02-002 | Parallel-safe: true | daemon, config, tests |
 
 ### Phase 04: Privacy + Tests

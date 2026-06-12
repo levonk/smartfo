@@ -248,8 +248,16 @@ fn run_mv(args: MvArgs) -> Result<()> {
     let use_daemon = should_use_daemon(args.daemon, args.no_daemon)?;
     if use_daemon {
         info!("Daemon mode explicitly enabled via --daemon flag");
-        // TODO: Pre-launch daemon and wait for jobs (will be implemented in story 04-003)
-        // For now, just log the intent
+        // Pre-launch daemon and wait for it to be ready
+        let daemon = daemon::Daemon::new()?;
+        if let Ok(stream) = daemon.get_or_spawn_daemon() {
+            info!("Daemon pre-launched successfully");
+            println!("Daemon pre-launched successfully");
+            println!("Use 'smartfo job list' to monitor background job progress");
+            drop(stream); // Close the connection, daemon continues running
+        } else {
+            eprintln!("WARNING: Failed to pre-launch daemon, continuing without daemon");
+        }
     } else if args.no_daemon {
         info!("Daemon mode explicitly disabled via --no-daemon flag");
     }
@@ -434,8 +442,16 @@ fn run_rm(args: RmArgs) -> Result<()> {
     let use_daemon = should_use_daemon(args.daemon, args.no_daemon)?;
     if use_daemon {
         info!("Daemon mode explicitly enabled via --daemon flag");
-        // TODO: Pre-launch daemon and wait for jobs (will be implemented in story 04-003)
-        // For now, just log the intent
+        // Pre-launch daemon and wait for it to be ready
+        let daemon = daemon::Daemon::new()?;
+        if let Ok(stream) = daemon.get_or_spawn_daemon() {
+            info!("Daemon pre-launched successfully");
+            println!("Daemon pre-launched successfully");
+            println!("Use 'smartfo job list' to monitor background job progress");
+            drop(stream); // Close the connection, daemon continues running
+        } else {
+            eprintln!("WARNING: Failed to pre-launch daemon, continuing without daemon");
+        }
     } else if args.no_daemon {
         info!("Daemon mode explicitly disabled via --no-daemon flag");
     }
@@ -1542,13 +1558,67 @@ fn run_check_skill(skill_file: &Option<std::path::PathBuf>) -> Result<()> {
 fn run_list_jobs(ids: &Option<String>) -> Result<()> {
     info!("list-jobs command: ids={:?}", ids);
 
-    // TODO: Implement actual job listing from queue (will be implemented in story 04-003)
-    // For now, show placeholder message
-    println!("Background job listing");
-    if let Some(ref id_list) = ids {
-        println!("Filtering by job IDs: {}", id_list);
+    // Get queue path
+    let xdg_data_home = std::env::var("XDG_DATA_HOME")
+        .unwrap_or_else(|_| {
+            let home = std::env::var("HOME").expect("HOME not set");
+            format!("{}/.local/share", home)
+        });
+    let queue_path = std::path::PathBuf::from(xdg_data_home).join("smartfo/queue.db");
+
+    // Try to load jobs from queue
+    let queue = match queue::JobQueue::new(&queue_path) {
+        Ok(q) => q,
+        Err(e) => {
+            eprintln!("Failed to open job queue: {}", e);
+            eprintln!("No jobs to display");
+            return Ok(());
+        }
+    };
+
+    // Parse job IDs if provided
+    let job_ids = ids.as_ref().map(|id_list| {
+        id_list.split(',')
+            .map(|s| s.trim().to_string())
+            .collect::<Vec<String>>()
+    });
+
+    // List jobs
+    let jobs = queue.list_jobs(job_ids.as_ref())
+        .context("Failed to list jobs")?;
+
+    if jobs.is_empty() {
+        println!("No jobs found");
+        return Ok(());
     }
-    println!("Note: Full job queue implementation coming in story 04-003");
+
+    // Display jobs with status
+    println!("Background Jobs:");
+    println!();
+    for job in jobs {
+        let status_str = match job.status {
+            queue::JobStatus::Queued => "Queued",
+            queue::JobStatus::Running => "Running",
+            queue::JobStatus::Done => "Done",
+            queue::JobStatus::Failed => "Failed",
+        };
+        let op_type_str = match job.op_type {
+            queue::OperationType::Move => "Move",
+            queue::OperationType::Copy => "Copy",
+            queue::OperationType::Delete => "Delete",
+        };
+
+        println!("  ID: {}", job.uuid);
+        println!("  Type: {}", op_type_str);
+        println!("  Status: {}", status_str);
+        println!("  Source: {}", job.source.display());
+        if let Some(ref dest) = job.dest {
+            println!("  Destination: {}", dest.display());
+        }
+        println!("  Created: {}", job.created_at.format("%Y-%m-%d %H:%M:%S UTC"));
+        println!("  Retries: {}", job.retry_count);
+        println!();
+    }
 
     Ok(())
 }
@@ -1556,10 +1626,37 @@ fn run_list_jobs(ids: &Option<String>) -> Result<()> {
 fn run_cancel_job(job_id: &str) -> Result<()> {
     info!("cancel-job command: job_id={}", job_id);
 
-    // TODO: Implement actual job cancellation (will be implemented in story 04-003)
-    // For now, show placeholder message
-    println!("Cancelling job: {}", job_id);
-    println!("Note: Full job cancellation implementation coming in story 04-003");
+    // Parse job ID as UUID
+    let uuid = uuid::Uuid::parse_str(job_id)
+        .context("Invalid job ID format. Expected UUID format.")?;
+
+    // Get queue path
+    let xdg_data_home = std::env::var("XDG_DATA_HOME")
+        .unwrap_or_else(|_| {
+            let home = std::env::var("HOME").expect("HOME not set");
+            format!("{}/.local/share", home)
+        });
+    let queue_path = std::path::PathBuf::from(xdg_data_home).join("smartfo/queue.db");
+
+    // Try to load queue
+    let queue = match queue::JobQueue::new(&queue_path) {
+        Ok(q) => q,
+        Err(e) => {
+            eprintln!("Failed to open job queue: {}", e);
+            eprintln!("Cannot cancel job");
+            return Ok(());
+        }
+    };
+
+    // Cancel the job
+    let cancelled = queue.cancel_job(&uuid)
+        .context("Failed to cancel job")?;
+
+    if cancelled {
+        println!("Job {} cancelled successfully", job_id);
+    } else {
+        eprintln!("Job {} not found", job_id);
+    }
 
     Ok(())
 }

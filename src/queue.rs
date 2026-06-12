@@ -348,6 +348,86 @@ impl JobQueue {
 
         Ok(depth)
     }
+
+    /// List all jobs, optionally filtered by specific job IDs
+    pub fn list_jobs(&self, job_ids: Option<&Vec<String>>) -> Result<Vec<Job>> {
+        let jobs = if let Some(ids) = job_ids {
+            // Filter by specific job IDs
+            let mut query = String::from("SELECT uuid, source, dest, status, retry_count, op_type, created_at, updated_at FROM jobs WHERE uuid IN (");
+            let placeholders: Vec<String> = ids.iter().enumerate().map(|(i, _)| format!("?{}", i + 1)).collect();
+            query.push_str(&placeholders.join(", "));
+            query.push_str(")");
+
+            let mut stmt = self.conn.prepare(&query)
+                .context("Failed to prepare list jobs query")?;
+
+            let mut jobs = Vec::new();
+            let mut rows = stmt.query(rusqlite::params_from_iter(ids.iter()))
+                .context("Failed to execute list jobs query")?;
+
+            while let Some(row) = rows.next()? {
+                jobs.push(Job {
+                    uuid: Uuid::parse_str(&row.get::<_, String>(0)?)?,
+                    source: PathBuf::from(row.get::<_, String>(1)?),
+                    dest: row.get::<_, Option<String>>(2)?.map(PathBuf::from),
+                    status: JobStatus::from_i32(row.get(3)?)?,
+                    retry_count: row.get(4)?,
+                    op_type: OperationType::from_i32(row.get(5)?)?,
+                    created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(6)?)
+                        .with_context(|| "Failed to parse created_at")?
+                        .with_timezone(&Utc),
+                    updated_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(7)?)
+                        .with_context(|| "Failed to parse updated_at")?
+                        .with_timezone(&Utc),
+                });
+            }
+            jobs
+        } else {
+            // List all jobs
+            let mut stmt = self.conn.prepare(
+                "SELECT uuid, source, dest, status, retry_count, op_type, created_at, updated_at FROM jobs ORDER BY created_at DESC"
+            ).context("Failed to prepare list all jobs query")?;
+
+            let mut jobs = Vec::new();
+            let mut rows = stmt.query([])
+                .context("Failed to execute list all jobs query")?;
+
+            while let Some(row) = rows.next()? {
+                jobs.push(Job {
+                    uuid: Uuid::parse_str(&row.get::<_, String>(0)?)?,
+                    source: PathBuf::from(row.get::<_, String>(1)?),
+                    dest: row.get::<_, Option<String>>(2)?.map(PathBuf::from),
+                    status: JobStatus::from_i32(row.get(3)?)?,
+                    retry_count: row.get(4)?,
+                    op_type: OperationType::from_i32(row.get(5)?)?,
+                    created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(6)?)
+                        .with_context(|| "Failed to parse created_at")?
+                        .with_timezone(&Utc),
+                    updated_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(7)?)
+                        .with_context(|| "Failed to parse updated_at")?
+                        .with_timezone(&Utc),
+                });
+            }
+            jobs
+        };
+
+        Ok(jobs)
+    }
+
+    /// Cancel a job by marking it as failed
+    /// Note: This is a simple cancellation that marks the job as failed.
+    /// A more sophisticated implementation would need to signal the worker to stop.
+    pub fn cancel_job(&self, uuid: &Uuid) -> Result<bool> {
+        // Check if job exists
+        let status = self.get_status(uuid)?;
+        if status.is_none() {
+            return Ok(false);
+        }
+
+        // Mark as failed to cancel
+        self.mark_failed(uuid)?;
+        Ok(true)
+    }
 }
 
 #[cfg(test)]
@@ -505,7 +585,7 @@ mod tests {
     #[test]
     fn test_queue_depth() {
         let queue = create_test_queue();
-        
+
         let job = Job {
             uuid: Uuid::new_v4(),
             source: PathBuf::from("/tmp/test.txt"),

@@ -50,6 +50,54 @@ fn test_smartfo_no_args_shows_content_first_summary() {
 }
 
 #[test]
+fn test_daemon_flag_accepted() {
+    let mut cmd = Command::cargo_bin("smartfo").unwrap();
+    cmd.arg("--daemon")
+        .arg("--help")
+        .assert()
+        .success();
+}
+
+#[test]
+fn test_no_daemon_flag_accepted() {
+    let mut cmd = Command::cargo_bin("smartfo").unwrap();
+    cmd.arg("--no-daemon")
+        .arg("--help")
+        .assert()
+        .success();
+}
+
+#[test]
+fn test_job_list_command_accepted() {
+    let mut cmd = Command::cargo_bin("smartfo").unwrap();
+    cmd.arg("job")
+        .arg("list")
+        .assert()
+        .success();
+}
+
+#[test]
+fn test_job_list_with_ids_accepted() {
+    let mut cmd = Command::cargo_bin("smartfo").unwrap();
+    cmd.arg("job")
+        .arg("list")
+        .arg("--ids")
+        .arg("123e4567-e89b-12d3-a456-426614174000")
+        .assert()
+        .success();
+}
+
+#[test]
+fn test_job_cancel_command_accepted() {
+    let mut cmd = Command::cargo_bin("smartfo").unwrap();
+    cmd.arg("job")
+        .arg("cancel")
+        .arg("123e4567-e89b-12d3-a456-426614174000")
+        .assert()
+        .success();
+}
+
+#[test]
 fn test_smartfo_install_flag() {
     let mut cmd = Command::cargo_bin("smartfo").unwrap();
     cmd.arg("--install")
