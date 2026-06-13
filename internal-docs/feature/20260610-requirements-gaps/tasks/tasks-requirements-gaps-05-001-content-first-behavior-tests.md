@@ -7,7 +7,7 @@ prd_file: "internal-docs/feature/20260610-requirements-gaps/20260610-requirement
 phase: 5
 parallel_id: 1
 branch: "feature/current/requirements-gaps/story-05-001-content-first-behavior-tests"
-status: "in_progress"
+status: "done"
 assignee: ""
 reviewer: ""
 dependencies: ["03-001"]

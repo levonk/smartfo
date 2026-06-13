@@ -31,6 +31,18 @@ pub struct SessionMetadata {
     pub last_update: String,
     /// Context scope (directory, repo, global)
     pub scope: String,
+    /// Session transcript (if available)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transcript: Option<String>,
+    /// Files touched during session
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub files_touched: Vec<String>,
+    /// VCS commands executed during session
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub vcs_commands: Vec<String>,
+    /// Session end time (if session ended)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_end: Option<String>,
 }
 
 impl SessionContext {
@@ -61,6 +73,10 @@ impl SessionContext {
             session_start: now.clone(),
             last_update: now,
             scope: if git_root.is_some() { "repo".to_string() } else { "directory".to_string() },
+            transcript: None,
+            files_touched: Vec::new(),
+            vcs_commands: Vec::new(),
+            session_end: None,
         };
 
         Ok(Self {
@@ -71,6 +87,34 @@ impl SessionContext {
             queue_size,
             metadata,
         })
+    }
+
+    /// Update session transcript
+    pub fn update_transcript(&mut self, transcript: String) {
+        self.metadata.transcript = Some(transcript);
+        self.metadata.last_update = chrono::Utc::now().to_rfc3339();
+    }
+
+    /// Add a file to the files touched list
+    pub fn add_file_touched(&mut self, file_path: String) {
+        if !self.metadata.files_touched.contains(&file_path) {
+            self.metadata.files_touched.push(file_path);
+            self.metadata.last_update = chrono::Utc::now().to_rfc3339();
+        }
+    }
+
+    /// Add a VCS command to the VCS commands list
+    pub fn add_vcs_command(&mut self, command: String) {
+        if !self.metadata.vcs_commands.contains(&command) {
+            self.metadata.vcs_commands.push(command);
+            self.metadata.last_update = chrono::Utc::now().to_rfc3339();
+        }
+    }
+
+    /// Mark session as ended
+    pub fn end_session(&mut self) {
+        self.metadata.session_end = Some(chrono::Utc::now().to_rfc3339());
+        self.metadata.last_update = chrono::Utc::now().to_rfc3339();
     }
 
     /// Convert to TOON format for token-efficient output
@@ -400,6 +444,78 @@ pub fn cache_session_metadata(context: &SessionContext) -> Result<()> {
     Ok(())
 }
 
+/// Session lifecycle event
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum SessionLifecycleEvent {
+    /// Session started
+    Start { timestamp: String },
+    /// Session context updated
+    Update { timestamp: String, context: String },
+    /// Session ended
+    End { timestamp: String },
+}
+
+/// Emit a session lifecycle event
+pub fn emit_session_lifecycle_event(event: SessionLifecycleEvent) -> Result<()> {
+    let cache_dir = get_session_cache_dir()?;
+    let events_file = cache_dir.join("session-events.jsonl");
+
+    let event_json = serde_json::to_string(&event)
+        .context("Failed to serialize session lifecycle event")?;
+
+    // Append event to events file
+    fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&events_file)
+        .and_then(|mut file| {
+            use std::io::Write;
+            writeln!(file, "{}", event_json)
+        })
+        .with_context(|| format!("Failed to write session lifecycle event: {}", events_file.display()))?;
+
+    debug!("Emitted session lifecycle event: {:?}", event);
+    Ok(())
+}
+
+/// Clean up old session metadata based on retention policy
+pub fn cleanup_session_metadata(retention_days: u64) -> Result<()> {
+    let cache_dir = get_session_cache_dir()?;
+    let cutoff = chrono::Utc::now() - chrono::Duration::days(retention_days as i64);
+
+    // Clean up session metadata cache
+    let cache_file = cache_dir.join("session-metadata.json");
+    if cache_file.exists() {
+        let metadata = fs::metadata(&cache_file)?;
+        let modified = metadata.modified()
+            .context("Failed to get session metadata modification time")?;
+        let modified_time = chrono::DateTime::<chrono::Utc>::from(modified);
+
+        if modified_time < cutoff {
+            fs::remove_file(&cache_file)
+                .with_context(|| format!("Failed to remove old session metadata: {}", cache_file.display()))?;
+            info!("Removed old session metadata: {}", cache_file.display());
+        }
+    }
+
+    // Clean up session events file
+    let events_file = cache_dir.join("session-events.jsonl");
+    if events_file.exists() {
+        let metadata = fs::metadata(&events_file)?;
+        let modified = metadata.modified()
+            .context("Failed to get session events modification time")?;
+        let modified_time = chrono::DateTime::<chrono::Utc>::from(modified);
+
+        if modified_time < cutoff {
+            fs::remove_file(&events_file)
+                .with_context(|| format!("Failed to remove old session events: {}", events_file.display()))?;
+            info!("Removed old session events: {}", events_file.display());
+        }
+    }
+
+    Ok(())
+}
+
 /// Get the session cache directory
 pub fn get_session_cache_dir() -> Result<PathBuf> {
     let cache_dir = std::env::var("XDG_CACHE_HOME")
@@ -524,31 +640,103 @@ fn cache_operation_result(result: &PostOperationResult) -> Result<()> {
     Ok(())
 }
 
-/// Session lifecycle event
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum SessionLifecycleEvent {
-    /// Session started
-    SessionStart { timestamp: String },
-    /// Session ended
-    SessionEnd { timestamp: String, operations_count: u64 },
-    /// Operation started
-    OperationStart { operation: String, timestamp: String },
-    /// Operation completed
-    OperationComplete { operation: String, success: bool, timestamp: String },
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-/// Emit a session lifecycle event
-pub fn emit_session_lifecycle_event(event: SessionLifecycleEvent) -> Result<()> {
-    let cache_dir = get_session_cache_dir()?;
-    let events_file = cache_dir.join("session-events.jsonl");
+    #[test]
+    fn test_session_metadata_creation() {
+        let metadata = SessionMetadata {
+            session_start: "2024-01-01T00:00:00Z".to_string(),
+            last_update: "2024-01-01T00:00:00Z".to_string(),
+            scope: "repo".to_string(),
+            transcript: None,
+            files_touched: vec![],
+            vcs_commands: vec![],
+            session_end: None,
+        };
 
-    let event_json = serde_json::to_string(&event)
-        .context("Failed to serialize session event")?;
+        assert_eq!(metadata.scope, "repo");
+        assert!(metadata.transcript.is_none());
+        assert!(metadata.files_touched.is_empty());
+        assert!(metadata.vcs_commands.is_empty());
+    }
 
-    // Append to events file
-    fs::write(&events_file, format!("{}\n", event_json))
-        .context("Failed to write session event")?;
+    #[test]
+    fn test_session_context_new() {
+        let context = SessionContext::new();
+        assert!(context.is_ok());
+        let context = context.unwrap();
+        assert!(!context.cwd.is_empty());
+        assert_eq!(context.metadata.scope, "repo"); // Assuming we're in the smartfo repo
+    }
 
-    debug!("Session lifecycle event emitted: {:?}", event);
-    Ok(())
+    #[test]
+    fn test_update_transcript() {
+        let mut context = SessionContext::new().unwrap();
+        context.update_transcript("test transcript".to_string());
+        assert_eq!(context.metadata.transcript, Some("test transcript".to_string()));
+    }
+
+    #[test]
+    fn test_add_file_touched() {
+        let mut context = SessionContext::new().unwrap();
+        context.add_file_touched("/tmp/test.txt".to_string());
+        assert_eq!(context.metadata.files_touched.len(), 1);
+        assert_eq!(context.metadata.files_touched[0], "/tmp/test.txt");
+
+        // Adding the same file again should not duplicate
+        context.add_file_touched("/tmp/test.txt".to_string());
+        assert_eq!(context.metadata.files_touched.len(), 1);
+    }
+
+    #[test]
+    fn test_add_vcs_command() {
+        let mut context = SessionContext::new().unwrap();
+        context.add_vcs_command("git commit".to_string());
+        assert_eq!(context.metadata.vcs_commands.len(), 1);
+        assert_eq!(context.metadata.vcs_commands[0], "git commit");
+
+        // Adding the same command again should not duplicate
+        context.add_vcs_command("git commit".to_string());
+        assert_eq!(context.metadata.vcs_commands.len(), 1);
+    }
+
+    #[test]
+    fn test_end_session() {
+        let mut context = SessionContext::new().unwrap();
+        context.end_session();
+        assert!(context.metadata.session_end.is_some());
+    }
+
+    #[test]
+    fn test_session_lifecycle_event_serialization() {
+        let event = SessionLifecycleEvent::Start {
+            timestamp: "2024-01-01T00:00:00Z".to_string(),
+        };
+        let json = serde_json::to_string(&event);
+        assert!(json.is_ok());
+    }
+
+    #[test]
+    fn test_cache_session_metadata() {
+        let context = SessionContext::new().unwrap();
+        let result = cache_session_metadata(&context);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_load_session_metadata_no_cache() {
+        // Clean up any existing cache first
+        let cache_dir = get_session_cache_dir().unwrap();
+        let cache_file = cache_dir.join("session-metadata.json");
+        if cache_file.exists() {
+            std::fs::remove_file(&cache_file).unwrap();
+        }
+
+        // When no cache exists, should return Ok(None)
+        let loaded = load_session_metadata();
+        assert!(loaded.is_ok());
+        assert!(loaded.unwrap().is_none());
+    }
 }

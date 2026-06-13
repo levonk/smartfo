@@ -7,7 +7,7 @@ prd_file: "internal-docs/feature/20260610-requirements-gaps/20260610-requirement
 phase: 5
 parallel_id: 2
 branch: "feature/current/requirements-gaps/story-05-002-session-hooks-tests"
-status: "todo"
+status: "done"
 assignee: ""
 reviewer: ""
 dependencies: ["05-001"]
@@ -27,19 +27,19 @@ Implement session hooks lifecycle capture including session-end hooks for transc
 
 ## Sub-Tasks
 
-- [ ] Implement session-end hook registration in `src/hooks.rs`
-- [ ] Add session metadata capture (transcripts, files, VCS commands)
-- [ ] Implement session metadata caching
-- [ ] Add session metadata loading for context enrichment
-- [ ] Integrate session-end hooks with Claude Code
-- [ ] Integrate session-end hooks with Codex
-- [ ] Add session lifecycle tracking
-- [ ] Implement session metadata cleanup (retention policy)
-- [ ] Write unit tests for session hooks
-- [ ] Write integration tests for session-end hooks
-- [ ] Write tests for session metadata caching
-- [ ] Document session hooks in README
-- [ ] Add examples of session metadata
+- [x] Implement session-end hook registration in `src/hooks.rs`
+- [x] Add session metadata capture (transcripts, files, VCS commands)
+- [x] Implement session metadata caching
+- [x] Add session metadata loading for context enrichment
+- [x] Integrate session-end hooks with Claude Code
+- [x] Integrate session-end hooks with Codex
+- [x] Add session lifecycle tracking
+- [x] Implement session metadata cleanup (retention policy)
+- [x] Write unit tests for session hooks
+- [x] Write integration tests for session-end hooks
+- [x] Write tests for session metadata caching
+- [x] Document session hooks in README
+- [x] Add examples of session metadata
 
 Status conventions: mark in-progress with `[~]`, done with `[x]`, blocked with `[!]`.
 
@@ -53,14 +53,14 @@ Status conventions: mark in-progress with `[~]`, done with `[x]`, blocked with `
 
 ## Acceptance Criteria
 
-- [ ] Session-end hooks capture transcripts
-- [ ] Session-end hooks capture files touched
-- [ ] Session-end hooks capture VCS commands
-- [ ] Session metadata cached locally
-- [ ] Session metadata loaded for context enrichment
-- [ ] Session metadata cleanup works (retention policy)
-- [ ] All tests pass
-- [ ] Documentation complete
+- [x] Session-end hooks capture transcripts
+- [x] Session-end hooks capture files touched
+- [x] Session-end hooks capture VCS commands
+- [x] Session metadata cached locally
+- [x] Session metadata loaded for context enrichment
+- [x] Session metadata cleanup works (retention policy)
+- [x] All tests pass
+- [x] Documentation complete
 
 ## Test Plan
 

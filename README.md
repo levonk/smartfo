@@ -126,6 +126,61 @@ mv --tui file1 file2
 mv --interactive-tui file1 file2
 ```
 
+### Session Hooks
+
+Smartfo supports session hooks for AI agent integration, capturing session metadata including transcripts, files touched, and VCS commands.
+
+**Get session context:**
+```bash
+smartfo --session-context
+```
+
+Session metadata includes:
+- Current working directory
+- Git repository status (if in a VCS repo)
+- Session start time and last update
+- Files touched during the session
+- VCS commands executed
+- Session end time (if session ended)
+
+**Session metadata is cached** in `~/.cache/smartfo/session-metadata.json` for context enrichment across sessions.
+
+**Install hooks for Claude Code:**
+```bash
+smartfo agent install-hooks
+```
+
+**Install hooks for Codex:**
+```bash
+smartfo agent install-hooks
+```
+
+**Example session metadata:**
+```json
+{
+  "cwd": "/Users/user/project",
+  "git_root": "/Users/user/project",
+  "audit_log_path": "/Users/user/project/.smartfo/audit/operations.jsonl",
+  "recent_operations": 5,
+  "queue_size": 2,
+  "metadata": {
+    "session_start": "2024-01-01T00:00:00Z",
+    "last_update": "2024-01-01T01:00:00Z",
+    "scope": "repo",
+    "transcript": null,
+    "files_touched": [
+      "/Users/user/project/src/main.rs",
+      "/Users/user/project/README.md"
+    ],
+    "vcs_commands": [
+      "git add .",
+      "git commit -m 'Update main.rs'"
+    ],
+    "session_end": null
+  }
+}
+```
+
 ### Resource Limits
 
 Smartfo supports resource limiting for daemon operations to prevent resource exhaustion.
