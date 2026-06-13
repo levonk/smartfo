@@ -46,7 +46,7 @@ This task index addresses the compliance gaps identified in the smartfo requirem
 | -------- | ----------- | ------ | ------------ | ------------- | ------- |
 | 06-001 | Collection/processing separation + tests | feature/current/requirements-gaps/story-06-001-collection-processing-tests | 03-002 | Parallel-safe: true | daemon, export, tests | [x] Done
 | 06-002 | CI skill generation integration | feature/current/requirements-gaps/story-06-002-ci-skill-generation | 05-003 | Parallel-safe: true | ci, skill | [x] Done
-| 06-003 | Cross-platform validation | feature/current/requirements-gaps/story-06-003-cross-platform-validation | 01-002, 04-003 | Parallel-safe: true | tests, platform |
+| 06-003 | Cross-platform validation | feature/current/requirements-gaps/story-06-003-cross-platform-validation | 01-002, 04-003 | Parallel-safe: true | tests, platform | [x] Done
 
 ### Phase 07: Config Reload
 | Story ID | Story Title | Branch | Dependencies | Parallel-safe | Modules |

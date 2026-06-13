@@ -961,6 +961,30 @@ devbox run cargo clippy -- -D warnings
 devbox run cargo fmt
 ```
 
+## Cross-Platform Support
+
+Smartfo is designed to work consistently across Linux, macOS, and Windows. The CI pipeline validates all three platforms on every commit.
+
+**Supported Platforms:**
+- **Linux**: Full support with all features (daemon, VCS integration, TUI mode)
+- **macOS**: Full support with all features (daemon, VCS integration, TUI mode)
+- **Windows**: Full support with all features (daemon, VCS integration, TUI mode)
+
+**Platform-Specific Behavior:**
+- **Path separators**: Smartfo automatically handles path separators (`/` on Unix, `\` on Windows)
+- **Symlinks**: On Windows, symlinks require Developer Mode or administrator privileges
+- **Daemon**: Uses platform-appropriate IPC mechanisms (Unix domain sockets on Unix/macOS, named pipes on Windows)
+- **TUI mode**: Uses terminal size detection that works across all platforms
+- **VCS operations**: Git, Mercurial, SVN, and Jujutsu are supported on all platforms where available
+
+**CI Validation:**
+The GitHub Actions CI matrix runs the full test suite on:
+- `ubuntu-latest` (Linux)
+- `macos-latest` (macOS)
+- `windows-latest` (Windows)
+
+All tests must pass on all three platforms before merges are accepted.
+
 ## Migration Guide
 
 ### For Existing Users
