@@ -28,7 +28,7 @@ impl GeneratedSkill {
     /// Generate complete SKILL.md content
     pub fn to_markdown(&self) -> String {
         let mut output = String::new();
-        
+
         // Add frontmatter
         output.push_str("---\n");
         output.push_str(&format!("name: {}\n", self.metadata.name));
@@ -41,10 +41,10 @@ impl GeneratedSkill {
             }
         }
         output.push_str("---\n\n");
-        
+
         // Add body
         output.push_str(&self.body);
-        
+
         output
     }
 }
@@ -126,7 +126,7 @@ impl SkillGenerator {
 
         // Add commands section
         body.push_str("## Available Commands\n\n");
-        
+
         // Add mv command
         if let Some(mv_doc) = self.commands.get("mv") {
             body.push_str("### mv - Move Files\n\n");
@@ -384,21 +384,40 @@ pub fn check_skill_stale(current_skill_content: &str) -> Result<bool> {
     // Extract version from current skill
     let current_version = extract_version_from_skill(current_skill_content)?;
     let expected_version = env!("CARGO_PKG_VERSION");
-    
+
     Ok(current_version != expected_version)
+}
+
+/// Compare generated skill with committed skill file
+pub fn compare_skills(committed_skill: &str, generated_skill: &str) -> Result<bool> {
+    // Normalize both skills for comparison (ignore whitespace differences)
+    let normalized_committed = normalize_skill_content(committed_skill);
+    let normalized_generated = normalize_skill_content(generated_skill);
+
+    Ok(normalized_committed == normalized_generated)
+}
+
+/// Normalize skill content for comparison
+fn normalize_skill_content(content: &str) -> String {
+    content
+        .lines()
+        .map(|line| line.trim())
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// Extract version from skill markdown
 fn extract_version_from_skill(content: &str) -> Result<String> {
     let lines: Vec<&str> = content.lines().collect();
-    
+
     for line in lines {
         if line.starts_with("version:") {
             let version = line.trim_start_matches("version:").trim();
             return Ok(version.to_string());
         }
     }
-    
+
     anyhow::bail!("Version not found in skill content");
 }
 
@@ -410,7 +429,7 @@ mod tests {
     fn test_skill_generator_basic() {
         let generator = SkillGenerator::new();
         let skill = generator.generate().unwrap();
-        
+
         assert_eq!(skill.metadata.name, "smartfo");
         assert!(!skill.metadata.description.is_empty());
         assert!(!skill.body.is_empty());
@@ -420,7 +439,7 @@ mod tests {
     fn test_skill_generator_with_defaults() {
         let mut generator = SkillGenerator::new();
         let skill = generator.generate_with_defaults().unwrap();
-        
+
         assert!(skill.body.contains("mv - Move Files"));
         assert!(skill.body.contains("rm - Remove Files"));
         assert!(skill.body.contains("list - List Operations"));
@@ -432,7 +451,7 @@ mod tests {
         let mut generator = SkillGenerator::new();
         let skill = generator.generate_with_defaults().unwrap();
         let markdown = skill.to_markdown();
-        
+
         assert!(markdown.starts_with("---"));
         assert!(markdown.contains("name: smartfo"));
         assert!(markdown.contains("description:"));
@@ -448,7 +467,7 @@ description: Test
 version: 1.0.0
 ---
 "#;
-        
+
         let version = extract_version_from_skill(skill_content).unwrap();
         assert_eq!(version, "1.0.0");
     }
@@ -462,16 +481,79 @@ description: Test
 version: {}
 ---
 "#, current_version);
-        
+
         assert!(!check_skill_stale(&skill_content).unwrap());
-        
+
         let stale_content = r#"---
 name: smartfo
 description: Test
 version: 0.0.1
 ---
 "#;
-        
+
         assert!(check_skill_stale(stale_content).unwrap());
+    }
+
+    #[test]
+    fn test_compare_skills_identical() {
+        let skill1 = r#"---
+name: smartfo
+description: Test
+version: 1.0.0
+---
+# Content
+"#;
+
+        let skill2 = r#"---
+name: smartfo
+description: Test
+version: 1.0.0
+---
+# Content
+"#;
+
+        assert!(compare_skills(skill1, skill2).unwrap());
+    }
+
+    #[test]
+    fn test_compare_skills_whitespace_ignored() {
+        let skill1 = r#"---
+name: smartfo
+description: Test
+version: 1.0.0
+---
+# Content
+"#;
+
+        let skill2 = r#"---
+  name: smartfo
+  description: Test
+  version: 1.0.0
+---
+# Content
+"#;
+
+        assert!(compare_skills(skill1, skill2).unwrap());
+    }
+
+    #[test]
+    fn test_compare_skills_different() {
+        let skill1 = r#"---
+name: smartfo
+description: Test
+version: 1.0.0
+---
+# Content
+"#;
+
+        let skill2 = r#"---
+name: smartfo
+description: Different
+version: 1.0.0
+---
+# Content
+"#;
+
+        assert!(!compare_skills(skill1, skill2).unwrap());
     }
 }

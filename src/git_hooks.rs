@@ -182,6 +182,24 @@ pub fn run_pre_commit_hook(repo_root: &Path) -> Result<()> {
         }
     }
 
+    // Check SKILL.md staleness if it exists
+    let skill_path = repo_root.join("SKILL.md");
+    if skill_path.exists() {
+        let skill_content = fs::read_to_string(&skill_path)
+            .with_context(|| format!("Failed to read SKILL.md: {}", skill_path.display()))?;
+
+        let is_stale = crate::skill::check_skill_stale(&skill_content)
+            .context("Failed to check skill staleness")?;
+
+        if is_stale {
+            anyhow::bail!(
+                "SKILL.md is stale and needs regeneration.\n\
+                 Run 'smartfo agent generate-skill --output SKILL.md' to regenerate it.\n\
+                 If you intentionally want to commit the stale skill, use 'git commit --no-verify' to bypass this hook."
+            );
+        }
+    }
+
     info!("Pre-commit hook check passed");
     Ok(())
 }

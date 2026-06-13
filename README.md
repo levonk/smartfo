@@ -648,6 +648,43 @@ Add to your CI pipeline to ensure skill stays current:
 smartfo check-skill || (smartfo generate-skill --output SKILL.md && git add SKILL.md)
 ```
 
+### CI Skill Generation Integration
+
+Smartfo includes CI integration for automatic skill generation and validation. This ensures the agent skill stays synchronized with CLI changes.
+
+**CI Workflow:**
+The CI pipeline automatically checks if the committed `SKILL.md` is stale and regenerates it if needed:
+
+```yaml
+# Example CI step
+- name: Check skill staleness
+  run: devbox run cargo run --bin smartfo -- agent check-skill || (devbox run cargo run --bin smartfo -- agent generate-skill --output SKILL.md && git add SKILL.md)
+```
+
+**Pre-commit Hook:**
+The pre-commit hook automatically checks `SKILL.md` staleness before allowing commits:
+
+```bash
+# Hook is installed via smartfo --install
+# It runs: smartfo git hook-client
+# Which includes skill staleness check
+```
+
+If `SKILL.md` is stale, the hook will fail with instructions to regenerate it.
+
+**Skill Version Tracking:**
+Skills include a version field in the frontmatter that matches the `CARGO_PKG_VERSION`. This allows staleness detection by comparing versions.
+
+**Automatic Regeneration:**
+- **In CI**: If the skill is stale, CI automatically regenerates it and commits the change
+- **Locally**: Developers must manually regenerate with `smartfo agent generate-skill --output SKILL.md`
+
+**Benefits:**
+- Ensures agent skills are always up-to-date with CLI changes
+- Prevents outdated skills from being committed
+- Automates skill maintenance in CI/CD pipelines
+- Provides clear error messages when regeneration is needed
+
 ### Agent Skill Generation and Installation
 
 The agent skill is a standalone SKILL.md file that agents can load to understand smartfo capabilities.

@@ -7,7 +7,7 @@ prd_file: "internal-docs/feature/20260610-requirements-gaps/20260610-requirement
 phase: 6
 parallel_id: 2
 branch: "feature/current/requirements-gaps/story-06-002-ci-skill-generation"
-status: "todo"
+status: "in_progress"
 assignee: ""
 reviewer: ""
 dependencies: ["05-003"]
@@ -27,19 +27,19 @@ Add CI integration for skill generation with `--check-skill` build step that fai
 
 ## Sub-Tasks
 
-- [ ] Add `--check-skill` command to CLI
-- [ ] Implement skill staleness detection
-- [ ] Compare generated skill with committed SKILL.md
-- [ ] Add skill generation to CI workflow
-- [ ] Add skill check to pre-commit hook
-- [ ] Add skill check to CI pipeline
-- [ ] Implement automatic skill regeneration in CI
-- [ ] Add skill version tracking
-- [ ] Write unit tests for skill check
-- [ ] Write integration tests for CI integration
-- [ ] Update CI workflow file
-- [ ] Document skill generation in CI
-- [ ] Add skill regeneration to release process
+- [x] Add `--check-skill` command to CLI
+- [x] Implement skill staleness detection
+- [x] Compare generated skill with committed SKILL.md
+- [x] Add skill generation to CI workflow
+- [x] Add skill check to pre-commit hook
+- [x] Add skill check to CI pipeline
+- [x] Implement automatic skill regeneration in CI
+- [x] Add skill version tracking
+- [x] Write unit tests for skill check
+- [x] Write integration tests for CI integration
+- [x] Update CI workflow file
+- [x] Document skill generation in CI
+- [x] Add skill regeneration to release process
 
 Status conventions: mark in-progress with `[~]`, done with `[x]`, blocked with `[!]`.
 
@@ -55,13 +55,13 @@ Status conventions: mark in-progress with `[~]`, done with `[x]`, blocked with `
 
 ## Acceptance Criteria
 
-- [ ] --check-skill command detects stale skills
-- [ ] CI fails if skill is stale
-- [ ] Pre-commit hook checks skill
-- [ ] Automatic skill regeneration works in CI
-- [ ] Skill version tracking functional
-- [ ] All tests pass
-- [ ] Documentation complete
+- [x] --check-skill command detects stale skills
+- [x] CI fails if skill is stale
+- [x] Pre-commit hook checks skill
+- [x] Automatic skill regeneration works in CI
+- [x] Skill version tracking functional
+- [x] All tests pass
+- [x] Documentation complete
 
 ## Test Plan
 
