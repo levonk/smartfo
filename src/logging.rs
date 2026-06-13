@@ -2,6 +2,7 @@ use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing::Level;
 use std::io;
+use crate::secret::sanitize_string;
 
 /// Log level hierarchy for CLI flags
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

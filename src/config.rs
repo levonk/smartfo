@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::env;
 use std::path::PathBuf;
 use std::fmt;
+use crate::secret::sanitize_string;
 
 /// Configuration validation error with line number and suggestions.
 #[derive(Debug, Clone)]
@@ -101,6 +102,9 @@ fn validate_config_semantics(config: &Config, path: &std::path::Path) -> Validat
 
     // Validate logging config
     validate_logging_config(&config.logging)?;
+
+    // Validate privacy config
+    validate_privacy_config(&config.privacy)?;
 
     // Validate paths config
     validate_paths_config(&config.paths, path)?;
@@ -233,6 +237,30 @@ fn validate_concurrency_config(concurrency: &ConcurrencyConfig) -> ValidationRes
         });
     }
 
+    // Validate max_memory_mb is reasonable (0 = unlimited is valid)
+    if concurrency.max_memory_mb > 1024 * 1024 {
+        return Err(ConfigValidationError {
+            file_path: None,
+            line: 0,
+            section: "concurrency".to_string(),
+            key: "max_memory_mb".to_string(),
+            message: format!("max_memory_mb {} is too large (>1TB)", concurrency.max_memory_mb),
+            suggestion: "Set max_memory_mb to a reasonable value (recommended: 0 for unlimited, or 4096 for 4GB).".to_string(),
+        });
+    }
+
+    // Validate max_cpu_percent is between 0 and 100
+    if concurrency.max_cpu_percent > 100 {
+        return Err(ConfigValidationError {
+            file_path: None,
+            line: 0,
+            section: "concurrency".to_string(),
+            key: "max_cpu_percent".to_string(),
+            message: format!("max_cpu_percent {} is out of range (0-100)", concurrency.max_cpu_percent),
+            suggestion: "Set max_cpu_percent to a value between 0 and 100 (0 = unlimited).".to_string(),
+        });
+    }
+
     Ok(())
 }
 
@@ -291,6 +319,25 @@ fn validate_logging_config(logging: &LoggingConfig) -> ValidationResult<()> {
             message: format!("Invalid color mode '{}', must be one of: {:?}", logging.color, valid_colors),
             suggestion: "Set color to one of: auto, always, never.".to_string(),
         });
+    }
+
+    Ok(())
+}
+
+/// Validate privacy configuration.
+fn validate_privacy_config(privacy: &PrivacyConfig) -> ValidationResult<()> {
+    // Validate ignore patterns are valid regex
+    for (i, pattern) in privacy.ignore_patterns.iter().enumerate() {
+        if let Err(e) = regex::Regex::new(pattern) {
+            return Err(ConfigValidationError {
+                file_path: None,
+                line: 0,
+                section: "privacy".to_string(),
+                key: format!("ignore_patterns[{}]", i),
+                message: format!("Invalid regex pattern '{}': {}", pattern, e),
+                suggestion: "Fix the regex pattern or remove it from ignore_patterns.".to_string(),
+            });
+        }
     }
 
     Ok(())
@@ -387,6 +434,8 @@ pub struct Config {
     pub behavior: BehaviorConfig,
     #[serde(default)]
     pub logging: LoggingConfig,
+    #[serde(default)]
+    pub privacy: PrivacyConfig,
     #[serde(default)]
     pub paths: PathsConfig,
 }
@@ -544,6 +593,12 @@ pub struct ConcurrencyConfig {
     /// Maximum concurrent operations to network-mounted destinations
     #[serde(default = "default_network_concurrency")]
     pub network_concurrency: usize,
+    /// Maximum memory limit in MB (0 = unlimited)
+    #[serde(default = "default_max_memory_mb")]
+    pub max_memory_mb: u64,
+    /// Maximum CPU usage as percentage (0 = unlimited)
+    #[serde(default = "default_max_cpu_percent")]
+    pub max_cpu_percent: u8,
 }
 
 fn default_max_concurrent_jobs() -> usize {
@@ -562,6 +617,14 @@ fn default_network_concurrency() -> usize {
     2
 }
 
+fn default_max_memory_mb() -> u64 {
+    0 // 0 = unlimited
+}
+
+fn default_max_cpu_percent() -> u8 {
+    0 // 0 = unlimited
+}
+
 impl Default for ConcurrencyConfig {
     fn default() -> Self {
         Self {
@@ -569,6 +632,8 @@ impl Default for ConcurrencyConfig {
             network_limit_mbps: default_network_limit_mbps(),
             drive_detection: default_drive_detection(),
             network_concurrency: default_network_concurrency(),
+            max_memory_mb: default_max_memory_mb(),
+            max_cpu_percent: default_max_cpu_percent(),
         }
     }
 }
@@ -852,6 +917,57 @@ impl Default for PathsConfig {
     }
 }
 
+/// Privacy mode configuration.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PrivacyConfig {
+    /// Privacy mode: normal, privacy, or strict
+    #[serde(default = "default_privacy_mode")]
+    pub mode: String,
+    /// Enabled privacy toggles (disabled toggles prevent data collection)
+    #[serde(default = "default_privacy_enabled_toggles")]
+    pub enabled_toggles: Vec<String>,
+    /// Ignore patterns for identifiers to never log or process
+    #[serde(default = "default_privacy_ignore_patterns")]
+    pub ignore_patterns: Vec<String>,
+    /// Whether to distinguish between "unknown" and "anonymous"
+    #[serde(default = "default_privacy_distinguish_unknown_anonymous")]
+    pub distinguish_unknown_anonymous: bool,
+}
+
+fn default_privacy_mode() -> String {
+    "normal".to_string()
+}
+
+fn default_privacy_enabled_toggles() -> Vec<String> {
+    vec![
+        "log_paths".to_string(),
+        "log_user_ids".to_string(),
+        "log_hostnames".to_string(),
+        "log_repo_info".to_string(),
+        "log_metadata".to_string(),
+        "log_session_context".to_string(),
+    ]
+}
+
+fn default_privacy_ignore_patterns() -> Vec<String> {
+    vec![]
+}
+
+fn default_privacy_distinguish_unknown_anonymous() -> bool {
+    true
+}
+
+impl Default for PrivacyConfig {
+    fn default() -> Self {
+        Self {
+            mode: default_privacy_mode(),
+            enabled_toggles: default_privacy_enabled_toggles(),
+            ignore_patterns: default_privacy_ignore_patterns(),
+            distinguish_unknown_anonymous: default_privacy_distinguish_unknown_anonymous(),
+        }
+    }
+}
+
 /// Expand POSIX-style environment variables in a string.
 /// Supports `$VAR` and `${VAR}` syntax.
 pub fn expand_env_vars(input: &str) -> String {
@@ -898,6 +1014,12 @@ pub fn expand_env_vars(input: &str) -> String {
 pub fn load_config_file(path: &std::path::Path) -> anyhow::Result<Config> {
     let content = std::fs::read_to_string(path)?;
     let expanded = expand_env_vars(&content);
+
+    // Check for secrets in config file
+    if crate::secret::contains_secrets(&expanded) {
+        tracing::warn!("Config file may contain sensitive data. Consider using environment variables or secure credential storage.");
+    }
+
     let config: Config = toml::from_str(&expanded)?;
     Ok(config)
 }
@@ -954,8 +1076,12 @@ pub fn resolve_config(config_path: Option<&std::path::Path>) -> anyhow::Result<C
     // Layer 2: Environment variables
     apply_env_overrides(&mut config)?;
 
+    // Layer 1: CLI flags (applied by caller after loading config)
+    // Caller should apply CLI flags on top of this config
+
     Ok(config)
 }
+
 
 /// Return the default config file path.
 pub fn default_config_path() -> Option<PathBuf> {
@@ -1051,6 +1177,16 @@ fn merge_configs(base: Config, file: Config) -> Config {
             } else {
                 base.concurrency.network_concurrency
             },
+            max_memory_mb: if file.concurrency.max_memory_mb != default_max_memory_mb() {
+                file.concurrency.max_memory_mb
+            } else {
+                base.concurrency.max_memory_mb
+            },
+            max_cpu_percent: if file.concurrency.max_cpu_percent != default_max_cpu_percent() {
+                file.concurrency.max_cpu_percent
+            } else {
+                base.concurrency.max_cpu_percent
+            },
         },
         behavior: BehaviorConfig {
             smart_mode: file.behavior.smart_mode,
@@ -1083,6 +1219,24 @@ fn merge_configs(base: Config, file: Config) -> Config {
                 base.logging.color
             },
         },
+        privacy: PrivacyConfig {
+            mode: if file.privacy.mode != default_privacy_mode() {
+                file.privacy.mode
+            } else {
+                base.privacy.mode
+            },
+            enabled_toggles: if !file.privacy.enabled_toggles.is_empty() {
+                file.privacy.enabled_toggles
+            } else {
+                base.privacy.enabled_toggles
+            },
+            ignore_patterns: if !file.privacy.ignore_patterns.is_empty() {
+                file.privacy.ignore_patterns
+            } else {
+                base.privacy.ignore_patterns
+            },
+            distinguish_unknown_anonymous: file.privacy.distinguish_unknown_anonymous,
+        },
         paths: PathsConfig {
             trash_root: file.paths.trash_root.or(base.paths.trash_root),
             audit_log: if file.paths.audit_log != default_audit_log() {
@@ -1102,6 +1256,24 @@ fn merge_configs(base: Config, file: Config) -> Config {
 
 /// Apply environment variable overrides of the form `SMARTFO_<SECTION>_<KEY>`.
 fn apply_env_overrides(config: &mut Config) -> anyhow::Result<()> {
+    // Concurrency overrides (explicit handling for backward compatibility)
+    if let Ok(val) = std::env::var("SMARTFO_CONCURRENCY_MAX_CONCURRENT_JOBS") {
+        if let Ok(parsed) = val.parse::<usize>() {
+            config.concurrency.max_concurrent_jobs = parsed;
+        }
+    }
+    if let Ok(val) = std::env::var("SMARTFO_CONCURRENCY_MAX_MEMORY_MB") {
+        if let Ok(parsed) = val.parse::<u64>() {
+            config.concurrency.max_memory_mb = parsed;
+        }
+    }
+    if let Ok(val) = std::env::var("SMARTFO_CONCURRENCY_MAX_CPU_PERCENT") {
+        if let Ok(parsed) = val.parse::<u8>() {
+            config.concurrency.max_cpu_percent = parsed;
+        }
+    }
+
+    // Generic environment variable overrides
     for (key, value) in env::vars() {
         if let Some(rest) = key.strip_prefix("SMARTFO_") {
             let parts: Vec<&str> = rest.splitn(2, '_').collect();
@@ -1109,6 +1281,11 @@ fn apply_env_overrides(config: &mut Config) -> anyhow::Result<()> {
                 continue;
             }
             let (section, key_name) = (parts[0].to_lowercase(), parts[1].to_lowercase());
+
+            // Warn if environment variable contains secrets
+            if crate::secret::contains_secrets(&value) {
+                tracing::warn!("Environment variable {} may contain sensitive data. Consider using secure credential storage.", key);
+            }
 
             match section.as_str() {
                 "vcs" if key_name.as_str() == "preference" => config.vcs.preference = value,
@@ -1131,6 +1308,33 @@ fn apply_env_overrides(config: &mut Config) -> anyhow::Result<()> {
                     }
                 }
                 "concurrency" => match key_name.as_str() {
+                    "max_concurrent_jobs" => {
+                        if let Ok(v) = value.parse() {
+                            config.concurrency.max_concurrent_jobs = v;
+                        }
+                    }
+                    "max_memory_mb" => {
+                        if let Ok(v) = value.parse() {
+                            config.concurrency.max_memory_mb = v;
+                        }
+                    }
+                    "max_cpu_percent" => {
+                        if let Ok(v) = value.parse() {
+                            config.concurrency.max_cpu_percent = v;
+                        }
+                    }
+                    _ => {}
+                }
+                "privacy" => match key_name.as_str() {
+                    "mode" => {
+                        config.privacy.mode = value;
+                    }
+                    "distinguish_unknown_anonymous" => {
+                        config.privacy.distinguish_unknown_anonymous = value.parse().unwrap_or(true);
+                    }
+                    _ => {}
+                }
+                "behavior" => match key_name.as_str() {
                     "max_concurrent_jobs" => {
                         if let Ok(v) = value.parse() {
                             config.concurrency.max_concurrent_jobs = v;

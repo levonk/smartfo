@@ -192,6 +192,66 @@ smartfo export-audit --format json
 }
 ```
 
+### Secret Handling
+
+Smartfo automatically detects and sanitizes secrets in logs, error messages, and audit entries to prevent credential leakage.
+
+**Detected secret patterns:**
+- AWS Access Keys (AKIA, AGPA, AIDA, AROA, AIPA, ANPA, ANVA, ASIA)
+- AWS Secret Keys (40-character base64)
+- Stripe API Keys (sk_live_, pk_live_, sk_test_, pk_test_)
+- Google API Keys (AIza followed by 35 characters)
+- GitHub Personal Access Tokens (ghp_, gho_, ghu_, ghs_, ghr_)
+- JWT Tokens (three base64 sections separated by dots)
+- Private Key Blocks (-----BEGIN PRIVATE KEY-----)
+- Generic API Tokens (token=, api_key=, secret=)
+- Passwords in URLs (password@host)
+- Bearer Tokens (Bearer <token>)
+
+**Secret sanitization locations:**
+- **Audit logs**: The `reason` field is sanitized for secrets
+- **Error messages**: All error messages are sanitized before display
+- **Config files**: Warns if secrets are detected in config files
+- **Environment variables**: Warns if secrets are detected in SMARTFO_* environment variables
+
+**Secure vs Insecure Config:**
+
+**Insecure (NOT recommended):**
+```toml
+[paths]
+audit_log = "/home/user/.smartfo/audit/operations.jsonl"
+trash_root = "/home/user/.local/share/smartfo/trash"
+
+# NEVER do this - secrets in config files
+[api]
+api_key = "sk_live_1234567890abcdef"
+token = "ghp_1234567890abcdefghijklmnopqrstuvwx"
+```
+
+**Secure (recommended):**
+```toml
+[paths]
+audit_log = "$HOME/.smartfo/audit/operations.jsonl"
+trash_root = "$XDG_DATA_HOME/smartfo/trash"
+
+# Use environment variables for secrets
+[api]
+api_key = "$SMARTFO_API_KEY"
+token = "$SMARTFO_GITHUB_TOKEN"
+```
+
+**Set environment variables:**
+```bash
+export SMARTFO_API_KEY="sk_live_1234567890abcdef"
+export SMARTFO_GITHUB_TOKEN="ghp_1234567890abcdefghijklmnopqrstuvwx"
+```
+
+**Secret sanitization behavior:**
+- Secrets are replaced with placeholders (e.g., `sk_********`, `AKIA********`)
+- Multiple secrets in a single message are all sanitized
+- Non-secret content remains unchanged
+- Warnings are logged when secrets are detected in config or environment variables
+
 **Privacy Modes:**
 - **normal**: No privacy features enabled (default)
 - **privacy**: Basic privacy with anonymization of matching patterns

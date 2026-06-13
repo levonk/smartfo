@@ -7,6 +7,7 @@ use std::fmt;
 use std::io;
 use serde::Serialize;
 use serde::Deserialize;
+use crate::secret::sanitize_string;
 
 /// Smartfo-specific error types
 #[derive(Debug)]
@@ -54,19 +55,19 @@ impl SmartfoError {
                 format!("I/O error: {}", err)
             }
             SmartfoError::Config(msg) => {
-                format!("Configuration error: {}", msg)
+                format!("Configuration error: {}", sanitize_string(msg))
             }
             SmartfoError::Vcs(msg) => {
-                format!("VCS error: {}", msg)
+                format!("VCS error: {}", sanitize_string(msg))
             }
             SmartfoError::InvalidArgs(msg) => {
-                format!("Invalid arguments: {}", msg)
+                format!("Invalid arguments: {}", sanitize_string(msg))
             }
             SmartfoError::PermissionDenied(msg) => {
-                format!("Permission denied: {}", msg)
+                format!("Permission denied: {}", sanitize_string(msg))
             }
             SmartfoError::Other(msg) => {
-                msg.clone()
+                sanitize_string(msg)
             }
         }
     }

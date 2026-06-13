@@ -7,7 +7,7 @@ prd_file: "internal-docs/feature/20260610-requirements-gaps/20260610-requirement
 phase: 4
 parallel_id: 3
 branch: "feature/current/requirements-gaps/story-04-003-secret-handling-tests"
-status: "todo"
+status: "in_progress"
 assignee: ""
 reviewer: ""
 dependencies: ["04-001"]
@@ -27,19 +27,19 @@ Implement secret handling to ensure no logging of secrets or sensitive data. Add
 
 ## Sub-Tasks
 
-- [ ] Add secret detection utilities in `src/security.rs`
-- [ ] Implement secret redaction in logging
-- [ ] Add secret detection for common patterns (API keys, tokens, passwords)
-- [ ] Add secret detection in config values
-- [ ] Add warnings for insecure config methods
-- [ ] Implement secure credential storage (if needed)
-- [ ] Add secret sanitization to all log outputs
-- [ ] Add secret sanitization to error messages
-- [ ] Write unit tests for secret detection
-- [ ] Write integration tests for secret redaction
-- [ ] Write tests for insecure config warnings
-- [ ] Document secret handling in README
-- [ ] Add examples of secure vs insecure config
+- [x] Add secret detection utilities in `src/secret.rs` (already implemented)
+- [x] Implement secret redaction in logging
+- [x] Add secret detection for common patterns (API keys, tokens, passwords)
+- [x] Add secret detection in config values
+- [x] Add warnings for insecure config methods
+- [x] Implement secure credential storage (if needed)
+- [x] Add secret sanitization to all log outputs
+- [x] Add secret sanitization to error messages
+- [x] Write unit tests for secret detection
+- [x] Write integration tests for secret redaction
+- [x] Write tests for insecure config warnings
+- [x] Document secret handling in README
+- [x] Add examples of secure vs insecure config
 
 Status conventions: mark in-progress with `[~]`, done with `[x]`, blocked with `[!]`.
 
@@ -54,12 +54,12 @@ Status conventions: mark in-progress with `[~]`, done with `[x]`, blocked with `
 
 ## Acceptance Criteria
 
-- [ ] Secrets are detected and redacted in logs
-- [ ] Secrets are detected in config values
-- [ ] Insecure config methods trigger warnings
-- [ ] Error messages don't leak secrets
-- [ ] All tests pass
-- [ ] Documentation complete
+- [x] Secrets are detected and redacted in logs
+- [x] Secrets are detected in config values
+- [x] Insecure config methods trigger warnings
+- [x] Error messages don't leak secrets
+- [x] All tests pass
+- [x] Documentation complete
 
 ## Test Plan
 

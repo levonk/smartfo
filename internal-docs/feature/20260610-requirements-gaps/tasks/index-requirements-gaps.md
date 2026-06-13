@@ -31,8 +31,8 @@ This task index addresses the compliance gaps identified in the smartfo requirem
 | Story ID | Story Title | Branch | Dependencies | Parallel-safe | Modules |
 | -------- | ----------- | ------ | ------------ | ------------- | ------- |
 | 04-001 | Privacy mode + tests | feature/current/requirements-gaps/story-04-001-privacy-mode-tests | 03-003 | Parallel-safe: true | privacy, config, tests | [x] Done |
-| 04-002 | Audit log sanitization + tests | feature/current/requirements-gaps/story-04-002-audit-log-sanitization-tests | 04-001 | Parallel-safe: true | audit, privacy, tests | [~] In-Progress
-| 04-003 | Secret handling + tests | feature/current/requirements-gaps/story-04-003-secret-handling-tests | 04-001 | Parallel-safe: true | logging, security, tests |
+| 04-002 | Audit log sanitization + tests | feature/current/requirements-gaps/story-04-002-audit-log-sanitization-tests | 04-001 | Parallel-safe: true | audit, privacy, tests | [x] Done
+| 04-003 | Secret handling + tests | feature/current/requirements-gaps/story-04-003-secret-handling-tests | 04-001 | Parallel-safe: true | logging, security, tests | [~] In-Progress
 
 ### Phase 05: AXI + Tests
 | Story ID | Story Title | Branch | Dependencies | Parallel-safe | Modules |
