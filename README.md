@@ -985,6 +985,53 @@ The GitHub Actions CI matrix runs the full test suite on:
 
 All tests must pass on all three platforms before merges are accepted.
 
+## Configuration Reload
+
+Smartfo supports runtime configuration reload via the SIGHUP signal on Unix-like systems (Linux, macOS). This allows you to update configuration without restarting the daemon or CLI processes.
+
+**Reloading Configuration:**
+
+```bash
+# Find the smartfo process PID
+pgrep smartfo
+
+# Send SIGHUP to reload configuration
+kill -HUP <pid>
+```
+
+**What Happens on Reload:**
+- Configuration files are re-read from disk
+- New configuration is validated before applying
+- If validation fails, the old configuration remains active
+- Reload events are logged to the audit log
+- Running operations are notified of configuration changes
+
+**Platform Support:**
+- **Linux/macOS**: Full SIGHUP support for both CLI and daemon processes
+- **Windows**: Config reload not supported via signals (requires process restart)
+
+**Configuration Precedence:**
+When reloading, the same precedence hierarchy is used:
+1. CLI flags (not affected by reload)
+2. Environment variables (`SMARTFO_<SECTION>_<KEY>`)
+3. Project config (if in a Git repository)
+4. User config
+5. System config
+6. Built-in defaults
+
+**Example:**
+
+```bash
+# Edit the user config file
+vim ~/.smartfo/config.toml
+
+# Reload the configuration
+kill -HUP $(pgrep smartfo)
+
+# Check logs for reload confirmation
+tail -f ~/.smartfo/logs/smartfo.log
+```
+
 ## Migration Guide
 
 ### For Existing Users

@@ -26,6 +26,7 @@ pub mod audit;
 pub mod export;
 pub mod mv;
 pub mod rm;
+pub mod signal;
 
 // Re-export ColorMode for testing
 pub use config::ColorMode;

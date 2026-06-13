@@ -1789,3 +1789,43 @@ preference = "svn"
         assert!(result.is_err());
     }
 }
+
+/// Reload configuration from file with validation.
+/// Returns the new config if successful, or an error if validation fails.
+/// The old config is kept active on failure.
+pub fn reload_config(current_config: &Config, config_path: Option<&std::path::Path>) -> anyhow::Result<Config> {
+    tracing::info!("Attempting to reload configuration");
+
+    // Resolve the new config
+    let new_config = resolve_config(config_path)?;
+
+    // Validate the new config
+    validate_config(&new_config)?;
+
+    tracing::info!("Configuration reloaded successfully");
+    Ok(new_config)
+}
+
+#[cfg(test)]
+mod reload_tests {
+    use super::*;
+
+    #[test]
+    fn test_reload_config_with_valid_config() {
+        let current_config = Config::default();
+        let result = reload_config(&current_config, None);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_reload_config_preserves_validation() {
+        let current_config = Config::default();
+
+        // Create a temporary invalid config file
+        let mut tmpfile = tempfile::NamedTempFile::new().unwrap();
+        tmpfile.write_all(b"[vcs]\npreference = 123\n").unwrap();
+
+        let result = reload_config(&current_config, Some(tmpfile.path()));
+        assert!(result.is_err());
+    }
+}

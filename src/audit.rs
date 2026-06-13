@@ -95,6 +95,28 @@ impl AuditEntry {
         }
     }
 
+    /// Create a new audit entry for a config reload operation
+    pub fn new_config_reload(
+        reason: Option<String>,
+        vcs: Option<String>,
+        repo_root: Option<String>,
+    ) -> Self {
+        Self {
+            op: "config_reload".to_string(),
+            source_path: "config".to_string(),
+            dest_path: None,
+            trash_path: None,
+            reason,
+            timestamp: Utc::now().to_rfc3339(),
+            uuid: Uuid::new_v4().to_string(),
+            tool: "smartfo".to_string(),
+            vcs,
+            repo_root,
+            committed: None,
+            privacy_mode: None,
+        }
+    }
+
     /// Apply privacy mode to the audit entry
     pub fn apply_privacy_mode(&mut self, config: &PrivacyModeConfig) {
         // Create a privacy manager from the config

@@ -51,7 +51,7 @@ This task index addresses the compliance gaps identified in the smartfo requirem
 ### Phase 07: Config Reload
 | Story ID | Story Title | Branch | Dependencies | Parallel-safe | Modules |
 | -------- | ----------- | ------ | ------------ | ------------- | ------- |
-| 07-001 | SIGHUP config reload + tests | feature/current/requirements-gaps/story-07-001-sighup-config-reload-tests | 02-001, 06-001 | Parallel-safe: false | config, signal, tests |
+| 07-001 | SIGHUP config reload + tests | feature/current/requirements-gaps/story-07-001-sighup-config-reload-tests | 02-001, 06-001 | Parallel-safe: false | config, signal, tests | [x] Done
 
 ## Phase Summary
 

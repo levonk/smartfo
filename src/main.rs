@@ -1221,11 +1221,16 @@ fn run_main() -> Result<i32> {
     let signal_handler = SignalHandler::new();
     if let Err(e) = signal_handler.setup_handlers() {
         eprintln!("WARNING: Failed to setup signal handlers - {} - Graceful shutdown may not work correctly", e);
+    }
+
+    // Setup signal handler for config reload (SIGHUP)
+    if let Err(e) = signal::init_signal_handlers() {
+        eprintln!("WARNING: Failed to setup config reload signal handlers - {} - Config reload via SIGHUP may not work", e);
+    }
+
     // Detect terminal size on startup
     let terminal_size = get_terminal_size();
     info!("Terminal size detected: {}x{}", terminal_size.cols, terminal_size.rows);
-
-    }
 
     let mode = detect_mode();
     let result = match mode.as_str() {

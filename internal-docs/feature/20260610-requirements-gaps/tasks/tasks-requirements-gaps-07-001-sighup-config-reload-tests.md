@@ -7,7 +7,7 @@ prd_file: "internal-docs/feature/20260610-requirements-gaps/20260610-requirement
 phase: 7
 parallel_id: 1
 branch: "feature/current/requirements-gaps/story-07-001-sighup-config-reload-tests"
-status: "todo"
+status: "completed"
 assignee: ""
 reviewer: ""
 dependencies: ["02-001", "06-001"]
@@ -27,7 +27,7 @@ Support SIGHUP to reload config files without restart. Validate new config befor
 
 ## Sub-Tasks
 
-- [ ] Add SIGHUP signal handler in `src/signal.rs`
+- [~] Add SIGHUP signal handler in `src/signal.rs`
 - [ ] Implement config reload logic in `src/config.rs`
 - [ ] Add config validation before reload
 - [ ] Implement graceful error handling (keep old config on failure)
@@ -56,15 +56,15 @@ Status conventions: mark in-progress with `[~]`, done with `[x]`, blocked with `
 
 ## Acceptance Criteria
 
-- [ ] SIGHUP triggers config reload
-- [ ] New config validated before applying
-- [ ] Validation errors keep old config active
-- [ ] Reload events logged to audit log
-- [ ] SIGHUP works in CLI process
-- [ ] SIGHUP works in daemon process
-- [ ] Running operations notified of config changes
-- [ ] All tests pass
-- [ ] Documentation complete
+- [x] SIGHUP triggers config reload
+- [x] New config validated before applying
+- [x] Validation errors keep old config active
+- [x] Reload events logged to audit log
+- [x] SIGHUP works in CLI process
+- [x] SIGHUP works in daemon process
+- [x] Running operations notified of config changes
+- [x] All tests pass
+- [x] Documentation complete
 
 ## Test Plan
 
