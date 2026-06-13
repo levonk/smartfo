@@ -7,7 +7,7 @@ prd_file: "internal-docs/feature/20260610-requirements-gaps/20260610-requirement
 phase: 4
 parallel_id: 2
 branch: "feature/current/requirements-gaps/story-04-002-audit-log-sanitization-tests"
-status: "todo"
+status: "in_progress"
 assignee: ""
 reviewer: ""
 dependencies: ["04-001"]
@@ -27,37 +27,37 @@ Implement audit log sanitization to remove sensitive paths when privacy mode is 
 
 ## Sub-Tasks
 
-- [ ] Implement path sanitization in `src/audit.rs`
-- [ ] Add sensitive path detection
-- [ ] Integrate privacy ignore patterns with audit logging
-- [ ] Implement path redaction (e.g., /home/user → /home/****)
-- [ ] Add sanitization for file names
-- [ ] Add sanitization for VCS repo paths
-- [ ] Implement audit log export with sanitization option
-- [ ] Write unit tests for path sanitization
-- [ ] Write integration tests for audit log sanitization
-- [ ] Write tests for sensitive path detection
-- [ ] Document sanitization behavior in README
-- [ ] Add examples of sanitized audit logs
+- [x] Implement path sanitization in `src/audit.rs`
+- [x] Add sensitive path detection
+- [x] Integrate privacy ignore patterns with audit logging
+- [x] Implement path redaction (e.g., /home/user → /home/****)
+- [x] Add sanitization for file names
+- [x] Add sanitization for VCS repo paths
+- [x] Implement audit log export with sanitization option
+- [x] Write unit tests for path sanitization
+- [x] Write integration tests for audit log sanitization
+- [x] Write tests for sensitive path detection
+- [x] Document sanitization behavior in README
+- [x] Add examples of sanitized audit logs
 
 Status conventions: mark in-progress with `[~]`, done with `[x]`, blocked with `[!]`.
 
 ## Relevant Files
 
-- `src/audit.rs` — Add sanitization logic
+- `src/audit.rs` — Add sanitization logic, export sanitization option
 - `src/privacy.rs` — Use privacy patterns for sanitization
-- `tests/audit_sanitization_test.rs` — New test file for audit sanitization
+- `src/lib.rs` — Export audit module for testing
 - `README.md` — Document sanitization behavior
 - `internal-docs/feature/20260610-requirements-gaps/20260610-requirements-gaps.md` — Reference requirements
 
 ## Acceptance Criteria
 
-- [ ] Sensitive paths are sanitized in audit logs
-- [ ] Privacy ignore patterns are respected
-- [ ] Path redaction works correctly
-- [ ] Audit log export supports sanitization option
-- [ ] All tests pass
-- [ ] Documentation complete
+- [x] Sensitive paths are sanitized in audit logs
+- [x] Privacy ignore patterns are respected
+- [x] Path redaction works correctly
+- [x] Audit log export supports sanitization option
+- [x] All tests pass
+- [x] Documentation complete
 
 ## Test Plan
 

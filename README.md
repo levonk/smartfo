@@ -100,6 +100,103 @@ mv --tui file1 file2
 mv --interactive-tui file1 file2
 ```
 
+### Resource Limits
+
+Smartfo supports resource limiting for daemon operations to prevent resource exhaustion.
+
+**Set resource limits via CLI flags:**
+```bash
+mv --max-memory=4096 --max-cpu=80 file1 file2
+rm --max-memory=2048 --max-cpu=50 file.txt
+```
+
+**Set resource limits via config file:**
+```toml
+[concurrency]
+max_memory_mb = 4096  # 4GB memory limit
+max_cpu_percent = 80  # 80% CPU usage limit
+```
+
+**Set resource limits via environment variables:**
+```bash
+export SMARTFO_CONCURRENCY_MAX_MEMORY_MB=4096
+export SMARTFO_CONCURRENCY_MAX_CPU_PERCENT=80
+```
+
+**Resource Limit Guidelines:**
+- **Memory limits**: Set based on available system memory. For systems with 8GB RAM, a 4GB limit (50%) is reasonable. For systems with 16GB+, 8GB (50%) or higher may be appropriate.
+- **CPU limits**: Set based on system load. For single-user systems, 80-90% is reasonable. For shared systems, 50-70% prevents impact on other processes.
+- **Unlimited (0)**: Use unlimited limits only when resource constraints are not a concern (e.g., dedicated systems with ample resources).
+- **Monitoring**: Resource usage is logged when limits are enforced. Check logs for violations and adjust limits accordingly.
+- **Graceful degradation**: When limits are exceeded, operations are rejected with clear error messages rather than causing system instability.
+
+### Privacy Mode
+
+Smartfo provides privacy mode to anonymize sensitive data in logs and output. This is useful when sharing audit logs or operation details with third parties.
+
+**Enable privacy mode via CLI flag:**
+```bash
+mv --privacy file1 file2
+rm --privacy file.txt
+```
+
+**Configure privacy mode in config file:**
+```toml
+[privacy]
+mode = "privacy"  # normal, privacy, or strict
+enabled_toggles = ["log_paths", "log_user_ids", "log_hostnames", "log_repo_info", "log_metadata", "log_session_context"]
+ignore_patterns = ["/home/user/*", "/tmp/*"]
+distinguish_unknown_anonymous = true
+```
+
+**Privacy Mode Features:**
+- **Ignore patterns**: Regex patterns to match paths that should be anonymized (e.g., `/home/user/*`)
+- **Unknown vs Anonymous**: Distinguish between "unknown" (logged but not assigned) and "anonymous" (ignored entirely)
+- **Privacy toggles**: Disable specific data collection categories (paths, user IDs, hostnames, repo info, metadata, session context)
+- **Audit logging**: Paths and identifiers in audit logs are sanitized when privacy mode is enabled
+- **Session hooks**: Session context output respects privacy settings
+
+### Audit Log Sanitization
+
+When privacy mode is enabled, audit log entries are automatically sanitized to protect sensitive information:
+
+**Sanitized fields:**
+- `source_path`: File paths are anonymized based on privacy patterns
+- `dest_path`: Destination paths are anonymized for move operations
+- `trash_path`: Trash paths are anonymized for delete operations
+- `repo_root`: VCS repository paths are anonymized
+- `reason`: User-provided reasons are sanitized for secrets
+
+**Export with sanitization:**
+```bash
+# Export audit log with sanitization
+smartfo export-audit --format json --sanitize
+
+# Export without sanitization (default)
+smartfo export-audit --format json
+```
+
+**Sanitization behavior:**
+- Paths matching ignore patterns are replaced with "anonymous"
+- In privacy mode, path components are replaced with "unknown"
+- In strict mode, all paths are replaced with "anonymous"
+- Toggles can disable specific data collection (e.g., `log_paths = false`)
+
+**Example sanitized audit entry:**
+```json
+{
+  "op": "delete",
+  "source_path": "unknown/unknown/unknown",
+  "trash_path": "unknown/unknown/unknown",
+  "privacy_mode": true
+}
+```
+
+**Privacy Modes:**
+- **normal**: No privacy features enabled (default)
+- **privacy**: Basic privacy with anonymization of matching patterns
+- **strict**: Maximum privacy with all data collection disabled except essential operation metadata
+
 **Launch TUI for remove operations:**
 ```bash
 rm --tui file.txt

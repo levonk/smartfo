@@ -18,6 +18,10 @@ pub mod health;
 pub mod daemon;
 pub mod terminal;
 pub mod tui;
+pub mod secret;
+pub mod resource;
+pub mod privacy;
+pub mod audit;
 
 // Re-export ColorMode for testing
 pub use config::ColorMode;
@@ -26,7 +30,7 @@ pub use config::ColorMode;
 pub use output::aggregates::{ListAggregate, OperationAggregate, QueueAggregate, DaemonAggregate, StatusAggregate, AggregateComputer};
 
 // Re-export hooks types and functions for testing
-pub use hooks::{SessionContext, SessionMetadata, AgentPlatform, cache_session_metadata, load_session_metadata, detect_git_repo_path, detect_agent_platform, install_claude_hooks, install_codex_hooks, resolve_smartfo_binary};
+pub use hooks::{SessionContext, SessionMetadata, AgentPlatform, cache_session_metadata, load_session_metadata, detect_git_repo_path, detect_agent_platform, install_claude_hooks, install_codex_hooks, resolve_smartfo_binary, PreflightValidation, PostOperationResult, SessionLifecycleEvent, run_preflight_validation, run_post_operation_hooks, emit_session_lifecycle_event};
 
 // Re-export skill types for testing
 pub use skill::{SkillGenerator, GeneratedSkill, SkillMetadata, CommandDoc, FlagDoc, check_skill_stale};

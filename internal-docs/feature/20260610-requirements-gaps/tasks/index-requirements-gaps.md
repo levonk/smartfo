@@ -24,14 +24,14 @@ This task index addresses the compliance gaps identified in the smartfo requirem
 | Story ID | Story Title | Branch | Dependencies | Parallel-safe | Modules |
 | -------- | ----------- | ------ | ------------ | ------------- | ------- |
 | 03-001 | TUI mode framework + tests | feature/current/requirements-gaps/story-03-001-tui-mode-framework-tests | 02-003 | Parallel-safe: true | tui, cli, tests | [x] Done |
-| 03-002 | Daemon process support + tests | feature/current/requirements-gaps/story-03-002-daemon-process-support-tests | 02-002 | Parallel-safe: true | daemon, cli, tests | [~] In-Progress |
-| 03-003 | Resource limits + tests | feature/current/requirements-gaps/story-03-003-resource-limits-tests | 02-002 | Parallel-safe: true | daemon, config, tests |
+| 03-002 | Daemon process support + tests | feature/current/requirements-gaps/story-03-002-daemon-process-support-tests | 02-002 | Parallel-safe: true | daemon, cli, tests | [x] Done |
+| 03-003 | Resource limits + tests | feature/current/requirements-gaps/story-03-003-resource-limits-tests | 02-002 | Parallel-safe: true | daemon, config, tests | [x] Done |
 
 ### Phase 04: Privacy + Tests
 | Story ID | Story Title | Branch | Dependencies | Parallel-safe | Modules |
 | -------- | ----------- | ------ | ------------ | ------------- | ------- |
-| 04-001 | Privacy mode + tests | feature/current/requirements-gaps/story-04-001-privacy-mode-tests | 03-003 | Parallel-safe: true | privacy, config, tests |
-| 04-002 | Audit log sanitization + tests | feature/current/requirements-gaps/story-04-002-audit-log-sanitization-tests | 04-001 | Parallel-safe: true | audit, privacy, tests |
+| 04-001 | Privacy mode + tests | feature/current/requirements-gaps/story-04-001-privacy-mode-tests | 03-003 | Parallel-safe: true | privacy, config, tests | [x] Done |
+| 04-002 | Audit log sanitization + tests | feature/current/requirements-gaps/story-04-002-audit-log-sanitization-tests | 04-001 | Parallel-safe: true | audit, privacy, tests | [~] In-Progress
 | 04-003 | Secret handling + tests | feature/current/requirements-gaps/story-04-003-secret-handling-tests | 04-001 | Parallel-safe: true | logging, security, tests |
 
 ### Phase 05: AXI + Tests
