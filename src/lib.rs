@@ -23,6 +23,7 @@ pub mod secret;
 pub mod resource;
 pub mod privacy;
 pub mod audit;
+pub mod export;
 pub mod mv;
 pub mod rm;
 

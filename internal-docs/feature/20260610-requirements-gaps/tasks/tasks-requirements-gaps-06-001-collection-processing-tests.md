@@ -7,7 +7,7 @@ prd_file: "internal-docs/feature/20260610-requirements-gaps/20260610-requirement
 phase: 6
 parallel_id: 1
 branch: "feature/current/requirements-gaps/story-06-001-collection-processing-tests"
-status: "todo"
+status: "completed"
 assignee: ""
 reviewer: ""
 dependencies: ["03-002"]
@@ -27,26 +27,26 @@ Separate daemon collection (background job processing) from CLI processing. Allo
 
 ## Sub-Tasks
 
-- [ ] Design export format for job data in `src/export.rs`
-- [ ] Implement job data export command
-- [ ] Add export filters (date range, status, type)
-- [ ] Implement export to JSON format
-- [ ] Implement export to TOON format
-- [ ] Add analysis commands for exported data
-- [ ] Implement analysis without daemon requirement
-- [ ] Add import command for exported data
-- [ ] Separate collection logic from processing logic
-- [ ] Write unit tests for export functionality
-- [ ] Write integration tests for export/import
-- [ ] Write tests for analysis commands
-- [ ] Document export/import workflow in README
-- [ ] Add examples of export/analysis usage
+- [x] Design export format for job data in `src/export.rs`
+- [x] Implement job data export command
+- [x] Add export filters (date range, status, type)
+- [x] Implement export to JSON format
+- [x] Implement export to TOON format
+- [x] Add analysis commands for exported data
+- [x] Implement analysis without daemon requirement
+- [x] Add import command for exported data
+- [x] Separate collection logic from processing logic
+- [x] Write unit tests for export functionality
+- [x] Write integration tests for export/import
+- [x] Write tests for analysis commands
+- [x] Document export/import workflow in README
+- [x] Add examples of export/analysis usage
 
 Status conventions: mark in-progress with `[~]`, done with `[x]`, blocked with `[!]`.
 
 ## Relevant Files
 
-- `src/export.rs` — New module for export/import
+- `src/export.rs` — New module for export/import (created)
 - `src/daemon.rs` — Separate collection from processing
 - `src/queue.rs` — Add export functionality
 - `src/cli.rs` — Add export/analysis commands
@@ -56,13 +56,13 @@ Status conventions: mark in-progress with `[~]`, done with `[x]`, blocked with `
 
 ## Acceptance Criteria
 
-- [ ] Job data can be exported to JSON and TOON formats
-- [ ] Export filters work (date range, status, type)
-- [ ] Analysis commands work without daemon
-- [ ] Import command restores exported data
-- [ ] Collection separated from processing
-- [ ] All tests pass
-- [ ] Documentation complete
+- [x] Job data can be exported to JSON and TOON formats
+- [x] Export filters work (date range, status, type)
+- [x] Analysis commands work without daemon
+- [x] Import command restores exported data
+- [x] Collection separated from processing
+- [x] All tests pass
+- [x] Documentation complete
 
 ## Test Plan
 

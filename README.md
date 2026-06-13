@@ -393,6 +393,99 @@ smartfo health check            # Check daemon health status
 smartfo health check --signal    # Use signal-based health check (SIGUSR1)
 ```
 
+### Job Management
+
+Smartfo provides commands for managing background jobs, including export/import for data portability.
+
+```bash
+# List background jobs
+smartfo job list
+
+# List specific jobs by ID
+smartfo job list --ids "uuid1,uuid2"
+
+# Cancel a specific job
+smartfo job cancel <job-id>
+
+# Export job data to JSON format
+smartfo job export /path/to/export.json
+
+# Export job data to TOON format (agent-optimized)
+smartfo job export /path/to/export.toon --format toon
+
+# Export with filters
+smartfo job export /path/to/export.json --status queued --op_type move
+
+# Export with date range filter (ISO 8601 timestamps)
+smartfo job export /path/to/export.json --date-range "2024-01-01T00:00:00Z,2024-12-31T23:59:59Z"
+
+# Import job data from export file
+smartfo job import /path/to/export.json
+
+# Analyze exported job data without daemon
+smartfo job analyze /path/to/export.json
+```
+
+#### Export/Import Workflow
+
+The export/import functionality separates data collection (daemon job processing) from processing (CLI analysis), allowing you to:
+
+1. **Collect data in one environment**: Export job data from a production system
+2. **Process in another environment**: Analyze the exported data on a different machine without requiring the daemon
+
+**Export format (JSON):**
+```json
+{
+  "version": "1.0",
+  "exported_at": "2024-01-01T12:00:00Z",
+  "job_count": 2,
+  "filters": "ExportFilters { status: Some(Queued), op_type: None, date_range: None }",
+  "jobs": [
+    {
+      "uuid": "550e8400-e29b-41d4-a716-446655440000",
+      "source": "/tmp/file1.txt",
+      "dest": null,
+      "status": "Queued",
+      "retry_count": 0,
+      "op_type": "Delete",
+      "created_at": "2024-01-01T12:00:00Z",
+      "updated_at": "2024-01-01T12:00:00Z"
+    }
+  ]
+}
+```
+
+**Export format (TOON):**
+```
+version: 1.0
+exported_at: 2024-01-01T12:00:00Z
+job_count: 1
+jobs[0]{uuid,status,op_type}: "550e8400-e29b-41d4-a716-446655440000","Queued","Delete"
+```
+
+**Analysis output:**
+```
+# Job Data Analysis
+
+Total jobs: 2
+
+Status breakdown:
+  Queued: 1
+  Done: 1
+
+Operation type breakdown:
+  Move: 1
+  Delete: 1
+
+Date range: 2024-01-01T00:00:00Z to 2024-01-01T12:00:00Z
+```
+
+**Use cases:**
+- **Debugging**: Export job data from production and analyze locally
+- **Auditing**: Export job history for compliance or analysis
+- **Migration**: Transfer job data between systems
+- **Offline analysis**: Analyze job data without requiring daemon to be running
+
 ## Agent Integration
 
 Smartfo provides two integration paths for AI agents:

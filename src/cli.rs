@@ -765,6 +765,39 @@ pub enum JobCommand {
         #[arg(long, help = "Enable debug logging")]
         debug: bool,
     },
+    /// Export job data to a file (JSON or TOON format)
+    #[command(name = "export", about = "Export job data to a file (JSON or TOON format). Allows collection in one environment and processing in another.")]
+    Export {
+        /// Output file path
+        #[arg(value_name = "OUTPUT")]
+        output: std::path::PathBuf,
+        /// Export format: json or toon
+        #[arg(long, value_name = "FORMAT")]
+        format: Option<String>,
+        /// Filter by job status (queued, running, done, failed)
+        #[arg(long, value_name = "STATUS")]
+        status: Option<String>,
+        /// Filter by operation type (move, copy, delete)
+        #[arg(long, value_name = "TYPE")]
+        op_type: Option<String>,
+        /// Filter by date range (ISO 8601 timestamps: START,END)
+        #[arg(long, value_name = "START,END")]
+        date_range: Option<String>,
+    },
+    /// Import job data from an export file
+    #[command(name = "import", about = "Import job data from an export file. Restores jobs for re-enqueuing.")]
+    Import {
+        /// Input file path
+        #[arg(value_name = "INPUT")]
+        input: std::path::PathBuf,
+    },
+    /// Analyze exported job data without requiring daemon
+    #[command(name = "analyze", about = "Analyze exported job data without requiring daemon. Provides statistics and breakdowns.")]
+    Analyze {
+        /// Input file path
+        #[arg(value_name = "INPUT")]
+        input: std::path::PathBuf,
+    },
 }
 
 /// Agent integration subcommands

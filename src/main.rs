@@ -34,6 +34,7 @@ mod tui;
 mod secret;
 mod resource;
 mod privacy;
+mod export;
 use cli::{MvArgs, RmArgs, SmartfoArgs, SmartfoCommand, GitCommand, JobCommand, AgentCommand, InfoCommand, HealthCommand};
 use vcs::detect_vcs;
 use vcs::is_tracked;
@@ -1386,6 +1387,18 @@ fn run_main() -> Result<i32> {
                                     setup_logging(*debug, *quiet, args.json, args.color.as_deref())?;
                                     run_cancel_job(job_id)
                                 },
+                                JobCommand::Export { output, format, status, op_type, date_range } => {
+                                    setup_logging(false, false, args.json, args.color.as_deref())?;
+                                    run_export_jobs(output, format, status, op_type, date_range)
+                                },
+                                JobCommand::Import { input } => {
+                                    setup_logging(false, false, args.json, args.color.as_deref())?;
+                                    run_import_jobs(input)
+                                },
+                                JobCommand::Analyze { input } => {
+                                    setup_logging(false, false, args.json, args.color.as_deref())?;
+                                    run_analyze_jobs(input)
+                                },
                             }
                         },
                         SmartfoCommand::Agent(agent_cmd) => {
@@ -1650,6 +1663,132 @@ fn run_cancel_job(job_id: &str) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn run_export_jobs(
+    output: &std::path::PathBuf,
+    format: &Option<String>,
+    status: &Option<String>,
+    op_type: &Option<String>,
+    date_range: &Option<String>,
+) -> Result<()> {
+    info!("export-jobs command: output={:?}, format={:?}", output, format);
+
+    // Get queue path
+    let xdg_data_home = std::env::var("XDG_DATA_HOME")
+        .unwrap_or_else(|_| {
+            let home = std::env::var("HOME").expect("HOME not set");
+            format!("{}/.local/share", home)
+        });
+    let queue_path = std::path::PathBuf::from(xdg_data_home).join("smartfo/queue.db");
+
+    // Parse export format
+    let export_format = match format {
+        None => export::ExportFormat::Json,
+        Some(f) => export::ExportFormat::from_str(f)?,
+    };
+
+    // Parse filters
+    let filters = export::ExportFilters {
+        status: status.as_ref().and_then(|s| parse_job_status(s)),
+        op_type: op_type.as_ref().and_then(|t| parse_operation_type(t)),
+        date_range: date_range.as_ref().and_then(|d| parse_date_range(d)),
+    };
+
+    // Create export manager
+    let export_manager = export::ExportManager::new(queue_path);
+
+    // Export jobs
+    export_manager.export_jobs(output, export_format, Some(filters))
+        .context("Failed to export jobs")?;
+
+    println!("Exported jobs to: {}", output.display());
+    Ok(())
+}
+
+fn run_import_jobs(input: &std::path::PathBuf) -> Result<()> {
+    info!("import-jobs command: input={:?}", input);
+
+    // Get queue path
+    let xdg_data_home = std::env::var("XDG_DATA_HOME")
+        .unwrap_or_else(|_| {
+            let home = std::env::var("HOME").expect("HOME not set");
+            format!("{}/.local/share", home)
+        });
+    let queue_path = std::path::PathBuf::from(xdg_data_home).join("smartfo/queue.db");
+
+    // Create export manager
+    let export_manager = export::ExportManager::new(queue_path);
+
+    // Import jobs
+    let jobs = export_manager.import_jobs(input)
+        .context("Failed to import jobs")?;
+
+    println!("Imported {} jobs from: {}", jobs.len(), input.display());
+    println!("Note: Jobs are not automatically re-enqueued. Use queue operations to re-enqueue if needed.");
+
+    Ok(())
+}
+
+fn run_analyze_jobs(input: &std::path::PathBuf) -> Result<()> {
+    info!("analyze-jobs command: input={:?}", input);
+
+    // Get queue path
+    let xdg_data_home = std::env::var("XDG_DATA_HOME")
+        .unwrap_or_else(|_| {
+            let home = std::env::var("HOME").expect("HOME not set");
+            format!("{}/.local/share", home)
+        });
+    let queue_path = std::path::PathBuf::from(xdg_data_home).join("smartfo/queue.db");
+
+    // Create export manager
+    let export_manager = export::ExportManager::new(queue_path);
+
+    // Analyze export
+    let analysis = export_manager.analyze_export(input)
+        .context("Failed to analyze export")?;
+
+    println!("{}", analysis);
+
+    Ok(())
+}
+
+/// Parse job status from string
+fn parse_job_status(s: &str) -> Option<queue::JobStatus> {
+    match s.to_lowercase().as_str() {
+        "queued" => Some(queue::JobStatus::Queued),
+        "running" => Some(queue::JobStatus::Running),
+        "done" => Some(queue::JobStatus::Done),
+        "failed" => Some(queue::JobStatus::Failed),
+        _ => None,
+    }
+}
+
+/// Parse operation type from string
+fn parse_operation_type(s: &str) -> Option<queue::OperationType> {
+    match s.to_lowercase().as_str() {
+        "move" => Some(queue::OperationType::Move),
+        "copy" => Some(queue::OperationType::Copy),
+        "delete" => Some(queue::OperationType::Delete),
+        _ => None,
+    }
+}
+
+/// Parse date range from string (ISO 8601: START,END)
+fn parse_date_range(s: &str) -> Option<(chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>)> {
+    let parts: Vec<&str> = s.split(',').collect();
+    if parts.len() != 2 {
+        return None;
+    }
+
+    let start = chrono::DateTime::parse_from_rfc3339(parts[0].trim())
+        .ok()?
+        .with_timezone(&chrono::Utc);
+    let end = chrono::DateTime::parse_from_rfc3339(parts[1].trim())
+        .ok()?
+        .with_timezone(&chrono::Utc);
+
+    Some((start, end))
 }
 
 /// Run no-args invocation: show content-first state summary
