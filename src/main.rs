@@ -31,6 +31,9 @@ mod man;
 mod health;
 mod terminal;
 mod tui;
+mod secret;
+mod resource;
+mod privacy;
 use cli::{MvArgs, RmArgs, SmartfoArgs, SmartfoCommand, GitCommand, JobCommand, AgentCommand, InfoCommand, HealthCommand};
 use vcs::detect_vcs;
 use vcs::is_tracked;
@@ -40,6 +43,7 @@ use output::aggregates::*;
 use output::empty::{EmptyState, check_empty, EmptyContext};
 use output::suggestions::{SuggestionContext, SuggestionEngine, format_suggestions_as_help};
 use output::Pager;
+use output::content_first::StateSummary;
 use man::{ManPageType, generate_man_page};
 use exit::{ExitCode, SignalHandler, error_category_to_exit_code, ErrorCategory};
 use terminal::{get_terminal_size, TerminalSizeCache, wrap_text};
@@ -879,22 +883,9 @@ fn run_install(args: &SmartfoArgs) -> Result<()> {
 
     info!("install mode: hooks={:?} no_hooks={} force={}", args.hooks, args.no_hooks, args.force);
 
-    // Use the new install.rs module
+    // Use the new install.rs module (includes hook installation)
     let installer = install::Installer::new()?;
-    installer.install(args.force)?;
-
-    // Handle hook installation (legacy logic for now, will be integrated into install.rs later)
-    if !args.no_hooks {
-        // Detect if we're inside a Git repository
-        if let Some(repo_root) = detect_git_repo() {
-            info!("Detected Git repository at: {}", repo_root.display());
-            install_hooks(&repo_root, args)?;
-        } else {
-            info!("Not inside a Git repository, skipping hook installation");
-        }
-    } else {
-        info!("Hook installation skipped due to --no-hooks flag");
-    }
+    installer.install(args.force, args.hooks.clone(), args.no_hooks, args.force_hooks)?;
 
     Ok(())
 }
@@ -1673,73 +1664,24 @@ fn run_noargs(args: &SmartfoArgs) -> Result<()> {
         args.human,
     );
 
-    // Detect context
-    let current_dir = std::env::current_dir()?;
-    let git_repo = detect_git_repo();
-    let is_in_git = git_repo.is_some();
+    // Generate state summary using the new content_first module
+    let state_summary = StateSummary::generate()?;
 
-    // Build context-aware state summary
-    let mut state = serde_json::json!({
-        "context": {
-            "current_directory": current_dir.display().to_string(),
-            "in_git_repository": is_in_git,
+    // Output based on format
+    match output_format {
+        OutputFormat::Toon => {
+            let toon_output = state_summary.format_toon();
+            println!("{}", toon_output);
         }
-    });
-
-    // Add git repository info if in git
-    if let Some(repo_root) = git_repo {
-        state["context"]["git_repository_root"] = serde_json::Value::String(repo_root.display().to_string());
-
-        // Try to get operations summary from queue
-        let queue_result = get_queue_summary();
-        match queue_result {
-            Ok(summary) => {
-                state["operations"] = summary;
-            }
-            Err(e) => {
-                state["operations"] = serde_json::json!({
-                    "error": format!("Failed to get queue summary: {}", e),
-                    "use_list": "Run 'smartfo list' to see queued operations"
-                });
-            }
+        OutputFormat::Human => {
+            let human_output = state_summary.format_human();
+            println!("{}", human_output);
+        }
+        OutputFormat::Json => {
+            let json_output = serde_json::to_string_pretty(&state_summary)?;
+            println!("{}", json_output);
         }
     }
-
-    // Add daemon status
-    let daemon_status = get_daemon_status();
-    state["daemon"] = daemon_status;
-
-    // Generate contextual suggestions
-    let daemon_running = daemon::Daemon::new().and_then(|d| d.ping_daemon()).unwrap_or(false);
-
-    // Try to get queue depth using default queue path
-    let queue_depth = if let Ok(daemon) = daemon::Daemon::new() {
-        let xdg_data_home = std::env::var("XDG_DATA_HOME")
-            .unwrap_or_else(|_| {
-                let home = std::env::var("HOME").expect("HOME not set");
-                format!("{}/.local/share", home)
-            });
-        let queue_path = std::path::PathBuf::from(xdg_data_home).join("smartfo/queue.db");
-        queue::JobQueue::new(&queue_path)
-            .and_then(|q| q.queue_depth())
-            .map(|d| d as usize)
-            .ok()
-    } else {
-        None
-    };
-
-    let suggestion_context = SuggestionContext::new("")
-        .with_git_repo(is_in_git)
-        .with_daemon(daemon_running)
-        .with_queue_depth(queue_depth.unwrap_or(0));
-
-    let suggestions = SuggestionEngine::generate(&suggestion_context);
-    let help_suggestions = format_suggestions_as_help(&suggestions);
-
-    // Write output with suggestions
-    let mut writer = output::OutputWriter::new(std::io::stdout(), output_format)
-        .with_suggestions(help_suggestions);
-    writer.write(&state)?;
 
     Ok(())
 }

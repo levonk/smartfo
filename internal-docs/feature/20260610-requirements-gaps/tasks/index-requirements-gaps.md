@@ -32,12 +32,12 @@ This task index addresses the compliance gaps identified in the smartfo requirem
 | -------- | ----------- | ------ | ------------ | ------------- | ------- |
 | 04-001 | Privacy mode + tests | feature/current/requirements-gaps/story-04-001-privacy-mode-tests | 03-003 | Parallel-safe: true | privacy, config, tests | [x] Done |
 | 04-002 | Audit log sanitization + tests | feature/current/requirements-gaps/story-04-002-audit-log-sanitization-tests | 04-001 | Parallel-safe: true | audit, privacy, tests | [x] Done
-| 04-003 | Secret handling + tests | feature/current/requirements-gaps/story-04-003-secret-handling-tests | 04-001 | Parallel-safe: true | logging, security, tests | [~] In-Progress
+| 04-003 | Secret handling + tests | feature/current/requirements-gaps/story-04-003-secret-handling-tests | 04-001 | Parallel-safe: true | logging, security, tests | [x] Done
 
 ### Phase 05: AXI + Tests
 | Story ID | Story Title | Branch | Dependencies | Parallel-safe | Modules |
 | -------- | ----------- | ------ | ------------ | ------------- | ------- |
-| 05-001 | Content-first behavior + tests | feature/current/requirements-gaps/story-05-001-content-first-behavior-tests | 03-001 | Parallel-safe: true | cli, output, tests |
+| 05-001 | Content-first behavior + tests | feature/current/requirements-gaps/story-05-001-content-first-behavior-tests | 03-001 | Parallel-safe: true | cli, output, tests | [~] In-Progress |
 | 05-002 | Session hooks + tests | feature/current/requirements-gaps/story-05-002-session-hooks-tests | 05-001 | Parallel-safe: true | hooks, session, tests |
 | 05-003 | Contextual disclosure + tests | feature/current/requirements-gaps/story-05-003-contextual-disclosure-tests | 05-001 | Parallel-safe: true | output, suggestions, tests |
 

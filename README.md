@@ -43,6 +43,32 @@ smartfo --init-config
 
 ## Usage
 
+### Content-First No-Args Behavior
+
+When invoked without arguments, smartfo shows a content-first state summary instead of a usage manual. This is designed for AI agents and users to quickly understand the current context.
+
+**Example output:**
+```bash
+$ smartfo
+cwd: /Users/user/project
+repo: /Users/user/project (Git)
+daemon: running
+queue: 0 jobs
+suggestions[3]: smartfo --help - Show all available commands, smartfo list - View operation history, smartfo status - Check system status
+```
+
+The state summary includes:
+- Current working directory
+- Git repository status (if in a VCS repo)
+- Daemon status (if running)
+- Operations queue summary
+- Contextual help suggestions
+
+To see the full usage manual, use `--help`:
+```bash
+smartfo --help
+```
+
 ### Move Files
 
 ```bash

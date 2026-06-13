@@ -7,7 +7,7 @@ prd_file: "internal-docs/feature/20260610-requirements-gaps/20260610-requirement
 phase: 5
 parallel_id: 1
 branch: "feature/current/requirements-gaps/story-05-001-content-first-behavior-tests"
-status: "todo"
+status: "in_progress"
 assignee: ""
 reviewer: ""
 dependencies: ["03-001"]
@@ -27,42 +27,42 @@ Implement content-first no-args behavior where running CLI with no arguments sho
 
 ## Sub-Tasks
 
-- [ ] Design content-first state summary in `src/output/content_first.rs`
-- [ ] Implement state summary generation for current directory
-- [ ] Add context-aware state (git repo info, operations, queue)
-- [ ] Modify no-args behavior in `src/main.rs` to show state
-- [ ] Add state summary for agent mode
-- [ ] Add state summary for human mode
-- [ ] Include contextual suggestions in state output
-- [ ] Add TOON format for state summary
-- [ ] Add human-readable format for state summary
-- [ ] Write unit tests for state generation
-- [ ] Write integration tests for no-args behavior
-- [ ] Write tests for context-aware state
-- [ ] Update help text to reference state summary
-- [ ] Document content-first behavior in README
+- [x] Design content-first state summary in `src/output/content_first.rs`
+- [x] Implement state summary generation for current directory
+- [x] Add context-aware state (git repo info, operations, queue)
+- [x] Modify no-args behavior in `src/main.rs` to show state
+- [x] Add state summary for agent mode
+- [x] Add state summary for human mode
+- [x] Include contextual suggestions in state output
+- [x] Add TOON format for state summary
+- [x] Add human-readable format for state summary
+- [x] Write unit tests for state generation
+- [x] Write integration tests for no-args behavior
+- [x] Write tests for context-aware state
+- [x] Update help text to reference state summary
+- [x] Document content-first behavior in README
 
 Status conventions: mark in-progress with `[~]`, done with `[x]`, blocked with `[!]`.
 
 ## Relevant Files
 
-- `src/output/content_first.rs` — New module for content-first state
-- `src/main.rs` — Modify no-args behavior
-- `src/output.rs` — Integrate state summary with output
-- `src/hooks.rs` — Use session context for state
-- `tests/content_first_test.rs` — New test file for content-first behavior
-- `README.md` — Document content-first behavior
+- `src/output/content_first.rs` — New module for content-first state summary generation
+- `src/output/mod.rs` — Added content_first module and exports
+- `src/main.rs` — Modified no-args behavior to use StateSummary
+- `src/lib.rs` — Added vcs, daemon, queue, mv, rm modules for content_first
+- `tests/cli_tests.rs` — Updated test to match TOON format output
+- `README.md` — Added documentation for content-first behavior
 - `internal-docs/feature/20260610-requirements-gaps/20260610-requirements-gaps.md` — Reference requirements
 
 ## Acceptance Criteria
 
-- [ ] No-args shows live state summary instead of help
-- [ ] State summary includes relevant context (git repo, operations, queue)
-- [ ] State summary includes contextual suggestions
-- [ ] TOON format works for agent mode
-- [ ] Human format works for human mode
-- [ ] All tests pass
-- [ ] Documentation complete
+- [x] No-args shows live state summary instead of help
+- [x] State summary includes relevant context (git repo, operations, queue)
+- [x] State summary includes contextual suggestions
+- [x] TOON format works for agent mode
+- [x] Human format works for human mode
+- [x] All tests pass
+- [x] Documentation complete
 
 ## Test Plan
 

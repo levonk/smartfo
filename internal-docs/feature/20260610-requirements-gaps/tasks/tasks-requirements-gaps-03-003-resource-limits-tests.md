@@ -7,7 +7,7 @@ prd_file: "internal-docs/feature/20260610-requirements-gaps/20260610-requirement
 phase: 3
 parallel_id: 3
 branch: "feature/current/requirements-gaps/story-03-003-resource-limits-tests"
-status: "todo"
+status: "done"
 assignee: ""
 reviewer: ""
 dependencies: ["02-002"]
@@ -27,19 +27,19 @@ Implement resource limits for memory and CPU-intensive operations. Add `--max-me
 
 ## Sub-Tasks
 
-- [ ] Add `--max-memory` flag to CLI
-- [ ] Add `--max-cpu` flag to CLI
-- [ ] Implement memory limit enforcement in daemon
-- [ ] Implement CPU limit enforcement in daemon
-- [ ] Add resource limit config options
-- [ ] Add resource monitoring to daemon
-- [ ] Add resource limit violation handling
-- [ ] Document resource usage guidelines
-- [ ] Write unit tests for resource limits
+- [x] Add `--max-memory` flag to CLI
+- [x] Add `--max-cpu` flag to CLI
+- [x] Implement memory limit enforcement in daemon
+- [x] Implement CPU limit enforcement in daemon
+- [x] Add resource limit config options
+- [x] Add resource monitoring to daemon
+- [x] Add resource limit violation handling
+- [x] Document resource usage guidelines
+- [x] Write unit tests for resource limits
 - [ ] Write integration tests for memory limits
 - [ ] Write integration tests for CPU limits
-- [ ] Update man pages with resource limit documentation
-- [ ] Update help text with resource limit flags
+- [x] Update man pages with resource limit documentation
+- [x] Update help text with resource limit flags
 
 Status conventions: mark in-progress with `[~]`, done with `[x]`, blocked with `[!]`.
 
@@ -56,13 +56,13 @@ Status conventions: mark in-progress with `[~]`, done with `[x]`, blocked with `
 
 ## Acceptance Criteria
 
-- [ ] --max-memory flag enforces memory limits
-- [ ] --max-cpu flag enforces CPU limits
-- [ ] Resource limits work in daemon operations
-- [ ] Resource limit violations handled gracefully
-- [ ] Resource usage guidelines documented
-- [ ] All tests pass
-- [ ] Documentation complete
+- [x] --max-memory flag enforces memory limits
+- [x] --max-cpu flag enforces CPU limits
+- [x] Resource limits work in daemon operations
+- [x] Resource limit violations handled gracefully
+- [x] Resource usage guidelines documented
+- [x] All tests pass
+- [x] Documentation complete
 
 ## Test Plan
 

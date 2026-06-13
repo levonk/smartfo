@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tracing::{info, warn, debug};
 use clap::CommandFactory;
 use crate::man::{install_man_pages, remove_man_pages};
@@ -68,7 +68,7 @@ impl Installer {
     }
 
     /// Install smartfo: create symlinks, generate completions, initialize config
-    pub fn install(&self, force: bool) -> Result<()> {
+    pub fn install(&self, force: bool, hooks: Option<String>, no_hooks: bool, force_hooks: bool) -> Result<()> {
         info!("Starting smartfo installation");
 
         // Create directories
@@ -90,6 +90,11 @@ impl Installer {
 
         // Install man pages
         self.install_man_pages()?;
+
+        // Install Git hooks (if inside a Git repo and not skipped)
+        if !no_hooks {
+            self.install_git_hooks(hooks, force_hooks)?;
+        }
 
         info!("Installation complete");
         self.print_install_instructions();
@@ -345,6 +350,182 @@ impl Installer {
 
     fn install_man_pages(&self) -> Result<()> {
         install_man_pages(&self.man_dir)
+    }
+
+    /// Install Git hooks if inside a Git repository
+    fn install_git_hooks(&self, hooks: Option<String>, force_hooks: bool) -> Result<()> {
+        // Check if we're inside a Git repository
+        let repo_root = self.find_git_repo_root();
+        let repo_root = match repo_root {
+            Some(root) => root,
+            None => {
+                info!("Not inside a Git repository, skipping hook installation");
+                return Ok(());
+            }
+        };
+
+        info!("Inside Git repository: {}", repo_root.display());
+
+        // Parse hook types
+        let hook_types = self.parse_hook_types(hooks);
+
+        // Install client-side hook (pre-commit)
+        if hook_types.contains(&"client".to_string()) {
+            self.install_client_hook(&repo_root, force_hooks)?;
+        }
+
+        // Install server-side hook (pre-receive)
+        if hook_types.contains(&"server".to_string()) {
+            self.install_server_hook(&repo_root, force_hooks)?;
+        }
+
+        Ok(())
+    }
+
+    /// Find the Git repository root from current directory
+    fn find_git_repo_root(&self) -> Option<PathBuf> {
+        let current_dir = std::env::current_dir().ok()?;
+        let mut dir = current_dir.as_path();
+
+        loop {
+            let git_dir = dir.join(".git");
+            if git_dir.exists() {
+                return Some(dir.to_path_buf());
+            }
+
+            match dir.parent() {
+                Some(parent) => dir = parent,
+                None => return None,
+            }
+        }
+    }
+
+    /// Parse hook types from CLI argument
+    fn parse_hook_types(&self, hooks: Option<String>) -> Vec<String> {
+        match hooks {
+            Some(hook_str) => {
+                // Parse comma-separated list
+                hook_str
+                    .split(',')
+                    .map(|s| s.trim().to_lowercase())
+                    .filter(|s| s == "client" || s == "server")
+                    .collect()
+            }
+            None => {
+                // Default: install both hooks
+                vec!["client".to_string(), "server".to_string()]
+            }
+        }
+    }
+
+    /// Install client-side pre-commit hook
+    fn install_client_hook(&self, repo_root: &Path, force_hooks: bool) -> Result<()> {
+        let hooks_dir = repo_root.join(".git").join("hooks");
+        let hook_path = hooks_dir.join("pre-commit");
+
+        // Create hooks directory if it doesn't exist
+        fs::create_dir_all(&hooks_dir)
+            .context("Failed to create Git hooks directory")?;
+
+        // Check if hook already exists
+        if hook_path.exists() {
+            if !force_hooks {
+                // Check if it's a symlink to smartfo
+                if let Ok(target) = fs::read_link(&hook_path) {
+                    if target.ends_with("smartfo") {
+                        info!("Client hook already installed (symlink to smartfo), skipping");
+                        return Ok(());
+                    }
+                }
+                warn!("Client hook already exists at {}, use --force-hooks to overwrite", hook_path.display());
+                return Ok(());
+            } else {
+                // Remove existing hook
+                fs::remove_file(&hook_path)
+                    .context("Failed to remove existing client hook")?;
+                info!("Removed existing client hook");
+            }
+        }
+
+        // Create hook script that calls smartfo
+        let hook_script = r#"#!/bin/sh
+# smartfo pre-commit hook
+# This hook prevents raw deletions and renames
+smartfo git hook-client
+"#;
+
+        fs::write(&hook_path, hook_script)
+            .context("Failed to write client hook script")?;
+
+        // Make hook executable
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = fs::metadata(&hook_path)
+                .context("Failed to get hook permissions")?
+                .permissions();
+            perms.set_mode(0o755);
+            fs::set_permissions(&hook_path, perms)
+                .context("Failed to set hook permissions")?;
+        }
+
+        info!("Installed client-side pre-commit hook to {}", hook_path.display());
+        Ok(())
+    }
+
+    /// Install server-side pre-receive hook
+    fn install_server_hook(&self, repo_root: &Path, force_hooks: bool) -> Result<()> {
+        let hooks_dir = repo_root.join(".git").join("hooks");
+        let hook_path = hooks_dir.join("pre-receive");
+
+        // Create hooks directory if it doesn't exist
+        fs::create_dir_all(&hooks_dir)
+            .context("Failed to create Git hooks directory")?;
+
+        // Check if hook already exists
+        if hook_path.exists() {
+            if !force_hooks {
+                // Check if it's a symlink to smartfo
+                if let Ok(target) = fs::read_link(&hook_path) {
+                    if target.ends_with("smartfo") {
+                        info!("Server hook already installed (symlink to smartfo), skipping");
+                        return Ok(());
+                    }
+                }
+                warn!("Server hook already exists at {}, use --force-hooks to overwrite", hook_path.display());
+                return Ok(());
+            } else {
+                // Remove existing hook
+                fs::remove_file(&hook_path)
+                    .context("Failed to remove existing server hook")?;
+                info!("Removed existing server hook");
+            }
+        }
+
+        // Create hook script that calls smartfo
+        let hook_script = r#"#!/bin/sh
+# smartfo pre-receive hook
+# This hook prevents raw deletions and renames in incoming pushes
+smartfo git hook-server
+"#;
+
+        fs::write(&hook_path, hook_script)
+            .context("Failed to write server hook script")?;
+
+        // Make hook executable
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = fs::metadata(&hook_path)
+                .context("Failed to get hook permissions")?
+                .permissions();
+            perms.set_mode(0o755);
+            fs::set_permissions(&hook_path, perms)
+                .context("Failed to set hook permissions")?;
+        }
+
+        info!("Installed server-side pre-receive hook to {}", hook_path.display());
+        Ok(())
     }
 
     fn remove_symlinks(&self) -> Result<()> {

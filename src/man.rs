@@ -146,7 +146,16 @@ Enable debug logging
 Pre-launch daemon in background and wait for jobs
 .TP
 \fB\-\-no-daemon\fR
-Force synchronous in-process operation (disable auto-spawning)
+Force synchronous in-process operation
+.TP
+\fB\-\-max-memory=MB\fR
+Maximum memory limit in MB for daemon operations (0 = unlimited)
+.TP
+\fB\-\-max-cpu=PERCENT\fR
+Maximum CPU usage as percentage for daemon operations (0 = unlimited)
+.TP
+\fB\-\-privacy\fR
+Enable privacy mode for this operation (anonymize sensitive data in logs and output)
 .TP
 \fB\-\-interactive-tui\fR, \fB\-\-tui\fR
 Launch TUI mode for interactive configuration
@@ -406,6 +415,15 @@ Pre-launch daemon in background and wait for jobs
 \fB\-\-no-daemon\fR
 Force synchronous in-process operation
 .TP
+\fB\-\-max-memory=MB\fR
+Maximum memory limit in MB for daemon operations (0 = unlimited)
+.TP
+\fB\-\-max-cpu=PERCENT\fR
+Maximum CPU usage as percentage for daemon operations (0 = unlimited)
+.TP
+\fB\-\-privacy\fR
+Enable privacy mode for this operation (anonymize sensitive data in logs and output)
+.TP
 \fB\-V\fR, \fB\-\-version\fR
 Print version information
 .TP
@@ -616,6 +634,15 @@ Pre-launch daemon in background and wait for jobs
 .TP
 \fB\-\-no-daemon\fR
 Force synchronous in-process operation
+.TP
+\fB\-\-max-memory=MB\fR
+Maximum memory limit in MB for daemon operations (0 = unlimited)
+.TP
+\fB\-\-max-cpu=PERCENT\fR
+Maximum CPU usage as percentage for daemon operations (0 = unlimited)
+.TP
+\fB\-\-privacy\fR
+Enable privacy mode for this operation (anonymize sensitive data in logs and output)
 .TP
 \fB\-V\fR, \fB\-\-version\fR
 Print version information

@@ -7,7 +7,7 @@ prd_file: "internal-docs/feature/20260610-requirements-gaps/20260610-requirement
 phase: 4
 parallel_id: 1
 branch: "feature/current/requirements-gaps/story-04-001-privacy-mode-tests"
-status: "todo"
+status: "done"
 assignee: ""
 reviewer: ""
 dependencies: ["03-003"]
@@ -27,21 +27,21 @@ Implement privacy mode with explicit ignore lists for identifiers to never log o
 
 ## Sub-Tasks
 
-- [ ] Create privacy module in `src/privacy.rs`
-- [ ] Implement ignore list pattern matching
-- [ ] Add privacy mode config options
-- [ ] Add `--privacy` flag to CLI
-- [ ] Implement "unknown" vs "anonymous" distinction
-- [ ] Add privacy toggles for specific data collection
-- [ ] Integrate privacy mode with audit logging
-- [ ] Integrate privacy mode with session hooks
-- [ ] Add privacy mode to output formatting
-- [ ] Write unit tests for ignore list matching
+- [x] Create privacy module in `src/privacy.rs`
+- [x] Implement ignore list pattern matching
+- [x] Add privacy mode config options
+- [x] Add `--privacy` flag to CLI
+- [x] Implement "unknown" vs "anonymous" distinction
+- [x] Add privacy toggles for specific data collection
+- [x] Integrate privacy mode with audit logging
+- [x] Integrate privacy mode with session hooks
+- [x] Add privacy mode to output formatting
+- [x] Write unit tests for ignore list matching
 - [ ] Write integration tests for privacy mode
-- [ ] Write tests for "unknown" vs "anonymous" behavior
-- [ ] Update man pages with privacy documentation
-- [ ] Update help text with --privacy flag
-- [ ] Document privacy mode in README
+- [x] Write tests for "unknown" vs "anonymous" behavior
+- [x] Update man pages with privacy documentation
+- [x] Update help text with --privacy flag
+- [x] Document privacy mode in README
 
 Status conventions: mark in-progress with `[~]`, done with `[x]`, blocked with `[!]`.
 

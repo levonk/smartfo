@@ -43,6 +43,8 @@ tiny_http = "0.12"
 textwrap = "0.16"
 ratatui = "0.26"
 crossterm = "0.27"
+sysinfo = "0.30"
+regex = "1.10"
 
 [dev-dependencies]
 assert_cmd = "2.0"

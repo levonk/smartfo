@@ -8,15 +8,18 @@ pub mod aggregates;
 pub mod empty;
 pub mod suggestions;
 pub mod pager;
+pub mod content_first;
 
 pub use schema::FieldFilterable;
 pub use truncation::DEFAULT_TRUNCATION_LIMIT;
 pub use suggestions::{Suggestion, SuggestionContext, SuggestionEngine, format_suggestions_as_help};
 pub use pager::Pager;
+pub use content_first::{StateSummary, GitRepoInfo, OperationsSummary, QueueSummary, DaemonSummary};
 
 use serde::Serialize;
 use std::io::Write;
 use crate::terminal::{get_terminal_size, wrap_text};
+use crate::privacy::{PrivacyManager, PrivacyConfig};
 
 /// Output format options
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -59,6 +62,7 @@ pub struct OutputWriter<W: Write> {
     truncation_limit: usize,
     suggestions: Option<Vec<String>>,
     terminal_width: Option<usize>,
+    privacy_manager: Option<PrivacyManager>,
 }
 
 impl<W: Write> OutputWriter<W> {
@@ -73,6 +77,7 @@ impl<W: Write> OutputWriter<W> {
             truncation_limit: DEFAULT_TRUNCATION_LIMIT,
             suggestions: None,
             terminal_width: Some(terminal_size.cols),
+            privacy_manager: None,
         }
     }
 
@@ -87,6 +92,7 @@ impl<W: Write> OutputWriter<W> {
             truncation_limit: DEFAULT_TRUNCATION_LIMIT,
             suggestions: None,
             terminal_width: Some(terminal_size.cols),
+            privacy_manager: None,
         }
     }
 
@@ -99,6 +105,13 @@ impl<W: Write> OutputWriter<W> {
     /// Set truncation limit
     pub fn with_truncation_limit(mut self, limit: usize) -> Self {
         self.truncation_limit = limit;
+        self
+    }
+
+    /// Set privacy manager for output sanitization
+    pub fn with_privacy(mut self, privacy_config: Option<PrivacyConfig>) -> Self {
+        self.privacy_manager = privacy_config
+            .and_then(|c| PrivacyManager::new(c).ok());
         self
     }
 

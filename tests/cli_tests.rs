@@ -46,7 +46,7 @@ fn test_smartfo_no_args_shows_content_first_summary() {
     let mut cmd = Command::cargo_bin("smartfo").unwrap();
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains("current_directory"));
+        .stdout(predicate::str::contains("cwd:"));
 }
 
 #[test]

@@ -101,6 +101,7 @@ $TRASH_ROOT/<absolute-path-from-root>/foo/bar/baz.txt/<iso-timestamp>-<counter>
 - **Double-fork** on first async operation to detach a background process.
 - **PID lockfile** + Unix domain socket for CLI-to-daemon communication.
 - **Graceful shutdown** on `SIGTERM`; in-flight jobs complete before exit.
+- **Config reload** on `SIGHUP`; reloads configuration without restart.
 - **Queue store**: SQLite WAL or append-only log; survives restarts.
 
 ---
@@ -136,7 +137,7 @@ Config file: `$HOME/smartfo/config.toml` (or `$XDG_CONFIG_HOME/smartfo/config.to
 Key sections:
 - `[vcs]` — VCS preference, fallback, supported systems
 - `[trash]` — trash root, mode, disk-space guard, retention
-- `[concurrency]` — max jobs, network limits, drive detection
+- `[concurrency]` — max jobs, network limits, drive detection, resource limits
 - `[behavior]` — smart mode toggles, async thresholds, blocking default
 - `[logging]` — level, log file path
 - `[paths]` — trash root, audit log, cache dir, config dir override
@@ -146,8 +147,22 @@ All string values support POSIX-style environment variable expansion (`$VAR`, `$
 Override precedence (highest wins):
 1. CLI flags
 2. Environment variables (`SMARTFO_<SECTION>_<KEY>`)
-3. User config file
-4. Built-in defaults
+3. Project config (if in Git repository)
+4. User config file
+5. System config
+6. Built-in defaults
+
+### Resource Limits
+
+The daemon supports resource limiting to prevent resource exhaustion:
+
+- **`max_memory_mb`**: Maximum memory limit in MB (0 = unlimited)
+- **`max_cpu_percent`**: Maximum CPU usage as percentage (0 = unlimited)
+
+These can be set via:
+- Config file: `[concurrency]` section
+- Environment variables: `SMARTFO_CONCURRENCY_MAX_MEMORY_MB`, `SMARTFO_CONCURRENCY_MAX_CPU_PERCENT`
+- CLI flags: `--max-memory`, `--max-cpu` (for individual operations)
 
 ---
 
@@ -159,6 +174,8 @@ Override precedence (highest wins):
 | `SMARTFO_TRASH_ROOT` | Override trash directory |
 | `SMARTFO_PATHS_AUDIT_LOG` | Override audit log path |
 | `SMARTFO_CONCURRENCY_MAX_CONCURRENT_JOBS` | Global parallel job ceiling |
+| `SMARTFO_CONCURRENCY_MAX_MEMORY_MB` | Maximum memory limit in MB (0 = unlimited) |
+| `SMARTFO_CONCURRENCY_MAX_CPU_PERCENT` | Maximum CPU usage as percentage (0 = unlimited) |
 | `XDG_DATA_HOME` | Trash default root base |
 | `XDG_CACHE_HOME` | Cache directory base |
 | `XDG_CONFIG_HOME` | Config directory base |
@@ -329,4 +346,5 @@ description: {}
 - **Atomic operations**: Use `renameat2` with `RENAME_EXCHANGE` when available; fallback to temp-file + fsync + rename.
 - **Crash-safe queue**: SQLite WAL or append-only log; each job has UUID, status, retry count.
 - **Disk space guard**: Auto-cull oldest trash entries when free space drops below threshold; refuse operation if culling is insufficient.
+- **Secret sanitization**: Comprehensive secret detection and sanitization in audit logs to prevent credential leakage. Detects AWS keys, Stripe tokens, GitHub tokens, JWTs, private keys, passwords in URLs, and generic API tokens.
 

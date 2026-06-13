@@ -1182,6 +1182,91 @@ devbox run cargo fmt
 
 ---
 
+## Proposed Future Enhancements
+
+The following features were identified as gaps in the requirements and are proposed for future implementation:
+
+### Priority 1 (Critical Features)
+
+#### Trash Restoration/Undelete
+- `smartfo restore <path>` - Restore file from trash to original location
+- `smartfo restore --id <uuid>` - Restore by operation UUID
+- `smartfo restore --to <dest>` - Restore to different location
+- Conflict resolution when destination already exists
+
+#### Trash Browsing & Inspection
+- `smartfo trash list` - List trash entries with metadata
+- `smartfo trash list --pattern <glob>` - Filter by path pattern
+- `smartfo trash list --age <duration>` - Filter by deletion age
+- `smartfo trash view <id>` - View detailed trash entry info
+- `smartfo trash info` - Show trash statistics (size, count, disk usage)
+
+#### Manual Trash Management
+- `smartfo trash empty` - Empty all trash
+- `smartfo trash empty --older-than <duration>` - Empty old entries
+- `smartfo trash empty --force` - Bypass confirmation
+- `smartfo trash prune` - Run manual culling based on disk space
+
+#### Audit Log Querying & Analysis
+- `smartfo audit list` - List recent operations
+- `smartfo audit list --filter <criteria>` - Filter by type, path, date
+- `smartfo audit view <uuid>` - View detailed operation metadata
+- `smartfo audit stats` - Show operation statistics
+- `smartfo audit export --format json|csv` - Export audit log
+
+#### Operation History & Undo
+- `smartfo history` - Show recent operations
+- `smartfo undo <uuid>` - Reverse an operation (move back from trash, reverse mv)
+- `smartfo undo --last` - Undo most recent operation
+- `smartfo redo <uuid>` - Re-apply a previously undone operation
+
+### Priority 2 (Important Enhancements)
+
+#### VCS Branch Awareness
+- Detect current branch and include in audit metadata
+- Branch-specific trash organization (optional)
+- Warn when moving files across branches
+
+#### Performance Monitoring
+- `smartfo status` - Show daemon status, queue size, active jobs
+- `smartfo stats` - Show performance metrics (operations/sec, avg duration)
+- `smartfo queue list` - Show pending/running jobs
+- `smartfo queue cancel <id>` - Cancel specific job
+
+#### Network File System Support
+- Detect NFS mounts and apply appropriate concurrency limits
+- Handle NFS-specific error conditions (stale file handles, permission issues)
+- Configurable NFS-specific timeouts and retry behavior
+
+#### Batch Operations
+- `smartfo batch` - Interactive batch mode for multiple operations
+- `smartfo batch --file <manifest>` - Execute operations from manifest file
+- Batch confirmation with summary before execution
+
+#### Scheduled Cleanup
+- `smartfo schedule cleanup` - Set up periodic trash cleanup
+- Integration with cron/systemd timers
+- Configurable cleanup schedules (daily, weekly)
+
+### Priority 3 (Nice-to-Have Features)
+
+#### Trash Deduplication
+- If same file deleted multiple times, store only one copy with metadata
+
+#### Compression
+- Optional compression for large files in trash to save space
+
+#### Trash Sync
+- Sync trash across multiple machines (with conflict resolution)
+
+#### System Trash Integration
+- Option to use system trash (macOS Trash, GNOME Files trash) instead of custom trash
+
+#### Snapshot/Backup Integration
+- Integration with backup systems (restic, borg, Time Machine) for critical deletions
+
+---
+
 ## Open Questions
 
 - Should TUI mode be the default when no arguments provided, or require explicit flag?
@@ -1193,6 +1278,7 @@ devbox run cargo fmt
 - What specific session metadata should be captured for lifecycle enrichment?
 - Should skill generation be automated in CI or manual?
 - How should truncation limits be configured (global, per-field, per-command)?
+- Should proposed future enhancements be prioritized over completing CLI standards compliance?
 
 ---
 
@@ -1245,3 +1331,5 @@ devbox run cargo fmt
 - prd-cli-standards-compliance.md
 - prd-20260608-cli-axi.md
 - 20260609-install-warn-aliases.md
+- 20260610-requirements-gaps.md
+- 2026066611-feature-gaps.md

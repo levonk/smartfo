@@ -158,6 +158,18 @@ pub struct MvArgs {
     #[arg(long, help = "Launch TUI mode (alias for --interactive-tui)")]
     pub tui: bool,
 
+    /// Maximum memory limit in MB (0 = unlimited)
+    #[arg(long, value_name = "MB", help = "Maximum memory limit in MB (0 = unlimited)")]
+    pub max_memory: Option<u64>,
+
+    /// Maximum CPU usage as percentage (0 = unlimited)
+    #[arg(long, value_name = "PERCENT", help = "Maximum CPU usage as percentage (0 = unlimited)")]
+    pub max_cpu: Option<u8>,
+
+    /// Enable privacy mode for this operation
+    #[arg(long, help = "Enable privacy mode for this operation (anonymize sensitive data)")]
+    pub privacy: bool,
+
     /// Source file(s) to move (supports glob patterns like *.txt, **/*.rs)
     /// Use `-` to read paths from stdin
     #[arg(value_name = "SOURCE")]
@@ -414,6 +426,18 @@ pub struct RmArgs {
     /// Launch TUI mode (alias for --interactive-tui)
     #[arg(long, help = "Launch TUI mode (alias for --interactive-tui)")]
     pub tui: bool,
+
+    /// Maximum memory limit in MB (0 = unlimited)
+    #[arg(long, value_name = "MB", help = "Maximum memory limit in MB (0 = unlimited)")]
+    pub max_memory: Option<u64>,
+
+    /// Maximum CPU usage as percentage (0 = unlimited)
+    #[arg(long, value_name = "PERCENT", help = "Maximum CPU usage as percentage (0 = unlimited)")]
+    pub max_cpu: Option<u8>,
+
+    /// Enable privacy mode for this operation
+    #[arg(long, help = "Enable privacy mode for this operation (anonymize sensitive data)")]
+    pub privacy: bool,
 
     /// File(s) or directories to remove (supports glob patterns like *.txt, **/*.rs)
     /// Use `-` to read paths from stdin

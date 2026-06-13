@@ -1,5 +1,6 @@
 // Library exports for testing
 pub mod config;
+pub mod vcs;
 pub mod output;
 pub mod hooks;
 pub mod skill;
@@ -22,6 +23,8 @@ pub mod secret;
 pub mod resource;
 pub mod privacy;
 pub mod audit;
+pub mod mv;
+pub mod rm;
 
 // Re-export ColorMode for testing
 pub use config::ColorMode;

@@ -11,13 +11,14 @@ use anyhow::{Context, Result};
 use nix::unistd::{fork, ForkResult, setsid, Pid};
 use nix::sys::signal::{self, SigHandler, Signal};
 use std::fs::File;
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use tracing::{info, warn, error};
 use crate::health::{HealthChecker, HealthStatus};
+use crate::resource::{ResourceMonitor, ResourceLimits};
 
 /// Global shutdown flag for signal handler
 /// This must be static because signal handlers can't capture variables
@@ -27,16 +28,25 @@ static SHUTDOWN_FLAG: AtomicBool = AtomicBool::new(false);
 /// This must be static because signal handlers can't capture variables
 static mut HEALTH_CHECKER: Option<HealthChecker> = None;
 
+/// Global config reload flag for SIGHUP handler
+static CONFIG_RELOAD_FLAG: AtomicBool = AtomicBool::new(false);
+
 /// Daemon instance managing lifecycle and communication
 #[derive(Clone)]
 pub struct Daemon {
     pid_file: PathBuf,
     socket_path: PathBuf,
+    resource_limits: ResourceLimits,
 }
 
 impl Daemon {
     /// Create a new daemon instance with default paths
     pub fn new() -> Result<Self> {
+        Self::with_resource_limits(ResourceLimits::unlimited())
+    }
+
+    /// Create a new daemon instance with specific resource limits
+    pub fn with_resource_limits(resource_limits: ResourceLimits) -> Result<Self> {
         let xdg_data_home = std::env::var("XDG_DATA_HOME")
             .unwrap_or_else(|_| {
                 let home = std::env::var("HOME").expect("HOME not set");
@@ -52,6 +62,7 @@ impl Daemon {
         Ok(Daemon {
             pid_file: smartfo_data.join("daemon.pid"),
             socket_path: smartfo_data.join("daemon.sock"),
+            resource_limits,
         })
     }
 
@@ -189,6 +200,59 @@ impl Daemon {
         info!("Shutdown requested");
     }
 
+    /// Check if config reload has been requested
+    pub fn is_config_reload_requested() -> bool {
+        CONFIG_RELOAD_FLAG.load(Ordering::SeqCst)
+    }
+
+    /// Request config reload by setting the config reload flag
+    pub fn request_config_reload() {
+        CONFIG_RELOAD_FLAG.store(true, Ordering::SeqCst);
+        info!("Config reload requested");
+    }
+
+    /// Clear the config reload flag
+    pub fn clear_config_reload_flag() {
+        CONFIG_RELOAD_FLAG.store(false, Ordering::SeqCst);
+    }
+
+    /// Reload configuration from file with validation
+    ///
+    /// This function:
+    /// 1. Reads the config file from the standard location
+    /// 2. Validates the new configuration
+    /// 3. Logs the reload event
+    /// 4. Returns an error if validation fails
+    pub fn reload_config() -> Result<()> {
+        use crate::config;
+
+        info!("Reloading configuration from file");
+
+        // Get the config file path (resolve_config handles precedence)
+        let config_path = config::default_config_path()
+            .context("Failed to determine config file path")?;
+
+        if !config_path.exists() {
+            info!("No config file found at {}, skipping reload", config_path.display());
+            return Ok(());
+        }
+
+        // Validate the config file
+        match config::validate_config_file(&config_path) {
+            Ok(_config) => {
+                info!("Configuration validation passed");
+                // Note: The actual config reload will happen on next config load
+                // This is because config is loaded lazily in the config module
+                // The validation ensures the new config is valid before applying
+                Ok(())
+            }
+            Err(e) => {
+                error!("Configuration validation failed: {}", e.message);
+                Err(anyhow::anyhow!("Configuration validation failed: {}", e.message))
+            }
+        }
+    }
+
     /// Set up signal handler for graceful shutdown
     ///
     /// This installs a handler for SIGTERM that sets the shutdown flag
@@ -233,6 +297,26 @@ impl Daemon {
         }
 
         info!("Installed SIGUSR1 handler for health checks");
+        Ok(())
+    }
+
+    /// Set up signal handler for config reload (SIGHUP)
+    ///
+    /// This installs a handler for SIGHUP that sets the config reload flag
+    /// The daemon event loop should check this flag and reload config when set
+    pub fn setup_config_reload_signal_handler(&self) -> Result<()> {
+        // Safety: The signal handler only performs an atomic store on a static variable, which is safe
+        unsafe {
+            extern "C" fn sighup_handler(_sig: i32) {
+                CONFIG_RELOAD_FLAG.store(true, Ordering::SeqCst);
+            }
+
+            let handler = SigHandler::Handler(sighup_handler);
+            signal::signal(Signal::SIGHUP, handler)
+                .context("Failed to install SIGHUP handler")?;
+        }
+
+        info!("Installed SIGHUP handler for config reload");
         Ok(())
     }
 
@@ -455,16 +539,63 @@ impl Daemon {
                 self.setup_signal_handler()
                     .context("Failed to set up signal handler")?;
 
+                // Set up signal handler for config reload
+                self.setup_config_reload_signal_handler()
+                    .context("Failed to set up config reload signal handler")?;
+
                 // Bind socket
                 let listener = self.bind_socket()
                     .context("Failed to bind daemon socket")?;
 
                 // Enter daemon event loop (placeholder - will be expanded)
                 info!("Daemon entering event loop");
+
+                // Initialize resource monitor
+                let mut resource_monitor = ResourceMonitor::new(self.resource_limits);
+                resource_monitor.log_limits();
+
                 // TODO: Implement full daemon event loop with job processing
                 // For now, just handle a single connection for testing
                 if let Ok(stream) = self.accept_connection(&listener) {
-                    let _ = self.handle_client_connection(stream);
+                    // Check resource limits before handling connection
+                    resource_monitor.refresh();
+                    if resource_monitor.is_any_limit_exceeded() {
+                        if let Some(violation) = resource_monitor.get_violation_message() {
+                            error!("Resource limit violation: {}", violation);
+                            // Reject connection due to resource limits
+                            let mut writer = BufWriter::new(&stream);
+                            let _ = writeln!(writer, "ERROR: Resource limit exceeded - {}", violation);
+                            drop(writer);
+                            drop(stream);
+                        } else {
+                            let _ = self.handle_client_connection(stream);
+
+                            // Log resource usage after handling connection
+                            resource_monitor.refresh();
+                            resource_monitor.log_usage();
+                        }
+                    } else {
+                        let _ = self.handle_client_connection(stream);
+
+                        // Log resource usage after handling connection
+                        resource_monitor.refresh();
+                        resource_monitor.log_usage();
+                    }
+                }
+
+                // Check if config reload was requested
+                if Self::is_config_reload_requested() {
+                    info!("Config reload requested, reloading configuration...");
+                    match Self::reload_config() {
+                        Ok(()) => {
+                            info!("Configuration reloaded successfully");
+                        }
+                        Err(e) => {
+                            error!("Failed to reload configuration: {}", e);
+                            error!("Configuration remains unchanged");
+                        }
+                    }
+                    Self::clear_config_reload_flag();
                 }
 
                 // Check if shutdown was requested
@@ -536,6 +667,7 @@ mod tests {
         let daemon = Daemon {
             pid_file: pid_file.clone(),
             socket_path: temp_dir.path().join("test.sock"),
+            resource_limits: ResourceLimits::unlimited(),
         };
 
         // Initially no PID file
@@ -575,6 +707,7 @@ mod tests {
         let daemon = Daemon {
             pid_file: pid_file.clone(),
             socket_path: temp_dir.path().join("test.sock"),
+            resource_limits: ResourceLimits::unlimited(),
         };
 
         // Should acquire lock despite stale PID file
@@ -594,6 +727,7 @@ mod tests {
         let daemon = Daemon {
             pid_file: temp_dir.path().join("test.pid"),
             socket_path: socket_path.clone(),
+            resource_limits: ResourceLimits::unlimited(),
         };
 
         // Socket shouldn't exist initially
@@ -618,6 +752,7 @@ mod tests {
         let daemon = Daemon {
             pid_file: temp_dir.path().join("test.pid"),
             socket_path: temp_dir.path().join("test.sock"),
+            resource_limits: ResourceLimits::unlimited(),
         };
 
         // No socket exists, should return None
@@ -633,6 +768,7 @@ mod tests {
         let daemon = Daemon {
             pid_file: temp_dir.path().join("test.pid"),
             socket_path: socket_path.clone(),
+            resource_limits: ResourceLimits::unlimited(),
         };
 
         // Bind socket (simulating daemon)
@@ -665,6 +801,7 @@ mod tests {
         let daemon = Daemon {
             pid_file: temp_dir.path().join("test.pid"),
             socket_path: socket_path.clone(),
+            resource_limits: ResourceLimits::unlimited(),
         };
 
         // Bind socket
@@ -706,6 +843,7 @@ mod tests {
         let daemon = Daemon {
             pid_file: temp_dir.path().join("test.pid"),
             socket_path: socket_path.clone(),
+            resource_limits: ResourceLimits::unlimited(),
         };
 
         // Bind socket (simulating existing daemon)
@@ -749,6 +887,27 @@ mod tests {
     }
 
     #[test]
+    fn test_config_reload_flag() {
+        // Reset the flag first
+        CONFIG_RELOAD_FLAG.store(false, Ordering::SeqCst);
+
+        // Initially not requested
+        assert!(!Daemon::is_config_reload_requested());
+
+        // Request config reload
+        Daemon::request_config_reload();
+
+        // Now should be requested
+        assert!(Daemon::is_config_reload_requested());
+
+        // Clear the flag
+        Daemon::clear_config_reload_flag();
+
+        // Now should not be requested
+        assert!(!Daemon::is_config_reload_requested());
+    }
+
+    #[test]
     fn test_signal_handler_setup() {
         let daemon = Daemon::new().unwrap();
 
@@ -757,6 +916,15 @@ mod tests {
         // but we can verify the setup doesn't fail
         let result = daemon.setup_signal_handler();
         assert!(result.is_ok(), "Signal handler setup should succeed");
+    }
+
+    #[test]
+    fn test_config_reload_signal_handler_setup() {
+        let daemon = Daemon::new().unwrap();
+
+        // Setting up config reload signal handler should succeed
+        let result = daemon.setup_config_reload_signal_handler();
+        assert!(result.is_ok(), "Config reload signal handler setup should succeed");
     }
 
     #[test]
@@ -778,6 +946,7 @@ mod tests {
         let daemon = Daemon {
             pid_file: temp_dir.path().join("test.pid"),
             socket_path: socket_path.clone(),
+            resource_limits: ResourceLimits::unlimited(),
         };
 
         // Bind socket (simulating daemon)
