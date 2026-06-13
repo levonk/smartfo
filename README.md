@@ -126,6 +126,27 @@ mv --tui file1 file2
 mv --interactive-tui file1 file2
 ```
 
+### Contextual Suggestions
+
+Smartfo provides context-aware suggestions to help you discover relevant next steps. Suggestions are automatically generated based on your current state and displayed in TOON format for agents.
+
+**Example suggestions in TOON format:**
+```
+help[3]: smartfo list - View operation history, smartfo status - Check daemon status, smartfo install - Install smartfo symlinks
+```
+
+Suggestions are:
+- **Context-aware**: Based on current command, git repo status, daemon status, and queue depth
+- **Actionable**: Complete commands with flags ready to execute
+- **Limited**: 2-4 maximum suggestions to avoid overwhelming output
+- **Ranked**: Sorted by relevance score (highest first)
+
+**Suggestion examples by context:**
+- In git repo with operations: `smartfo list`, `smartfo status`
+- Empty operation list: `smartfo install`, `smartfo status`
+- Queue has pending jobs: `smartfo list --status pending`
+- Daemon not running: `smartfo install`
+
 ### Session Hooks
 
 Smartfo supports session hooks for AI agent integration, capturing session metadata including transcripts, files touched, and VCS commands.

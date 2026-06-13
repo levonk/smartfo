@@ -7,7 +7,7 @@ prd_file: "internal-docs/feature/20260610-requirements-gaps/20260610-requirement
 phase: 5
 parallel_id: 3
 branch: "feature/current/requirements-gaps/story-05-003-contextual-disclosure-tests"
-status: "todo"
+status: "done"
 assignee: ""
 reviewer: ""
 dependencies: ["05-001"]
@@ -27,20 +27,20 @@ Implement contextual disclosure engine that provides next steps suggestions base
 
 ## Sub-Tasks
 
-- [ ] Enhance suggestion engine in `src/output/suggestions.rs`
-- [ ] Add context-aware suggestion generation
-- [ ] Implement suggestion logic for each command type
-- [ ] Add suggestions for viewing operations
-- [ ] Add suggestions for empty lists
-- [ ] Add suggestions for queue status
-- [ ] Add suggestions for install operations
-- [ ] Format suggestions as structured `help[]` array in TOON
-- [ ] Ensure suggestions are complete commands with flags
-- [ ] Limit suggestions to 2-4 maximum
-- [ ] Rank suggestions by relevance
-- [ ] Write unit tests for suggestion engine
-- [ ] Write integration tests for contextual suggestions
-- [ ] Document suggestion behavior in README
+- [x] Enhance suggestion engine in `src/output/suggestions.rs`
+- [x] Add context-aware suggestion generation
+- [x] Implement suggestion logic for each command type
+- [x] Add suggestions for viewing operations
+- [x] Add suggestions for empty lists
+- [x] Add suggestions for queue status
+- [x] Add suggestions for install operations
+- [x] Format suggestions as structured `help[]` array in TOON
+- [x] Ensure suggestions are complete commands with flags
+- [x] Limit suggestions to 2-4 maximum
+- [x] Rank suggestions by relevance
+- [x] Write unit tests for suggestion engine
+- [x] Write integration tests for contextual suggestions
+- [x] Document suggestion behavior in README
 
 Status conventions: mark in-progress with `[~]`, done with `[x]`, blocked with `[!]`.
 
@@ -55,13 +55,13 @@ Status conventions: mark in-progress with `[~]`, done with `[x]`, blocked with `
 
 ## Acceptance Criteria
 
-- [ ] Suggestions are context-aware based on current state
-- [ ] Suggestions are actionable complete commands
-- [ ] Suggestions limited to 2-4 maximum
-- [ ] Suggestions ranked by relevance
-- [ ] TOON format includes structured `help[]` array
-- [ ] All tests pass
-- [ ] Documentation complete
+- [x] Suggestions are context-aware based on current state
+- [x] Suggestions are actionable complete commands
+- [x] Suggestions limited to 2-4 maximum
+- [x] Suggestions ranked by relevance
+- [x] TOON format includes structured `help[]` array
+- [x] All tests pass
+- [x] Documentation complete
 
 ## Test Plan
 

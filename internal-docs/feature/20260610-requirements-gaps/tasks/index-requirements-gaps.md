@@ -39,7 +39,7 @@ This task index addresses the compliance gaps identified in the smartfo requirem
 | -------- | ----------- | ------ | ------------ | ------------- | ------- |
 | 05-001 | Content-first behavior + tests | feature/current/requirements-gaps/story-05-001-content-first-behavior-tests | 03-001 | Parallel-safe: true | cli, output, tests | [x] Done |
 | 05-002 | Session hooks + tests | feature/current/requirements-gaps/story-05-002-session-hooks-tests | 05-001 | Parallel-safe: true | hooks, session, tests | [x] Done |
-| 05-003 | Contextual disclosure + tests | feature/current/requirements-gaps/story-05-003-contextual-disclosure-tests | 05-001 | Parallel-safe: true | output, suggestions, tests |
+| 05-003 | Contextual disclosure + tests | feature/current/requirements-gaps/story-05-003-contextual-disclosure-tests | 05-001 | Parallel-safe: true | output, suggestions, tests | [x] Done |
 
 ### Phase 06: Integration & CI
 | Story ID | Story Title | Branch | Dependencies | Parallel-safe | Modules |
