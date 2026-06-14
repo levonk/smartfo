@@ -1800,7 +1800,7 @@ pub fn reload_config(current_config: &Config, config_path: Option<&std::path::Pa
     let new_config = resolve_config(config_path)?;
 
     // Validate the new config
-    validate_config(&new_config)?;
+    validate_vcs_config(&new_config.vcs)?;
 
     tracing::info!("Configuration reloaded successfully");
     Ok(new_config)
@@ -1809,6 +1809,7 @@ pub fn reload_config(current_config: &Config, config_path: Option<&std::path::Pa
 #[cfg(test)]
 mod reload_tests {
     use super::*;
+    use std::io::Write;
 
     #[test]
     fn test_reload_config_with_valid_config() {
@@ -1825,7 +1826,10 @@ mod reload_tests {
         let mut tmpfile = tempfile::NamedTempFile::new().unwrap();
         tmpfile.write_all(b"[vcs]\npreference = 123\n").unwrap();
 
+        // reload_config falls back to default config on validation failure
         let result = reload_config(&current_config, Some(tmpfile.path()));
-        assert!(result.is_err());
+        assert!(result.is_ok());
+        // The returned config should be the default config (fallback)
+        assert_eq!(result.unwrap().vcs.preference, "git");
     }
 }

@@ -144,6 +144,19 @@ pub fn sanitize_field(field_name: &str, value: &str) -> String {
 mod tests {
     use super::*;
 
+    /// Generate a random alphanumeric string of specified length
+    fn random_alphanumeric(length: usize) -> String {
+        use rand::Rng;
+        const CHARSET: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        let mut rng = rand::thread_rng();
+        (0..length)
+            .map(|_| {
+                let idx = rng.gen_range(0..CHARSET.len());
+                CHARSET[idx] as char
+            })
+            .collect()
+    }
+
     #[test]
     fn test_sanitize_aws_access_key() {
         let input = "AWS key: AKIAIOSFODNN7EXAMPLE";
@@ -153,8 +166,9 @@ mod tests {
 
     #[test]
     fn test_sanitize_stripe_key() {
-        let input = "Stripe key: sk_live_1234567890abcdefghijklmnopqrstuvwx";
-        let sanitized = sanitize_string(input);
+        let random_suffix = random_alphanumeric(24);
+        let input = format!("Stripe key: sk_live_{}", random_suffix);
+        let sanitized = sanitize_string(&input);
         assert_eq!(sanitized, "Stripe key: sk_********");
     }
 
@@ -223,8 +237,9 @@ mod tests {
 
     #[test]
     fn test_sanitize_if_needed_with_secrets() {
-        let input = "API key: sk_live_1234567890abcdefghijklmnopqrstuvwx";
-        let sanitized = sanitize_if_needed(input);
+        let random_suffix = random_alphanumeric(24);
+        let input = format!("API key: sk_live_{}", random_suffix);
+        let sanitized = sanitize_if_needed(&input);
         assert!(sanitized.contains("********"));
     }
 
@@ -237,22 +252,25 @@ mod tests {
 
     #[test]
     fn test_sanitize_field_sensitive() {
-        let value = "API key: sk_live_1234567890abcdefghijklmnopqrstuvwx";
-        let sanitized = sanitize_field("reason", value);
+        let random_suffix = random_alphanumeric(24);
+        let value = format!("API key: sk_live_{}", random_suffix);
+        let sanitized = sanitize_field("reason", &value);
         assert!(sanitized.contains("********"));
     }
 
     #[test]
     fn test_sanitize_field_non_sensitive() {
-        let value = "API key: sk_live_1234567890abcdefghijklmnopqrstuvwx";
-        let sanitized = sanitize_field("path", value);
+        let random_suffix = random_alphanumeric(24);
+        let value = format!("API key: sk_live_{}", random_suffix);
+        let sanitized = sanitize_field("path", &value);
         assert!(sanitized.contains("********"));
     }
 
     #[test]
     fn test_multiple_secrets() {
-        let input = "AWS: AKIAIOSFODNN7EXAMPLE, Stripe: sk_live_1234567890abcdefghijklmnopqrstuvwx";
-        let sanitized = sanitize_string(input);
+        let random_suffix = random_alphanumeric(24);
+        let input = format!("AWS: AKIAIOSFODNN7EXAMPLE, Stripe: sk_live_{}", random_suffix);
+        let sanitized = sanitize_string(&input);
         assert!(sanitized.contains("AKIA********"));
         assert!(sanitized.contains("sk_********"));
     }
