@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::env;
 use std::path::PathBuf;
 use std::fmt;
-use crate::secret::sanitize_string;
+
 
 /// Configuration validation error with line number and suggestions.
 #[derive(Debug, Clone)]
