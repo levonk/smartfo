@@ -200,29 +200,21 @@ pub fn run_pre_commit_hook(repo_root: &Path) -> Result<()> {
         }
     }
 
-    // Automatically update Cargo.lock if Cargo.toml is modified
-    let cargo_toml_modified = changes.iter().any(|change| {
-        matches!(change, GitChange::Modification { path } | GitChange::Addition { path } if *path == "Cargo.toml")
-    });
+    // Run justfile pre-commit target for additional checks
+    info!("Running justfile pre-commit checks");
+    
+    let pre_commit_output = std::process::Command::new("just")
+        .args(["pre-commit"])
+        .current_dir(repo_root)
+        .output()
+        .context("Failed to run just pre-commit. Is just installed?")?;
 
-    if cargo_toml_modified {
-        debug!("Cargo.toml modified, running just sync-deps to sync Cargo.lock");
-        
-        let sync_output = std::process::Command::new("just")
-            .args(["sync-deps"])
-            .current_dir(repo_root)
-            .output()
-            .context("Failed to run just sync-deps. Is just installed?")?;
-
-        if !sync_output.status.success() {
-            anyhow::bail!(
-                "just sync-deps failed: {}\n\
-                 Please fix dependency issues manually or use 'git commit --no-verify' to bypass.",
-                String::from_utf8_lossy(&sync_output.stderr)
-            );
-        }
-
-        debug!("Dependencies synchronized via justfile");
+    if !pre_commit_output.status.success() {
+        anyhow::bail!(
+            "just pre-commit failed: {}\n\
+             Please fix the issues or use 'git commit --no-verify' to bypass.",
+            String::from_utf8_lossy(&pre_commit_output.stderr)
+        );
     }
 
     info!("Pre-commit hook check passed");
