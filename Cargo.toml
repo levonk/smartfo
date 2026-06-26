@@ -118,3 +118,5 @@ harness = false
 # test hook integration
 # test integration
 # test pre-commit
+# final test
+# test hook architecture

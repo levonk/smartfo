@@ -303,8 +303,12 @@ pre-commit:
     #!/usr/bin/env bash
     set -euo pipefail
     # Pre-commit hook orchestration - called by git pre-commit hook
-    # This target can call multiple validation targets
+    # This target orchestrates all pre-commit validation checks
     echo "🔍 Running pre-commit checks..."
+    
+    # Run smartfo's blocking + staleness checks
+    echo "Running smartfo safety checks..."
+    /Users/micro/p/gh/levonk/smartfo/target/release/smartfo git hook-client
     
     # Check if Cargo.toml is modified and sync dependencies if needed
     if git diff --cached --name-only | grep -q "Cargo.toml"; then

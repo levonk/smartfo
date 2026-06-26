@@ -197,6 +197,54 @@ Do not attempt to start or stop the daemon via scripts. It is self-spawning; the
 
 The `pre-commit` hook reads from the repo-local audit log at `{REPO_ROOT}/.smartfo/audit/operations.jsonl`. Ensure the audit log is committed or synced if server-side hooks are used. The server-side `pre-receive` hook cannot read the user's global audit log; it must read from the repo-local copy.
 
+### Pre-commit hook architecture
+
+The pre-commit hook follows a centralized justfile orchestration pattern:
+
+**Hook file (`.git/hooks/pre-commit`):**
+```bash
+#!/bin/sh
+# smartfo pre-commit hook
+# This hook orchestrates all pre-commit checks via justfile
+just pre-commit
+```
+
+**Justfile orchestration (`justfile`):**
+```bash
+pre-commit:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Pre-commit hook orchestration - called by git pre-commit hook
+    # This target orchestrates all pre-commit validation checks
+    echo "🔍 Running pre-commit checks..."
+    
+    # Run smartfo's blocking + staleness checks
+    echo "Running smartfo safety checks..."
+    /Users/micro/p/gh/levonk/smartfo/target/release/smartfo git hook-client
+    
+    # Check if Cargo.toml is modified and sync dependencies if needed
+    if git diff --cached --name-only | grep -q "Cargo.toml"; then
+        echo "Cargo.toml modified, syncing dependencies..."
+        just sync-deps
+    fi
+    
+    echo "✅ Pre-commit checks complete"
+```
+
+**Flow:**
+1. Git calls `.git/hooks/pre-commit`
+2. Hook calls `just pre-commit`
+3. Justfile runs smartfo's safety checks (blocking + staleness)
+4. Justfile handles dependency synchronization if Cargo.toml changed
+5. Commit proceeds if all checks pass
+
+**Benefits:**
+- Single entry point via justfile
+- Centralized orchestration logic
+- Easy to extend with additional checks
+- Consistent with boilerplate patterns
+- Prevents dependency mismatches that cause Nix build failures
+
 ### POSIX compatibility is strict
 
 The `--plain` flag must bypass **all** smart features: no VCS detection, no trash, no async, no daemon. This is the escape hatch for scripts that depend on exact POSIX behavior. Ensure any new feature is gated behind the smart path and does not leak into `--plain`.
