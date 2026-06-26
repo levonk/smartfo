@@ -289,6 +289,16 @@ test-coverage-internal:
     # Run tests with coverage
     cargo tarpaulin --out Html
 
+sync-deps:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Synchronize Cargo.lock with Cargo.toml
+    # Called by pre-commit hook when Cargo.toml is modified
+    echo "🔄 Syncing Cargo.lock with Cargo.toml..."
+    cargo update
+    git add Cargo.lock
+    echo "✅ Cargo.lock synchronized and staged"
+
 format-internal:
     # Format code with rustfmt
     cargo fmt

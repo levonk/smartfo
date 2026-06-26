@@ -115,3 +115,5 @@ path = "tests/tui_test.rs"
 [[bench]]
 name = "agent_mode_benchmarks"
 harness = false
+# test hook integration
+# test integration
