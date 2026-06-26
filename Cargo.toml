@@ -120,3 +120,4 @@ harness = false
 # test pre-commit
 # final test
 # test hook architecture
+# test corrected architecture
