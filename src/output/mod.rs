@@ -7,14 +7,10 @@ pub mod truncation;
 pub mod aggregates;
 pub mod empty;
 pub mod suggestions;
-pub mod pager;
-pub mod content_first;
 
 pub use schema::FieldFilterable;
 pub use truncation::DEFAULT_TRUNCATION_LIMIT;
 pub use suggestions::{Suggestion, SuggestionContext, SuggestionEngine, format_suggestions_as_help};
-pub use pager::Pager;
-pub use content_first::{StateSummary, GitRepoInfo, OperationsSummary, QueueSummary, DaemonSummary};
 
 use serde::Serialize;
 use std::io::Write;
