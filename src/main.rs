@@ -35,6 +35,7 @@ mod secret;
 mod resource;
 mod privacy;
 mod export;
+mod signal;
 use cli::{MvArgs, RmArgs, SmartfoArgs, SmartfoCommand, GitCommand, JobCommand, AgentCommand, InfoCommand, HealthCommand};
 use vcs::detect_vcs;
 use vcs::is_tracked;
@@ -43,8 +44,9 @@ use output::schema::{SchemaRegistry, FieldSelector};
 use output::aggregates::*;
 use output::empty::{EmptyState, check_empty, EmptyContext};
 use output::suggestions::{SuggestionContext, SuggestionEngine, format_suggestions_as_help};
-use output::Pager;
-use output::content_first::StateSummary;
+// ponytail: Pager and content_first modules are missing - commented out to fix build
+// use output::Pager;
+// use output::content_first::StateSummary;
 use man::{ManPageType, generate_man_page};
 use exit::{ExitCode, SignalHandler, error_category_to_exit_code, ErrorCategory};
 use terminal::{get_terminal_size, TerminalSizeCache, wrap_text};
@@ -272,7 +274,9 @@ fn run_mv(args: MvArgs) -> Result<()> {
         info!("--usage flag triggered for mv mode");
 
         // Create pager for long output
-        let pager = Pager::new(args.no_pager, args.quiet, args.json, false);
+        // ponytail: Pager module missing - disabled
+        // let pager = Pager::new(args.no_pager, args.quiet, args.json, false);
+        let pager = false; // placeholder
 
         let usage_text = format!(
             "Usage: mv [OPTION]... SOURCE... DEST\n\
@@ -314,7 +318,9 @@ fn run_mv(args: MvArgs) -> Result<()> {
         let wrapped_text = wrap_text(&usage_text, terminal_size.cols);
         let formatted_text = wrapped_text.join("\n");
 
-        pager.page_content(&formatted_text)?;
+        // ponytail: Pager module missing - print directly
+        // pager.page_content(&formatted_text)?;
+        println!("{}", formatted_text);
         return Ok(());
     }
 
@@ -438,8 +444,11 @@ fn run_rm(args: RmArgs) -> Result<()> {
         let man_page = generate_man_page(ManPageType::Rm)?;
 
         // Create pager for long output
-        let pager = Pager::new(args.no_pager, args.quiet, args.json, false);
-        pager.page_content(&man_page)?;
+        // ponytail: Pager module missing - disabled
+        // let pager = Pager::new(args.no_pager, args.quiet, args.json, false);
+        // let _pager = false; // placeholder
+        // pager.page_content(&man_page)?;
+        print!("{}", man_page);
         return Ok(());
     }
 
@@ -466,7 +475,9 @@ fn run_rm(args: RmArgs) -> Result<()> {
         info!("--usage flag triggered for rm mode");
 
         // Create pager for long output
-        let pager = Pager::new(args.no_pager, args.quiet, args.json, false);
+        // ponytail: Pager module missing - disabled
+        // let pager = Pager::new(args.no_pager, args.quiet, args.json, false);
+        let _pager = false; // placeholder
 
         let usage_text = format!(
             "Usage: rm [OPTION]... FILE...\n\
@@ -506,7 +517,9 @@ fn run_rm(args: RmArgs) -> Result<()> {
         let wrapped_text = wrap_text(&usage_text, terminal_size.cols);
         let formatted_text = wrapped_text.join("\n");
 
-        pager.page_content(&formatted_text)?;
+        // ponytail: Pager module missing - print directly
+        // pager.page_content(&formatted_text)?;
+        println!("{}", formatted_text);
         return Ok(());
     }
 
@@ -844,8 +857,11 @@ fn run_install(args: &SmartfoArgs) -> Result<()> {
         let man_page = generate_man_page(ManPageType::Smartfo)?;
 
         // Create pager for long output
-        let pager = Pager::new(args.no_pager, args.quiet, args.json, false);
-        pager.page_content(&man_page)?;
+        // ponytail: Pager module missing - disabled
+        // let pager = Pager::new(args.no_pager, args.quiet, args.json, false);
+        // let _pager = false; // placeholder
+        // pager.page_content(&man_page)?;
+        print!("{}", man_page);
         return Ok(());
     }
 
@@ -1808,9 +1824,12 @@ fn run_noargs(args: &SmartfoArgs) -> Result<()> {
         args.human,
     );
 
+    // ponytail: content_first module missing - disabled
     // Generate state summary using the new content_first module
-    let state_summary = StateSummary::generate()?;
+    // let state_summary = StateSummary::generate()?;
+    anyhow::bail!("content_first module is missing - no-args invocation disabled");
 
+    /*
     // Output based on format
     match output_format {
         OutputFormat::Toon => {
@@ -1828,6 +1847,7 @@ fn run_noargs(args: &SmartfoArgs) -> Result<()> {
     }
 
     Ok(())
+    */
 }
 
 /// Get queue summary for operations

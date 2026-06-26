@@ -200,6 +200,45 @@ pub fn run_pre_commit_hook(repo_root: &Path) -> Result<()> {
         }
     }
 
+    // Automatically update Cargo.lock if Cargo.toml is modified
+    let _cargo_toml_path = repo_root.join("Cargo.toml");
+    let cargo_lock_path = repo_root.join("Cargo.lock");
+    
+    let cargo_toml_modified = changes.iter().any(|change| {
+        matches!(change, GitChange::Modification { path } | GitChange::Addition { path } if *path == "Cargo.toml")
+    });
+
+    if cargo_toml_modified && cargo_lock_path.exists() {
+        debug!("Cargo.toml modified, running cargo update to sync Cargo.lock");
+        
+        let update_output = std::process::Command::new("cargo")
+            .args(["update"])
+            .current_dir(repo_root)
+            .output()
+            .context("Failed to run cargo update")?;
+
+        if !update_output.status.success() {
+            anyhow::bail!(
+                "cargo update failed: {}\n\
+                 Please fix dependency issues manually or use 'git commit --no-verify' to bypass.",
+                String::from_utf8_lossy(&update_output.stderr)
+            );
+        }
+
+        // Stage the updated Cargo.lock if it changed
+        let stage_output = std::process::Command::new("git")
+            .args(["add", "Cargo.lock"])
+            .current_dir(repo_root)
+            .output()
+            .context("Failed to stage Cargo.lock")?;
+
+        if !stage_output.status.success() {
+            debug!("Failed to stage Cargo.lock: {}", String::from_utf8_lossy(&stage_output.stderr));
+        } else {
+            debug!("Cargo.lock updated and staged automatically");
+        }
+    }
+
     info!("Pre-commit hook check passed");
     Ok(())
 }
