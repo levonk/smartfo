@@ -3,7 +3,7 @@
 **Date:** 2026-06-11  
 **Audit Type:** Source Code Implementation vs. Requirements Gap Analysis  
 **Requirements Source:** `internal-docs/smartfo-requirements.md`  
-**Source Code:** `/Users/micro/p/gh/levonk/smartfo/src/`
+**Source Code:** `~/p/gh/levonk/smartfo/src/`
 
 ---
 

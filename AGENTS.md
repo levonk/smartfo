@@ -220,7 +220,7 @@ pre-commit:
     
     # Run smartfo's blocking + staleness checks
     echo "Running smartfo safety checks..."
-    /Users/micro/p/gh/levonk/smartfo/target/release/smartfo git hook-client
+    ~/p/gh/levonk/smartfo/target/release/smartfo git hook-client
     
     # Check if Cargo.toml is modified and sync dependencies if needed
     if git diff --cached --name-only | grep -q "Cargo.toml"; then
