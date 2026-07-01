@@ -32,6 +32,7 @@
     "build": "just build-internal",
     "lint": "just lint-internal",
     "test": "just test-internal",
+    "test-matrix": "just test-matrix",
     "typecheck": "just typecheck-internal",
     "dev": "just dev-internal",
     "debug": "just debug-internal",

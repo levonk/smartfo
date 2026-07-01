@@ -276,6 +276,31 @@ When `statfs` detects different filesystems, the worker must perform a chunked c
 - Git hooks correctly detect and block raw deletions and raw renames
 - `--install` correctly creates symlinks and hooks without overwriting existing files
 
+### mv/rm Scenario Matrix (`scripts/tests/mv-rm-matrix.sh`)
+
+A standalone shell harness that exercises the smartfo binary across every
+move/remove direction (into / out of / within / cross-worktree) in both
+`--plain` and smart modes, on a throwaway `/tmp` sandbox (git repo + linked
+worktree + outside dir, with `mv`/`rm` symlinks on `PATH`).
+
+```bash
+just test-matrix              # or: devbox run test-matrix
+just test-matrix -- --verbose # include per-case process output
+```
+
+Assertions encode the **intended** behavior from this file, not current stub
+behavior. Because the smart `mv`/`rm` exec paths are unimplemented (stories
+03-001 / 03-002), the smart-mode cases (and `mv --plain`, which has no exec
+path yet) **FAIL today** — this is intentional: the script is a red-light
+regression suite that goes green as the implementation lands. Only
+`rm --plain` passes today. The sandbox is auto-removed once every case
+passes; until then it is kept and its path printed for inspection.
+
+Note: the harness wraps each invocation in a PTY (`script -q /dev/null`)
+because smartfo's `is_stdin_piped` treats non-TTY stdin as "read paths from
+stdin", which would drop file operands in any script/CI/agent context. That
+wrapper can be dropped once that detection requires an explicit `-` flag.
+
 ---
 
 ## Developer Ergonomics

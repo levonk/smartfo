@@ -272,6 +272,11 @@ test-internal:
     # Run tests
     cargo test
 
+test-matrix *args:
+    # Run the mv/rm scenario matrix against a throwaway /tmp sandbox.
+    # Pass --verbose to include process output per case.
+    scripts/tests/mv-rm-matrix.sh {{args}}
+
 typecheck-internal:
     # Run type checking (cargo check)
     cargo check
