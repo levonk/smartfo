@@ -46,11 +46,20 @@ pub fn detect_staged_changes(repo_root: &Path) -> Result<Vec<GitChange>> {
         let status = parts[0];
         match status {
             "D" => {
-                // Deleted file
+                // Deleted from index. `git rm --cached` removes the file
+                // from the index but keeps it on disk (untracking, not a
+                // real deletion) — should not be blocked. Only flag when
+                // the file is actually gone from the working tree.
                 if parts.len() >= 2 {
-                    changes.push(GitChange::Deletion {
-                        path: parts[1].to_string(),
-                    });
+                    let path = parts[1].to_string();
+                    if !repo_root.join(&path).exists() {
+                        changes.push(GitChange::Deletion { path });
+                    } else {
+                        debug!(
+                            "{} unstaged via `git rm --cached` (still on disk), not a raw deletion",
+                            path
+                        );
+                    }
                 }
             }
             "A" => {
@@ -485,6 +494,63 @@ mod tests {
             GitChange::Deletion { path } => assert_eq!(path, "test.txt"),
             _ => panic!("Expected deletion"),
         }
+    }
+
+    #[test]
+    fn test_detect_staged_changes_git_rm_cached_not_flagged() {
+        // `git rm --cached` untracks a file but keeps it on disk. The hook
+        // must NOT classify this as a raw deletion (the file is not deleted,
+        // only removed from version control).
+        let temp_dir = TempDir::new().unwrap();
+        let repo_root = temp_dir.path();
+
+        std::process::Command::new("git")
+            .args(["init"])
+            .current_dir(repo_root)
+            .output()
+            .unwrap();
+        std::process::Command::new("git")
+            .args(["config", "user.email", "test@example.com"])
+            .current_dir(repo_root)
+            .output()
+            .unwrap();
+        std::process::Command::new("git")
+            .args(["config", "user.name", "Test User"])
+            .current_dir(repo_root)
+            .output()
+            .unwrap();
+
+        // Create and commit a file
+        let test_file = repo_root.join("tracked.txt");
+        fs::write(&test_file, "content").unwrap();
+        std::process::Command::new("git")
+            .args(["add", "tracked.txt"])
+            .current_dir(repo_root)
+            .output()
+            .unwrap();
+        std::process::Command::new("git")
+            .args(["commit", "-m", "initial"])
+            .current_dir(repo_root)
+            .output()
+            .unwrap();
+
+        // Untrack via `git rm --cached` — file stays on disk
+        std::process::Command::new("git")
+            .args(["rm", "--cached", "tracked.txt"])
+            .current_dir(repo_root)
+            .output()
+            .unwrap();
+
+        // File must still exist on disk
+        assert!(test_file.exists(), "file should still exist after git rm --cached");
+
+        // Hook must NOT flag this as a deletion
+        let changes = detect_staged_changes(repo_root).unwrap();
+        assert!(
+            changes.is_empty(),
+            "git rm --cached should not be flagged as a raw deletion, got: {:?}",
+            changes
+        );
     }
 
     #[test]
