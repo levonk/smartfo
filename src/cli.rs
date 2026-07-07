@@ -561,9 +561,11 @@ Installation:
   smartfo --install         # Install symlinks and hooks
   smartfo --init-config     # Create default config file
 
-Usage:
-  mv file1 file2            # Use via mv symlink
-  rm file.txt               # Use via rm symlink
+Usage (via symlinks — NOT subcommands):
+  After --install, the binary is symlinked as 'mv' and 'rm'.
+  Invoke it through those names, not as 'smartfo mv':
+    mv file1 file2          # Use via mv symlink (NOT 'smartfo mv file1 file2')
+    rm file.txt             # Use via rm symlink (NOT 'smartfo rm file.txt')
   smartfo --install         # Install or update
   smartfo                   # Show content-first state summary (context-aware)
   smartfo --help            # Show detailed usage information
