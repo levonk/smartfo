@@ -132,7 +132,7 @@ devbox run cargo fmt
 
 ## Configuration
 
-Config file: `$HOME/smartfo/config.toml` (or `$XDG_CONFIG_HOME/smartfo/config.toml`)
+Config file: `$XDG_CONFIG_HOME/smartfo/config.toml` (or `$HOME/.config/smartfo/config.toml`)
 
 Key sections:
 - `[vcs]` — VCS preference, fallback, supported systems

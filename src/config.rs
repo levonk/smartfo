@@ -1091,7 +1091,7 @@ pub fn default_config_path() -> Option<PathBuf> {
         .or_else(|| {
             env::var("HOME")
                 .ok()
-                .map(|p| PathBuf::from(p).join("smartfo").join("config.toml"))
+                .map(|p| PathBuf::from(p).join(".config").join("smartfo").join("config.toml"))
         })
 }
 
@@ -1397,7 +1397,7 @@ fn apply_env_overrides(config: &mut Config) -> anyhow::Result<()> {
 /// Generate a default config file template as a string.
 pub fn default_config_template() -> String {
     r#"# Smartfo Configuration File
-# Place this file at $XDG_CONFIG_HOME/smartfo/config.toml or $HOME/smartfo/config.toml
+# Place this file at $XDG_CONFIG_HOME/smartfo/config.toml or $HOME/.config/smartfo/config.toml
 # All settings are commented out with their default values shown
 # Uncomment and modify any setting you wish to customize
 
@@ -1683,7 +1683,7 @@ default_blocking = true
     #[test]
     fn test_init_config_if_missing() {
         let tmpdir = tempfile::TempDir::new().unwrap();
-        let config_dir = tmpdir.path().join("smartfo");
+        let config_dir = tmpdir.path().join(".config").join("smartfo");
         std::fs::create_dir_all(&config_dir).unwrap();
 
         // Temporarily override the config path
