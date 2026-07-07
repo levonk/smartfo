@@ -1823,36 +1823,76 @@ fn run_noargs(args: &SmartfoArgs) -> Result<()> {
         args.human,
     );
 
-    // ponytail: content_first module missing - disabled
-    // Generate state summary using the new content_first module
-    // let state_summary = StateSummary::generate()?;
-    anyhow::bail!("content_first module is missing - no-args invocation disabled");
+    // Build state summary as JSON (read-only: no directory/file creation)
+    let state = serde_json::json!({
+        "context": get_context_summary(),
+        "daemon": get_daemon_status(),
+        "operations": get_queue_summary()?,
+    });
 
-    /*
     // Output based on format
     match output_format {
+        OutputFormat::Json => {
+            let json_output = serde_json::to_string_pretty(&state)?;
+            println!("{}", json_output);
+        }
         OutputFormat::Toon => {
-            let toon_output = state_summary.format_toon();
-            println!("{}", toon_output);
+            // ponytail: TOON formatting for no-args is a compact key=value summary
+            let toon = format!(
+                "## smartfo state\n\
+                 in_git_repo={}\n\
+                 daemon={}\n\
+                 queue_exists={}\n\
+                 use: smartfo status / smartfo list",
+                state["context"]["in_git_repository"],
+                state["daemon"]["status"],
+                state["operations"]["queue_exists"],
+            );
+            println!("{}", toon);
         }
         OutputFormat::Human => {
-            let human_output = state_summary.format_human();
-            println!("{}", human_output);
-        }
-        OutputFormat::Json => {
-            let json_output = serde_json::to_string_pretty(&state_summary)?;
-            println!("{}", json_output);
+            println!("smartfo state summary");
+            println!("  Git repo: {}", state["context"]["in_git_repository"]);
+            println!("  Daemon:   {}", state["daemon"]["status"]);
+            println!("  Queue:    {}", if state["operations"]["queue_exists"].as_bool().unwrap_or(false) {
+                format!("{} job(s)", state["operations"]["queue_depth"])
+            } else {
+                "no queue".to_string()
+            });
+            println!();
+            println!("Use 'smartfo status' for detailed status, 'smartfo list' for operations.");
         }
     }
 
     Ok(())
-    */
 }
 
-/// Get queue summary for operations
+/// Get context summary (current directory, git repo status) — read-only
+fn get_context_summary() -> serde_json::Value {
+    let current_dir = std::env::current_dir()
+        .map(|d| d.display().to_string())
+        .unwrap_or_else(|_| "unknown".to_string());
+
+    let (git_root, in_git) = match detect_git_repo() {
+        Some(root) => (root.display().to_string(), true),
+        None => (String::new(), false),
+    };
+
+    serde_json::json!({
+        "current_directory": current_dir,
+        "git_repository_root": git_root,
+        "in_git_repository": in_git,
+    })
+}
+
+/// Get queue summary for operations — read-only: checks file existence before opening
 fn get_queue_summary() -> Result<serde_json::Value> {
-    // Try to get queue depth using default queue path
-    let queue_path = std::path::PathBuf::from("/tmp/smartfo-queue.db");
+    let xdg_data_home = std::env::var("XDG_DATA_HOME")
+        .unwrap_or_else(|_| {
+            let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+            format!("{}/.local/share", home)
+        });
+    let queue_path = std::path::PathBuf::from(xdg_data_home).join("smartfo/queue.db");
 
     if !queue_path.exists() {
         return Ok(serde_json::json!({
@@ -1872,13 +1912,26 @@ fn get_queue_summary() -> Result<serde_json::Value> {
     }))
 }
 
-/// Get daemon status
+/// Get daemon status — read-only: checks socket existence without creating data directories
 fn get_daemon_status() -> serde_json::Value {
-    let daemon = daemon::Daemon::new();
+    let xdg_data_home = std::env::var("XDG_DATA_HOME")
+        .unwrap_or_else(|_| {
+            let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+            format!("{}/.local/share", home)
+        });
+    let socket_path = std::path::PathBuf::from(xdg_data_home).join("smartfo/daemon.sock");
 
-    match daemon {
+    if !socket_path.exists() {
+        return serde_json::json!({
+            "status": "not_running",
+            "message": "Daemon is not currently running",
+            "use_status": "Run 'smartfo status' for detailed daemon status"
+        });
+    }
+
+    // Socket exists — try to ping via Daemon (directory already exists, no side effect)
+    match daemon::Daemon::new() {
         Ok(d) => {
-            // Check if daemon is running by pinging it
             match d.ping_daemon() {
                 Ok(true) => {
                     serde_json::json!({
@@ -1887,17 +1940,10 @@ fn get_daemon_status() -> serde_json::Value {
                         "use_status": "Run 'smartfo status' for detailed daemon status"
                     })
                 }
-                Ok(false) => {
+                _ => {
                     serde_json::json!({
                         "status": "not_running",
                         "message": "Daemon is not currently running",
-                        "use_status": "Run 'smartfo status' for detailed daemon status"
-                    })
-                }
-                Err(e) => {
-                    serde_json::json!({
-                        "status": "unknown",
-                        "error": format!("Failed to check daemon status: {}", e),
                         "use_status": "Run 'smartfo status' for detailed daemon status"
                     })
                 }
