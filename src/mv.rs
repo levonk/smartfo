@@ -339,9 +339,10 @@ pub fn handle_dest_exists(
         create_backup(dest)?;
     }
 
+    // backup is an explicit overwrite-with-safety-net — no prompt needed.
     // Use confirmation prompt for overwrite
     let mut confirmation_state = ConfirmationState::default();
-    let should_prompt = interactive || !force && !quiet;
+    let should_prompt = !backup && (interactive || !force && !quiet);
 
     if should_prompt {
         let dest_display = dest.display();
