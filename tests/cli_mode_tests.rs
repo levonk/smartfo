@@ -1,8 +1,10 @@
 #[cfg(test)]
 mod mode_detection_tests {
     use smartfo::config::OutputMode;
+    use serial_test::serial;
 
     #[test]
+    #[serial]
     fn test_agent_session_detection() {
         // Test with CLAUDE_SESSION set
         std::env::set_var("CLAUDE_SESSION", "test");
@@ -24,6 +26,7 @@ mod mode_detection_tests {
     }
 
     #[test]
+    #[serial]
     fn test_mode_resolve() {
         // Test explicit Agent mode
         assert_eq!(OutputMode::Agent.resolve(), OutputMode::Agent);
@@ -37,14 +40,14 @@ mod mode_detection_tests {
         std::env::remove_var("CLAUDE_SESSION");
 
         // Test Auto mode without agent session (will depend on TTY)
-        // In test environment, we can't reliably test TTY detection
-        // but we can test the logic path
+        // In test environment, stdout is not a TTY → Script mode
         let resolved = OutputMode::Auto.resolve();
-        // Should be either Agent or Human depending on TTY
-        assert!(matches!(resolved, OutputMode::Agent | OutputMode::Human));
+        // Non-TTY, no agent session → Script
+        assert!(matches!(resolved, OutputMode::Script));
     }
 
     #[test]
+    #[serial]
     fn test_determine_mode_cli_precedence() {
         // CLI agent flag should override everything
         let mode = OutputMode::determine_mode(false, true, OutputMode::Human);
@@ -60,6 +63,7 @@ mod mode_detection_tests {
     }
 
     #[test]
+    #[serial]
     fn test_determine_mode_env_precedence() {
         // Environment variable should override config when no CLI flags
         std::env::set_var("SMARTFO_MODE", "agent");
@@ -80,6 +84,7 @@ mod mode_detection_tests {
     }
 
     #[test]
+    #[serial]
     fn test_determine_mode_invalid_env() {
         // Invalid environment variable should fall back to config
         std::env::set_var("SMARTFO_MODE", "invalid");
@@ -89,6 +94,7 @@ mod mode_detection_tests {
     }
 
     #[test]
+    #[serial]
     fn test_determine_mode_cli_overrides_env() {
         // CLI flags should override environment variable
         std::env::set_var("SMARTFO_MODE", "human");
@@ -100,5 +106,24 @@ mod mode_detection_tests {
         let mode = OutputMode::determine_mode(true, false, OutputMode::Auto);
         assert_eq!(mode, OutputMode::Human);
         std::env::remove_var("SMARTFO_MODE");
+    }
+
+    #[test]
+    #[serial]
+    fn test_script_mode() {
+        // Script mode is non-TTY + no agent session
+        // Test env is non-TTY, so with no agent session → script mode
+        std::env::remove_var("CLAUDE_SESSION");
+        std::env::remove_var("CODEX_SESSION");
+        std::env::remove_var("AGENT_SESSION");
+        assert!(OutputMode::is_script_mode());
+
+        // With agent session, not script mode
+        std::env::set_var("CLAUDE_SESSION", "test");
+        assert!(!OutputMode::is_script_mode());
+        std::env::remove_var("CLAUDE_SESSION");
+
+        // Script variant resolves to itself
+        assert_eq!(OutputMode::Script.resolve(), OutputMode::Script);
     }
 }

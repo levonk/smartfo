@@ -39,6 +39,19 @@ impl LogLevel {
         }
     }
 
+    /// Parse a log level from a string (config file or programmatic default)
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s.to_lowercase().as_str() {
+            "debug" => Some(LogLevel::Debug),
+            "verbose" => Some(LogLevel::Verbose),
+            "info" => Some(LogLevel::Info),
+            "warn" => Some(LogLevel::Warn),
+            "error" => Some(LogLevel::Error),
+            "quiet" | "off" => Some(LogLevel::Quiet),
+            _ => None,
+        }
+    }
+
     /// Convert to string for EnvFilter
     pub fn to_filter_string(self) -> String {
         match self {
@@ -109,8 +122,16 @@ pub fn init_logging(
             }
         });
 
-    // Resolve log level: CLI flags > env > config > default (info)
-    let log_level = LogLevel::from_cli_flags(debug, quiet);
+    // Resolve log level: CLI flags > config_level > default (info)
+    let log_level = if debug {
+        LogLevel::Debug
+    } else if quiet {
+        LogLevel::Quiet
+    } else if let Some(lvl) = config_level.and_then(LogLevel::from_str) {
+        lvl
+    } else {
+        LogLevel::Info
+    };
 
     let env_filter = if log_level == LogLevel::Quiet {
         // Quiet mode suppresses all logging

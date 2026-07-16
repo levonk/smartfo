@@ -646,6 +646,9 @@ pub enum OutputMode {
     Agent,
     /// Human mode: optimized for human interaction (friendly messages, interactive prompts)
     Human,
+    /// Script mode: non-TTY, no agent session (shell startup, scripts, cron)
+    /// Minimal init, POSIX-silent, no logging, no signal handlers
+    Script,
     /// Auto mode: automatically detect based on environment (TTY, agent session)
     #[default]
     Auto,
@@ -669,15 +672,24 @@ impl OutputMode {
         match self {
             OutputMode::Agent => OutputMode::Agent,
             OutputMode::Human => OutputMode::Human,
+            OutputMode::Script => OutputMode::Script,
             OutputMode::Auto => {
-                // Auto-detection: prefer agent mode when in agent session or non-TTY
-                if Self::detect_agent_session() || !Self::is_tty() {
+                // Auto-detection: agent session → Agent, TTY → Human, else → Script
+                if Self::detect_agent_session() {
                     OutputMode::Agent
-                } else {
+                } else if Self::is_tty() {
                     OutputMode::Human
+                } else {
+                    OutputMode::Script
                 }
             }
         }
+    }
+
+    /// Cheap early detection for startup fast-path (before args parsing)
+    /// True when non-TTY and no agent session — shell startup, scripts, cron
+    pub fn is_script_mode() -> bool {
+        !Self::is_tty() && !Self::detect_agent_session()
     }
 
     /// Determine the final output mode based on precedence chain
@@ -700,6 +712,7 @@ impl OutputMode {
             return match env_mode.to_lowercase().as_str() {
                 "agent" => OutputMode::Agent,
                 "human" => OutputMode::Human,
+                "script" => OutputMode::Script,
                 "auto" => OutputMode::Auto,
                 _ => config_mode,
             };
@@ -1348,9 +1361,6 @@ fn apply_env_overrides(config: &mut Config) -> anyhow::Result<()> {
                     "drive_detection" => {
                         config.concurrency.drive_detection = value.parse().unwrap_or(true);
                     }
-                    _ => {}
-                },
-                "behavior" => match key_name.as_str() {
                     "smart_mode" => config.behavior.smart_mode = value.parse().unwrap_or(true),
                     "async_threshold_mb" => {
                         if let Ok(v) = value.parse() {
@@ -1368,6 +1378,7 @@ fn apply_env_overrides(config: &mut Config) -> anyhow::Result<()> {
                         config.behavior.mode = match value.to_lowercase().as_str() {
                             "agent" => OutputMode::Agent,
                             "human" => OutputMode::Human,
+                            "script" => OutputMode::Script,
                             "auto" => OutputMode::Auto,
                             _ => OutputMode::Auto,
                         };
@@ -1530,8 +1541,10 @@ pub fn init_config_if_missing() -> anyhow::Result<bool> {
 mod tests {
     use super::*;
     use std::io::Write;
+    use serial_test::serial;
 
     #[test]
+    #[serial]
     fn test_default_config() {
         let config = Config::default();
         assert_eq!(config.vcs.preference, "git");
@@ -1542,6 +1555,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_expand_env_vars_simple() {
         env::set_var("SMARTFO_TEST_VAR", "hello");
         assert_eq!(expand_env_vars("$SMARTFO_TEST_VAR/world"), "hello/world");
@@ -1550,12 +1564,14 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_expand_env_vars_missing() {
         env::remove_var("SMARTFO_NONEXISTENT");
         assert_eq!(expand_env_vars("$SMARTFO_NONEXISTENT/fallback"), "/fallback");
     }
 
     #[test]
+    #[serial]
     fn test_load_config_file() {
         let mut tmpfile = tempfile::NamedTempFile::new().unwrap();
         let toml = r#"
@@ -1575,6 +1591,7 @@ default_blocking = true
     }
 
     #[test]
+    #[serial]
     fn test_system_config_path() {
         let path = system_config_path();
         #[cfg(target_os = "linux")]
@@ -1591,6 +1608,7 @@ default_blocking = true
     }
 
     #[test]
+    #[serial]
     fn test_project_config_path() {
         // This test should pass when run from within a Git repository
         let path = project_config_path();
@@ -1600,6 +1618,7 @@ default_blocking = true
     }
 
     #[test]
+    #[serial]
     fn test_config_precedence() {
         let mut tmpdir = tempfile::TempDir::new().unwrap();
 
@@ -1628,12 +1647,14 @@ default_blocking = true
     }
 
     #[test]
+    #[serial]
     fn test_daemon_fallback_quiet_default() {
         let config = Config::default();
         assert!(!config.behavior.daemon_fallback_quiet);
     }
 
     #[test]
+    #[serial]
     fn test_daemon_fallback_quiet_env_override() {
         env::set_var("SMARTFO_BEHAVIOR_DAEMON_FALLBACK_QUIET", "true");
         let mut config = Config::default();
@@ -1643,6 +1664,7 @@ default_blocking = true
     }
 
     #[test]
+    #[serial]
     fn test_default_config_template() {
         let template = default_config_template();
         assert!(template.contains("# Smartfo Configuration File"));
@@ -1651,6 +1673,7 @@ default_blocking = true
     }
 
     #[test]
+    #[serial]
     fn test_create_default_config() {
         let tmpdir = tempfile::TempDir::new().unwrap();
         let config_dir = tmpdir.path().join(".config").join("smartfo");
@@ -1681,6 +1704,7 @@ default_blocking = true
     }
 
     #[test]
+    #[serial]
     fn test_init_config_if_missing() {
         let tmpdir = tempfile::TempDir::new().unwrap();
         let config_dir = tmpdir.path().join(".config").join("smartfo");
@@ -1714,6 +1738,7 @@ default_blocking = true
     }
 
     #[test]
+    #[serial]
     fn test_load_config_with_env_expansion() {
         env::set_var("SMARTFO_TEST_HOME", "/test/home");
         let mut tmpfile = tempfile::NamedTempFile::new().unwrap();
@@ -1729,6 +1754,7 @@ root = "$SMARTFO_TEST_HOME/trash"
     }
 
     #[test]
+    #[serial]
     fn test_env_override_paths() {
         env::set_var("SMARTFO_PATHS_AUDIT_LOG", "/custom/audit.jsonl");
         let config = resolve_config(None).unwrap();
@@ -1737,6 +1763,7 @@ root = "$SMARTFO_TEST_HOME/trash"
     }
 
     #[test]
+    #[serial]
     fn test_precedence_cli_over_env_over_file_over_default() {
         // Clean up any environment variables that might interfere
         env::remove_var("SMARTFO_VCS_PREFERENCE");
@@ -1760,6 +1787,7 @@ preference = "svn"
     }
 
     #[test]
+    #[serial]
     fn test_missing_config_falls_back_to_defaults() {
         // Clean up any environment variables that might interfere
         env::remove_var("SMARTFO_VCS_PREFERENCE");
@@ -1774,6 +1802,7 @@ preference = "svn"
     }
 
     #[test]
+    #[serial]
     fn test_default_config_template_is_valid_toml() {
         let template = default_config_template();
         let config: Config = toml::from_str(&template).unwrap();
@@ -1782,6 +1811,7 @@ preference = "svn"
     }
 
     #[test]
+    #[serial]
     fn test_invalid_config_produces_error() {
         let mut tmpfile = tempfile::NamedTempFile::new().unwrap();
         tmpfile.write_all(b"[vcs]\npreference = 123\n").unwrap();
@@ -1810,8 +1840,10 @@ pub fn reload_config(current_config: &Config, config_path: Option<&std::path::Pa
 mod reload_tests {
     use super::*;
     use std::io::Write;
+    use serial_test::serial;
 
     #[test]
+    #[serial]
     fn test_reload_config_with_valid_config() {
         let current_config = Config::default();
         let result = reload_config(&current_config, None);
@@ -1819,6 +1851,7 @@ mod reload_tests {
     }
 
     #[test]
+    #[serial]
     fn test_reload_config_preserves_validation() {
         let current_config = Config::default();
 

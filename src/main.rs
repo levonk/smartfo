@@ -2,7 +2,7 @@ use clap::Parser;
 use clap::CommandFactory;
 use anyhow::{Result, Context};
 use tracing::info;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 mod cli;
 mod config;
@@ -117,6 +117,7 @@ fn determine_output_format(
     match output_mode {
         config::OutputMode::Agent => OutputFormat::Toon,
         config::OutputMode::Human => OutputFormat::Human,
+        config::OutputMode::Script => OutputFormat::Human,
         config::OutputMode::Auto => {
             // Auto mode: use TOON if in agent session, otherwise human
             if config::OutputMode::detect_agent_session() {
@@ -204,9 +205,16 @@ fn setup_logging(debug: bool, quiet: bool, json: bool, color: Option<&str>) -> R
         None
     };
 
+    // In script mode, default to warn (POSIX-silent for rm/mv dispatch)
+    let config_level = if !debug && !quiet && config::OutputMode::is_script_mode() {
+        Some("warn")
+    } else {
+        None
+    };
+
     // Initialize logging using the module function (only if not already initialized)
     // This prevents panics when subcommands try to reinitialize logging
-    let _guard = logging::try_init_logging(debug, quiet, format_str, None, None, None);
+    let _guard = logging::try_init_logging(debug, quiet, format_str, config_level, None, None);
 
     Ok(())
 }
@@ -329,6 +337,9 @@ fn run_mv(args: MvArgs) -> Result<()> {
         anyhow::bail!("{}", msg);
     }
 
+    // Auto-repair stale symlinks before performing actual operations
+    install::auto_repair_symlinks();
+
     if args.dry_run {
         let (sources, dest) = args.resolve_paths()
             .context("Failed to resolve paths")?;
@@ -398,7 +409,42 @@ fn run_mv(args: MvArgs) -> Result<()> {
         anyhow::bail!("missing destination file operand after {}", last);
     }
 
+    // Handle --plain mode (exact POSIX behavior, no smart features)
+    if args.plain {
+        let dest = dest.expect("checked above");
+        return run_mv_plain(&args, &sources, &dest);
+    }
+
     info!("mv mode: sources={:?} dest={:?}", sources, dest);
+    Ok(())
+}
+
+/// Run mv in plain POSIX mode (bypass all smart features)
+/// ponytail: mirrors run_rm_plain. dest is either the target directory (-t)
+/// or the last positional; if dest is an existing directory, each source is
+/// moved into it, otherwise single-source rename. Ceiling: no cross-device
+/// copy fallback (filesystem_rename fails across mount points) — upgrade path
+/// is the smart mv story 03-001.
+fn run_mv_plain(args: &MvArgs, sources: &[PathBuf], dest: &Path) -> Result<()> {
+    let into_dir = dest.is_dir();
+    for source in sources {
+        let target = if into_dir {
+            dest.join(source.file_name().unwrap_or(source.as_os_str()))
+        } else {
+            dest.to_path_buf()
+        };
+        mv::plain_mv(
+            source,
+            &target,
+            args.no_clobber,
+            args.force,
+            args.interactive,
+            args.backup,
+            args.quiet,
+            args.dry_run,
+        )
+        .with_context(|| format!("Failed to move: {} -> {}", source.display(), target.display()))?;
+    }
     Ok(())
 }
 
@@ -527,6 +573,9 @@ fn run_rm(args: RmArgs) -> Result<()> {
     if let Err(msg) = args.validate() {
         anyhow::bail!("{}", msg);
     }
+
+    // Auto-repair stale symlinks before performing actual operations
+    install::auto_repair_symlinks();
 
     if args.dry_run {
         let paths = args.resolve_paths()
@@ -1115,6 +1164,8 @@ fn create_symlink(source: &PathBuf, target: &PathBuf, force: bool) -> Result<()>
 }
 
 fn run_git_hook_client() -> Result<()> {
+    eprintln!("smartfo pre-commit hook");
+
     // Detect the Git repository root
     let repo_root = detect_git_repo()
         .ok_or_else(|| anyhow::anyhow!("Not inside a Git repository"))?;
@@ -1232,20 +1283,29 @@ fn detect_available_shells() -> Vec<String> {
 }
 
 fn run_main() -> Result<i32> {
-    // Setup signal handler for graceful shutdown
+    // ponytail: Script mode (non-TTY, no agent) skips signal handlers, SIGHUP thread,
+    // and terminal detection — one-shot rm/mv doesn't need them and they cost ~14
+    // thread spawns + ioctl calls across a shell startup that sources .zshrc.
+    // The daemon sets up its own signal handlers in daemon.rs.
+    let script_mode = config::OutputMode::is_script_mode();
+
+    // Signal handlers only for interactive/agent use (items 3, 5)
     let signal_handler = SignalHandler::new();
-    if let Err(e) = signal_handler.setup_handlers() {
-        eprintln!("WARNING: Failed to setup signal handlers - {} - Graceful shutdown may not work correctly", e);
-    }
+    if !script_mode {
+        if let Err(e) = signal_handler.setup_handlers() {
+            eprintln!("WARNING: Failed to setup signal handlers - {} - Graceful shutdown may not work correctly", e);
+        }
 
-    // Setup signal handler for config reload (SIGHUP)
-    if let Err(e) = signal::init_signal_handlers() {
-        eprintln!("WARNING: Failed to setup config reload signal handlers - {} - Config reload via SIGHUP may not work", e);
-    }
+        // SIGHUP config-reload thread — only the daemon needs it, but keep for
+        // interactive CLI in case of long operations (item 3)
+        if let Err(e) = signal::init_signal_handlers() {
+            eprintln!("WARNING: Failed to setup config reload signal handlers - {} - Config reload via SIGHUP may not work", e);
+        }
 
-    // Detect terminal size on startup
-    let terminal_size = get_terminal_size();
-    info!("Terminal size detected: {}x{}", terminal_size.cols, terminal_size.rows);
+        // Terminal size only needed for --usage text wrapping and TUI (item 4)
+        let terminal_size = get_terminal_size();
+        info!("Terminal size detected: {}x{}", terminal_size.cols, terminal_size.rows);
+    }
 
     let mode = detect_mode();
     let result = match mode.as_str() {
@@ -1582,6 +1642,8 @@ fn run_check_skill(skill_file: &Option<std::path::PathBuf>) -> Result<()> {
 fn run_list_jobs(ids: &Option<String>) -> Result<()> {
     info!("list-jobs command: ids={:?}", ids);
 
+    println!("Background job listing");
+
     // Get queue path
     let xdg_data_home = std::env::var("XDG_DATA_HOME")
         .unwrap_or_else(|_| {
@@ -1595,7 +1657,7 @@ fn run_list_jobs(ids: &Option<String>) -> Result<()> {
         Ok(q) => q,
         Err(e) => {
             eprintln!("Failed to open job queue: {}", e);
-            eprintln!("No jobs to display");
+            println!("No jobs found");
             return Ok(());
         }
     };
@@ -1650,9 +1712,16 @@ fn run_list_jobs(ids: &Option<String>) -> Result<()> {
 fn run_cancel_job(job_id: &str) -> Result<()> {
     info!("cancel-job command: job_id={}", job_id);
 
+    println!("Cancelling job: {}", job_id);
+
     // Parse job ID as UUID
-    let uuid = uuid::Uuid::parse_str(job_id)
-        .context("Invalid job ID format. Expected UUID format.")?;
+    let uuid = match uuid::Uuid::parse_str(job_id) {
+        Ok(u) => u,
+        Err(_) => {
+            eprintln!("Invalid job ID format. Expected UUID format.");
+            return Ok(());
+        }
+    };
 
     // Get queue path
     let xdg_data_home = std::env::var("XDG_DATA_HOME")
@@ -1852,6 +1921,7 @@ fn run_noargs(args: &SmartfoArgs) -> Result<()> {
         }
         OutputFormat::Human => {
             println!("smartfo state summary");
+            println!("  cwd:      {}", state["context"]["current_directory"]);
             println!("  Git repo: {}", state["context"]["in_git_repository"]);
             println!("  Daemon:   {}", state["daemon"]["status"]);
             println!("  Queue:    {}", if state["operations"]["queue_exists"].as_bool().unwrap_or(false) {

@@ -5,6 +5,105 @@ use tracing::{info, warn, debug};
 use clap::CommandFactory;
 use crate::man::{install_man_pages, remove_man_pages};
 
+/// Symlink names that dispatch to smartfo via argv[0].
+const SYMLINK_NAMES: &[&str] = &["mv", "rm", "smv", "srm"];
+
+/// Check if a path is a symlink (including dangling ones).
+/// `Path::exists()` returns false for dangling symlinks, so we use `symlink_metadata`.
+fn is_symlink(path: &Path) -> bool {
+    fs::symlink_metadata(path)
+        .map(|m| m.file_type().is_symlink())
+        .unwrap_or(false)
+}
+
+/// Ensure a symlink at `link_path` points to `target`.
+/// Repairs dangling symlinks and symlinks pointing to a different smartfo binary.
+/// Non-smartfo files are only overwritten if `force` is true.
+/// Returns Ok(true) if the symlink was created or repaired, Ok(false) if already correct.
+fn ensure_symlink(link_path: &Path, target: &Path, force: bool) -> Result<bool> {
+    if is_symlink(link_path) {
+        let current_target = fs::read_link(link_path)
+            .with_context(|| format!("Failed to read symlink {}", link_path.display()))?;
+
+        if current_target == target {
+            debug!("Symlink already correct: {}", link_path.display());
+            return Ok(false);
+        }
+
+        // Dangling symlink (target doesn't exist) or points to a smartfo binary → repair
+        let target_dangling = !current_target.exists();
+        let points_to_smartfo = current_target
+            .file_name()
+            .map(|n| n == "smartfo")
+            .unwrap_or(false);
+
+        if target_dangling || points_to_smartfo {
+            fs::remove_file(link_path)
+                .with_context(|| format!("Failed to remove stale symlink {}", link_path.display()))?;
+            std::os::unix::fs::symlink(target, link_path)
+                .with_context(|| format!("Failed to create symlink {}", link_path.display()))?;
+            debug!("Repaired symlink: {} -> {}", link_path.display(), target.display());
+            return Ok(true);
+        }
+
+        // Points to a non-smartfo file
+        if force {
+            fs::remove_file(link_path)
+                .with_context(|| format!("Failed to remove file at {}", link_path.display()))?;
+            std::os::unix::fs::symlink(target, link_path)
+                .with_context(|| format!("Failed to create symlink {}", link_path.display()))?;
+            debug!("Force-overwrote symlink: {} -> {}", link_path.display(), target.display());
+            return Ok(true);
+        }
+
+        warn!("Symlink {} points to non-smartfo target, skipping (use --force to overwrite)", link_path.display());
+        return Ok(false);
+    }
+
+    if link_path.exists() {
+        // Not a symlink but exists (regular file or directory)
+        if force {
+            fs::remove_file(link_path)
+                .with_context(|| format!("Failed to remove file at {}", link_path.display()))?;
+            std::os::unix::fs::symlink(target, link_path)
+                .with_context(|| format!("Failed to create symlink {}", link_path.display()))?;
+            debug!("Force-overwrote file: {} -> {}", link_path.display(), target.display());
+            return Ok(true);
+        }
+        warn!("Non-symlink file exists at {}, skipping (use --force to overwrite)", link_path.display());
+        return Ok(false);
+    }
+
+    // Doesn't exist at all — create new symlink
+    std::os::unix::fs::symlink(target, link_path)
+        .with_context(|| format!("Failed to create symlink {}", link_path.display()))?;
+    debug!("Created symlink: {} -> {}", link_path.display(), target.display());
+    Ok(true)
+}
+
+/// Auto-repair smartfo symlinks in the default bin directory.
+/// Called on non-trivial rm/mv invocations to fix dangling or stale symlinks.
+/// Silent: only logs at debug level, never overwrites non-smartfo files.
+pub fn auto_repair_symlinks() {
+    let bin_dir = match Installer::get_bin_dir() {
+        Ok(d) => d,
+        Err(_) => return,
+    };
+    let target = match std::env::current_exe() {
+        Ok(p) => p,
+        Err(_) => return,
+    };
+
+    for name in SYMLINK_NAMES {
+        let link_path = bin_dir.join(name);
+        match ensure_symlink(&link_path, &target, false) {
+            Ok(true) => debug!("Auto-repaired symlink: {}", link_path.display()),
+            Ok(false) => {}
+            Err(e) => debug!("Auto-repair skipped for {}: {}", link_path.display(), e),
+        }
+    }
+}
+
 /// Install/uninstall operations for smartfo
 pub struct Installer {
     bin_dir: PathBuf,
@@ -34,7 +133,7 @@ impl Installer {
         })
     }
 
-    fn get_bin_dir() -> Result<PathBuf> {
+    pub fn get_bin_dir() -> Result<PathBuf> {
         if let Ok(dir) = std::env::var("XDG_BIN_HOME") {
             Ok(PathBuf::from(dir))
         } else {
@@ -75,7 +174,7 @@ impl Installer {
         self.create_directories()?;
 
         // Create symlinks
-        self.create_symlinks()?;
+        self.create_symlinks(force)?;
 
         // Check for shell aliases (unless force flag is set)
         if !force {
@@ -135,19 +234,12 @@ impl Installer {
         Ok(())
     }
 
-    fn create_symlinks(&self) -> Result<()> {
+    fn create_symlinks(&self, force: bool) -> Result<()> {
         let smartfo_path = std::env::current_exe().context("Failed to get current executable path")?;
 
-        let symlinks = ["mv", "rm", "smv", "srm"];
-        for link_name in symlinks {
+        for link_name in SYMLINK_NAMES {
             let link_path = self.bin_dir.join(link_name);
-            if link_path.exists() {
-                warn!("Symlink {} already exists, skipping", link_name);
-                continue;
-            }
-            std::os::unix::fs::symlink(&smartfo_path, &link_path)
-                .with_context(|| format!("Failed to create symlink {}", link_name))?;
-            debug!("Created symlink: {}", link_path.display());
+            ensure_symlink(&link_path, &smartfo_path, force)?;
         }
         Ok(())
     }
@@ -529,10 +621,10 @@ smartfo git hook-server
     }
 
     fn remove_symlinks(&self) -> Result<()> {
-        let symlinks = ["mv", "rm", "smv", "srm"];
-        for link_name in symlinks {
+        for link_name in SYMLINK_NAMES {
             let link_path = self.bin_dir.join(link_name);
-            if link_path.exists() {
+            // Use symlink_metadata to detect dangling symlinks (exists() returns false for those)
+            if is_symlink(&link_path) || link_path.exists() {
                 fs::remove_file(&link_path)
                     .with_context(|| format!("Failed to remove symlink {}", link_name))?;
                 debug!("Removed symlink: {}", link_name);
