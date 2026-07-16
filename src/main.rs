@@ -343,7 +343,7 @@ fn run_mv(args: MvArgs) -> Result<()> {
     if args.dry_run {
         let (sources, dest) = args.resolve_paths()
             .context("Failed to resolve paths")?;
-        info!("dry-run: mv {:?} -> {:?}", sources, dest);
+        eprintln!("dry-run: mv {:?} -> {:?}", sources, dest);
 
         // Show what would be done
         println!("Dry-run mode: No changes will be made");
@@ -580,7 +580,7 @@ fn run_rm(args: RmArgs) -> Result<()> {
     if args.dry_run {
         let paths = args.resolve_paths()
             .context("Failed to resolve paths")?;
-        info!("dry-run: rm {:?}", paths);
+        eprintln!("dry-run: rm {:?}", paths);
 
         // Show what would be done
         println!("Dry-run mode: No changes will be made");
@@ -947,7 +947,7 @@ fn run_install(args: &SmartfoArgs) -> Result<()> {
         info!("Created default config file");
     }
 
-    info!("install mode: hooks={:?} no_hooks={} force={}", args.hooks, args.no_hooks, args.force);
+    eprintln!("install mode: hooks={:?} no_hooks={} force={}", args.hooks, args.no_hooks, args.force);
 
     // Use the new install.rs module (includes hook installation)
     let installer = install::Installer::new()?;

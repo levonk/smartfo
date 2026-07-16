@@ -242,14 +242,14 @@ impl MvArgs {
 
         // Validate sources are provided (before glob expansion)
         if self.sources.is_empty() {
-            return Err("Missing source file(s)".to_string());
+            return Err("missing file operand".to_string());
         }
 
         // Validate destination or target directory is provided
         // Note: We can't fully validate this until after glob expansion
         // because the number of sources might change
         if self.target_directory.is_none() && self.sources.len() < 2 {
-            return Err("Missing destination file operand".to_string());
+            return Err("missing destination file operand".to_string());
         }
 
         Ok(())
@@ -502,7 +502,7 @@ impl RmArgs {
 
         // Validate paths are provided (before glob expansion)
         if self.paths.is_empty() {
-            return Err("Missing file operand(s)".to_string());
+            return Err("missing operand".to_string());
         }
 
         // Validate recursive flag usage
