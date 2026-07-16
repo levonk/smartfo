@@ -202,12 +202,11 @@ impl MvArgs {
                 read_stdin_paths()
                     .context("Failed to read from stdin")?
             }
-        } else if is_stdin_piped() {
-            // stdin is piped but no explicit `-` flag
-            read_stdin_paths()
-                .context("Failed to read from stdin")?
         } else {
-            // Expand glob patterns in file arguments
+            // No `-` flag: use file arguments. ponytail: never read stdin
+            // implicitly — doing so discards file args whenever stdin isn't a
+            // TTY (scripts, shell startup, agents), breaking `mv src dst`.
+            // stdin is opt-in via explicit `-`.
             expand_globs(&self.sources)
                 .context("Failed to expand glob patterns")?
         };
@@ -242,14 +241,14 @@ impl MvArgs {
         }
 
         // Validate sources are provided (before glob expansion)
-        if self.sources.is_empty() && !is_stdin_piped() {
+        if self.sources.is_empty() {
             return Err("Missing source file(s)".to_string());
         }
 
         // Validate destination or target directory is provided
         // Note: We can't fully validate this until after glob expansion
         // because the number of sources might change
-        if self.target_directory.is_none() && self.sources.len() < 2 && !is_stdin_piped() {
+        if self.target_directory.is_none() && self.sources.len() < 2 {
             return Err("Missing destination file operand".to_string());
         }
 
@@ -468,12 +467,11 @@ impl RmArgs {
                 read_stdin_paths()
                     .context("Failed to read from stdin")?
             }
-        } else if is_stdin_piped() {
-            // stdin is piped but no explicit `-` flag
-            read_stdin_paths()
-                .context("Failed to read from stdin")?
         } else {
-            // Expand glob patterns in file arguments
+            // No `-` flag: use file arguments. ponytail: never read stdin
+            // implicitly — doing so discards file args whenever stdin isn't a
+            // TTY (scripts, shell startup, agents), breaking `rm file`.
+            // stdin is opt-in via explicit `-`.
             expand_globs(&self.paths)
                 .context("Failed to expand glob patterns")?
         };
@@ -503,7 +501,7 @@ impl RmArgs {
         }
 
         // Validate paths are provided (before glob expansion)
-        if self.paths.is_empty() && !is_stdin_piped() {
+        if self.paths.is_empty() {
             return Err("Missing file operand(s)".to_string());
         }
 

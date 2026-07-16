@@ -114,23 +114,21 @@ pub fn is_stdin_piped() -> bool {
     !atty::is(atty::Stream::Stdin)
 }
 
-/// Process input arguments, handling both glob patterns and stdin
-/// If stdin is piped, read paths from stdin and ignore file arguments
-/// Otherwise, expand glob patterns in file arguments
+/// Process input arguments, handling both glob patterns and stdin.
+/// If stdin_flag is true (explicit `-` argument), read paths from stdin.
+/// Otherwise, expand glob patterns in file arguments — stdin is never
+/// read implicitly (see ponytail note in cli.rs resolve_paths).
 pub fn process_input_args(file_args: &[PathBuf], stdin_flag: bool) -> Result<Vec<PathBuf>> {
     if stdin_flag {
         // Explicit stdin requested via `-` argument
         debug!("Reading paths from stdin (explicit - flag)");
         return read_stdin_paths();
     }
-    
-    if is_stdin_piped() {
-        // stdin is piped, read from it
-        debug!("Reading paths from piped stdin");
-        return read_stdin_paths();
-    }
-    
-    // No stdin, expand glob patterns in file arguments
+
+    // No stdin flag: expand glob patterns in file arguments.
+    // ponytail: never read stdin implicitly — doing so discards file args
+    // whenever stdin isn't a TTY (scripts, shell startup, agents, tests),
+    // breaking `mv src dst`. stdin is opt-in via explicit `-`.
     debug!("Expanding glob patterns in file arguments");
     expand_globs(file_args)
 }
