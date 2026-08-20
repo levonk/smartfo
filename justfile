@@ -1,34 +1,77 @@
 # smartfo - Rust CLI Development Commands
 # Standard justfile following ADR-20260131001
 
+_log := '
+_jv_has() {
+  local cat="$1"
+  local v="${JUST_LOG:-0}"
+  case "$v" in
+    1|all) return 0 ;;
+    0|"") return 1 ;;
+  esac
+  v="${v//startend/start,end}"
+  echo ",$v," | grep -q ",$cat,"
+}
+log_info()   { _jv_has info   && echo "$*" || true; }
+log_start()  { _jv_has start  && echo "▶ $*" || true; }
+log_end()    { _jv_has end    && echo "✔ $*" || true; }
+log_status() { _jv_has status && echo "$*" || true; }
+log_warn()   { echo "⚠️  $*" >&2; }
+log_error()  { echo "❌ $*" >&2; }
+log_startend() {
+  local msg="$1"; shift
+  local rc
+  _jv_has start && echo "▶ $msg" || true
+  rc=0; "$@" || rc=$?
+  _jv_has end && echo "✔ $msg complete" || true
+  return $rc
+}
+'
+
+# Devbox auto-detection: run impl target directly if in devbox,
+# re-exec via devbox run if not, or fail with doctor diagnostic.
+_devbox target *args:
+    #!/usr/bin/env bash
+    {{_log}}
+    if [ "${DEVBOX_SHELL_ENABLED:-0}" = "1" ]; then
+        exec just "{{target}}" {{args}}
+    elif command -v devbox >/dev/null 2>&1; then
+        exec devbox run -- just "{{target}}" {{args}}
+    else
+        log_error "devbox not found in PATH."
+        log_warn "Running doctor to diagnose environment issues..."
+        just doctor 2>/dev/null || true
+        exit 1
+    fi
+
 # Default recipe
 default:
     @just --list
 
 # Normal targets - Developer interface (REQUIRED)
 clean:
-    devbox run clean
+    @just _devbox clean_impl
 
 dev:
-    devbox run dev
+    @just _devbox dev_impl
 
 build:
-    devbox run build
+    @just _devbox build_impl
 
 test:
-    devbox run test --quiet
+    @just _devbox test_impl --quiet
 
 lint:
-    devbox run lint
+    @just _devbox lint_impl
 
 typecheck:
-    devbox run typecheck
+    @just _devbox typecheck_impl
 
 release:
-    devbox run release
+    @just _devbox release_impl
 
 install:
-    devbox run install
+    @just _devbox install_impl
 
 # Nix-specific commands
 nix-build:
@@ -50,35 +93,156 @@ nix-install-with-hooks:
     ~/.nix-profile/bin/smartfo --install
 
 nix-deploy:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{_log}}
     # Deploy to flake registry or custom cache
     # Update flake inputs
     nix flake update
     # Build and push to cache (configure your cache URL)
     # nix build && nix copy --to https://your-cache.example.com .#default
-    echo "Configure your cache URL and uncomment the copy command above"
+    log_info "Configure your cache URL and uncomment the copy command above"
 
 # Bootstrap recipes (REQUIRED)
 bootstrap:
-    devbox run bootstrap
+    @just _devbox bootstrap_impl
 
-bootstrap-internal:
+# Prime recipes (REQUIRED)
+prime:
+    @just _devbox prime_impl
+
+# Health and diagnostics (REQUIRED)
+doctor:
+    @just _devbox doctor_impl
+
+# Quality checks (OPTIONAL but RECOMMENDED)
+quality:
+    @just lint
+    @just test
+    @just typecheck
+
+# Memory and task management targets (NEW)
+doc-search:
+    @just _devbox doc_search_impl
+
+tasks:
+    @just _devbox tasks_impl
+
+task-ready:
+    @just _devbox task_ready_impl
+
+task-start:
+    @just _devbox task_start_impl
+
+# Language-specific commands for Rust CLI
+# Development setup (OPTIONAL)
+setup:
+    #!/usr/bin/env bash
+    {{_log}}
+    log_end "Rust CLI development environment ready!"
+
+test-matrix *args:
+    # Run the mv/rm scenario matrix against a throwaway /tmp sandbox.
+    # Pass --verbose to include process output per case.
+    scripts/tests/mv-rm-matrix.sh {{args}}
+
+sync-deps:
     #!/usr/bin/env bash
     set -euo pipefail
+    {{_log}}
+    # Synchronize Cargo.lock with Cargo.toml
+    # Called by pre-commit target when Cargo.toml is modified
+    log_start "Syncing Cargo.lock with Cargo.toml"
+    cargo update
+    git add Cargo.lock
+    log_end "Cargo.lock synchronized and staged"
+
+pre-commit:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{_log}}
+    # Pre-commit hook orchestration - called by git pre-commit hook
+    # This target orchestrates all pre-commit validation checks
+    log_start "Running pre-commit checks"
+
+    # Run smartfo's blocking + staleness checks
+    log_info "Running smartfo safety checks..."
+    /Users/micro/p/gh/levonk/smartfo/target/release/smartfo git hook-client
+
+    # Check if Cargo.toml is modified and sync dependencies if needed
+    if git diff --cached --name-only | grep -q "Cargo.toml"; then
+        log_info "Cargo.toml modified, syncing dependencies..."
+        just sync-deps
+    fi
+
+    log_end "Pre-commit checks complete"
+
+# Help target
+help:
+    echo "🦀 smartfo - Rust CLI Application"
+    echo ""
+    echo "Standard commands:"
+    echo "  just bootstrap    - Initialize the development environment"
+    echo "  just build        - Build the project"
+    echo "  just test         - Run tests"
+    echo "  just lint         - Run linting"
+    echo "  just typecheck    - Run type checking"
+    echo "  just dev           - Run in development mode"
+    echo "  just clean         - Clean build artifacts"
+    echo "  just doctor        - Check environment health"
+    echo "  just quality       - Run all quality checks"
+    echo "  just release       - Full release pipeline"
+    echo "  just prime         - Index documentation and update repository"
+    echo "  just install       - Install the binary locally"
+    echo ""
+    echo "Nix commands:"
+    echo "  just nix-build     - Build with Nix"
+    echo "  just nix-develop   - Enter Nix development shell"
+    echo "  just nix-run       - Run with Nix"
+    echo "  just nix-install   - Install to Nix profile"
+    echo "  just nix-install-with-hooks - Install to Nix profile and set up symlinks"
+    echo ""
+    echo "Memory & Task Management:"
+    echo "  just doc-search    - Search documentation and memory"
+    echo "  just tasks         - List current tasks"
+    echo "  just task-ready    - Get next available task"
+    echo "  just task-start    - Start working on available task"
+    echo ""
+    echo "Rust-specific commands:"
+    echo "  just debug         - Build in debug mode"
+    echo "  just install       - Install binary locally"
+    echo "  just test-coverage - Run tests with coverage"
+    echo "  just format        - Format code"
+    echo "  just doc           - Generate documentation"
+    echo "  just audit         - Audit dependencies"
+    echo ""
+    echo "Internal commands (for devbox scripts):"
+    echo "  just *_impl        - Internal implementations"
+
+# =============================================================================
+# Implementation targets (private)
+# =============================================================================
+
+[private]
+bootstrap_impl:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{_log}}
     # Install dependencies and initialize memory management
-    echo "🦀 Rust CLI bootstrap complete for smartfo!"
+    log_end "Rust CLI bootstrap complete for smartfo!"
 
     # Initialize tkr for task management
     if command -v tkr >/dev/null 2>&1; then
         if [ ! -d ".tickets" ]; then
-            echo "[bootstrap] Initializing tkr..."
-            tkr init || echo "[bootstrap] tkr init failed"
+            log_info "Initializing tkr..."
+            tkr init || log_warn "tkr init failed"
         else
-            echo "[bootstrap] tkr already initialized"
+            log_info "tkr already initialized"
         fi
     fi
 
     # Create memory directory structure for Obsidian
-    echo "[bootstrap] Setting up memory structure..."
+    log_info "Setting up memory structure..."
     mkdir -p memory/{00-inbox,01-projects,02-decisions,03-patterns,04-learnings,05-references,98-logs,99-daily}
 
     # Create Obsidian configuration if needed
@@ -87,34 +251,28 @@ bootstrap-internal:
         echo "# Obsidian configuration" > .obsidian/config.md
     fi
 
-# Prime recipes (REQUIRED)
-prime:
-    @echo "🚀 Priming code indexing and analysis tools..."
-    @devbox run prime
-
-prime-internal:
+[private]
+prime_impl:
     #!/usr/bin/env bash
     set -euo pipefail
+    {{_log}}
     # Update repository and index documentation
-    echo "[prime] Updating repository..."
-    git fetch || echo "[prime] git fetch failed (check remote connectivity)"
+    log_info "Updating repository..."
+    git fetch || log_warn "git fetch failed (check remote connectivity)"
 
     # qmd memory indexing
     if command -v qmd >/dev/null 2>&1; then
-        echo "[prime] Indexing documentation with qmd..."
-        qmd index docs/ internal-docs/ memory/ README.md || echo "[prime] qmd indexing failed"
-        echo "[prime] qmd indexing complete."
+        log_info "Indexing documentation with qmd..."
+        qmd index docs/ internal-docs/ memory/ README.md || log_warn "qmd indexing failed"
+        log_end "qmd indexing complete"
     else
-        echo "[prime] Skipping qmd (not installed)"
+        log_info "Skipping qmd (not installed)"
     fi
 
-    echo "[prime] Rust CLI priming complete!"
+    log_end "Rust CLI priming complete"
 
-# Health and diagnostics (REQUIRED)
-doctor:
-    devbox run doctor
-
-doctor-internal:
+[private]
+doctor_impl:
     #!/usr/bin/env bash
     set -euo pipefail
     # Check Rust CLI environment
@@ -157,20 +315,11 @@ doctor-internal:
 
     echo "🚀 Ready to develop smartfo!"
 
-# Quality checks (OPTIONAL but RECOMMENDED)
-quality:
-    just lint
-    just test
-    just typecheck
-
-# Memory and task management targets (NEW)
-doc-search:
-    @echo "🔍 Searching documentation and memory..."
-    @devbox run doc-search
-
-doc-search-internal:
+[private]
+doc_search_impl:
     #!/usr/bin/env bash
     set -euo pipefail
+    {{_log}}
     # Search memory and documentation with qmd
     if command -v qmd >/dev/null 2>&1; then
         query="${1:-.}"  # Default to show all if no query
@@ -180,13 +329,11 @@ doc-search-internal:
         rg --type md "$query" docs/ internal-docs/ memory/ || true
     fi
 
-tasks:
-    @echo "📋 Listing current tasks..."
-    @devbox run tasks
-
-tasks-internal:
+[private]
+tasks_impl:
     #!/usr/bin/env bash
     set -euo pipefail
+    {{_log}}
     # List current tasks
     if command -v tkr >/dev/null 2>&1; then
         tkr list --status=open
@@ -194,13 +341,11 @@ tasks-internal:
         echo "tkr not found"
     fi
 
-task-ready:
-    @echo "🎯 Getting next available task..."
-    @devbox run task-ready
-
-task-ready-internal:
+[private]
+task_ready_impl:
     #!/usr/bin/env bash
     set -euo pipefail
+    {{_log}}
     # Get next available task
     if command -v tkr >/dev/null 2>&1; then
         tkr ready
@@ -208,175 +353,112 @@ task-ready-internal:
         echo "tkr not found"
     fi
 
-task-start:
-    @echo "🚀 Starting available task..."
-    @devbox run task-start
-
-task-start-internal:
+[private]
+task_start_impl:
     #!/usr/bin/env bash
     set -euo pipefail
+    {{_log}}
     # Start working on available task
     if command -v tkr >/dev/null 2>&1; then
         task_id=$(tkr ready | head -1 | cut -d' ' -f1)
         if [ -n "$task_id" ]; then
             tkr start "$task_id"
-            echo "Started task: $task_id"
+            log_info "Started task: $task_id"
         else
-            echo "No available tasks"
+            log_info "No available tasks"
         fi
     else
         echo "tkr not found"
     fi
 
-# Language-specific commands for Rust CLI
-# Development setup (OPTIONAL)
-setup:
-    echo "🦀 Rust CLI development environment ready!"
-
-# Internal targets - Actual implementation
-clean-internal:
+[private]
+clean_impl:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{_log}}
     # Clean build artifacts
     cargo clean
-    echo "🧹 Build artifacts removed"
+    log_end "Build artifacts removed"
 
-build-internal:
+[private]
+build_impl:
     # Build the project in debug mode
     cargo build
 
-release-internal:
-    # Full release pipeline: quality checks + build
-    echo "🚀 Starting release pipeline for smartfo..."
-    just lint-internal
-    just test-internal
-    just typecheck-internal
-    just build-release-internal
-    echo "✅ Release complete! Binary available at target/release/smartfo"
+[private]
+release_impl:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{_log}}
+    log_start "Starting release pipeline for smartfo"
+    just lint_impl
+    just test_impl
+    just typecheck_impl
+    just build_release_impl
+    log_end "Release complete! Binary available at target/release/smartfo"
 
-build-release-internal:
+[private]
+build_release_impl:
     # Build the project in release mode
     cargo build --release
 
-debug-internal:
+[private]
+debug_impl:
     # Build the project in debug mode
     cargo build
 
-install-internal:
+[private]
+install_impl:
     # Install the binary locally
     cargo install --path .
 
-lint-internal:
+[private]
+lint_impl:
     # Lint the code using clippy
     cargo clippy -- -D warnings
 
-test-internal:
+[private]
+test_impl *args:
     # Run tests
-    cargo test
+    cargo test {{args}}
 
-test-matrix *args:
-    # Run the mv/rm scenario matrix against a throwaway /tmp sandbox.
-    # Pass --verbose to include process output per case.
-    scripts/tests/mv-rm-matrix.sh {{args}}
-
-typecheck-internal:
+[private]
+typecheck_impl:
     # Run type checking (cargo check)
     cargo check
 
-dev-internal:
+[private]
+dev_impl:
     # Run the application in development mode
     cargo run
 
-run-internal:
+[private]
+run_impl:
     # Run the application with arguments
     cargo run
 
 # Additional Rust-specific targets
-test-coverage-internal:
+[private]
+test_coverage_impl:
     # Run tests with coverage
     cargo tarpaulin --out Html
 
-sync-deps:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    # Synchronize Cargo.lock with Cargo.toml
-    # Called by pre-commit target when Cargo.toml is modified
-    echo "🔄 Syncing Cargo.lock with Cargo.toml..."
-    cargo update
-    git add Cargo.lock
-    echo "✅ Cargo.lock synchronized and staged"
-
-pre-commit:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    # Pre-commit hook orchestration - called by git pre-commit hook
-    # This target orchestrates all pre-commit validation checks
-    echo "🔍 Running pre-commit checks..."
-    
-    # Run smartfo's blocking + staleness checks
-    echo "Running smartfo safety checks..."
-    /Users/micro/p/gh/levonk/smartfo/target/release/smartfo git hook-client
-    
-    # Check if Cargo.toml is modified and sync dependencies if needed
-    if git diff --cached --name-only | grep -q "Cargo.toml"; then
-        echo "Cargo.toml modified, syncing dependencies..."
-        just sync-deps
-    fi
-    
-    echo "✅ Pre-commit checks complete"
-
-format-internal:
+[private]
+format_impl:
     # Format code with rustfmt
     cargo fmt
 
-format-check-internal:
+[private]
+format_check_impl:
     # Check code format
     cargo fmt -- --check
 
-doc-internal:
+[private]
+doc_impl:
     # Generate documentation
     cargo doc --open
 
-audit-internal:
+[private]
+audit_impl:
     # Audit dependencies
     cargo audit
-
-# Help target
-help:
-    echo "🦀 smartfo - Rust CLI Application"
-    echo ""
-    echo "Standard commands:"
-    echo "  just bootstrap    - Initialize the development environment"
-    echo "  just build        - Build the project"
-    echo "  just test         - Run tests"
-    echo "  just lint         - Run linting"
-    echo "  just typecheck    - Run type checking"
-    echo "  just dev           - Run in development mode"
-    echo "  just clean         - Clean build artifacts"
-    echo "  just doctor        - Check environment health"
-    echo "  just quality       - Run all quality checks"
-    echo "  just release       - Full release pipeline"
-    echo "  just prime         - Index documentation and update repository"
-    echo "  just install       - Install the binary locally"
-    echo ""
-    echo "Nix commands:"
-    echo "  just nix-build     - Build with Nix"
-    echo "  just nix-develop   - Enter Nix development shell"
-    echo "  just nix-run       - Run with Nix"
-    echo "  just nix-install   - Install to Nix profile"
-    echo "  just nix-install-with-hooks - Install to Nix profile and set up symlinks"
-    echo ""
-    echo "Memory & Task Management:"
-    echo "  just doc-search    - Search documentation and memory"
-    echo "  just tasks         - List current tasks"
-    echo "  just task-ready    - Get next available task"
-    echo "  just task-start    - Start working on available task"
-    echo ""
-    echo "Rust-specific commands:"
-    echo "  just debug         - Build in debug mode"
-    echo "  just install       - Install binary locally"
-    echo "  just test-coverage - Run tests with coverage"
-    echo "  just format        - Format code"
-    echo "  just doc           - Generate documentation"
-    echo "  just audit         - Audit dependencies"
-    echo ""
-    echo "Internal commands (for devbox scripts):"
-    echo "  just *-internal    - Internal implementations"
